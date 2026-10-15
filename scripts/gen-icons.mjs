@@ -3,7 +3,7 @@ import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
 const BG = [255, 203, 5]; // giallo Pokémon
-const RED = [238, 21, 21];
+const RED = [155, 28, 49]; // bordeaux
 const WHITE = [255, 255, 255];
 const INK = [27, 35, 64];
 

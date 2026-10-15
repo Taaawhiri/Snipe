@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { generateVapidKeys, sendPush } from './push.js';
+import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
@@ -149,6 +150,17 @@ export class Scanner extends DurableObject {
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'expansion_id mancante' }, 400);
       try {
         return json(await this.cardsFor(id));
+      } catch (e) {
+        return json({ error: String(e.message || e) }, 502);
+      }
+    }
+
+    if (path === '/api/search' && method === 'GET') {
+      const terms = queryTerms(url.searchParams.get('q') || '');
+      if (terms.join('').length < 3) return json({ error: 'Scrivi almeno 3 lettere' }, 400);
+      try {
+        await this.startIndexIfNeeded();
+        return json(await this.searchIndex(terms));
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
@@ -486,11 +498,109 @@ export class Scanner extends DurableObject {
     return data;
   }
 
+  // ---------- Indice dei nomi (ricerca su tutte le espansioni) ----------
+
+  async indexMeta() {
+    return (await this.get('ixmeta', null)) || { have: [], done: [], complete: false, ts: 0 };
+  }
+
+  async indexPending() {
+    const m = await this.get('ixmeta', null);
+    return !!m && !m.complete;
+  }
+
+  /** Avvia il primo indice, o lo rinnova se ha più di due settimane. */
+  async startIndexIfNeeded() {
+    const meta = await this.get('ixmeta', null);
+    const stale = meta && meta.complete && Date.now() - meta.ts > 14 * 86400_000;
+    if (!meta) await this.ctx.storage.put('ixmeta', { have: [], done: [], complete: false, ts: 0 });
+    else if (stale) await this.ctx.storage.put('ixmeta', { ...meta, done: [], complete: false });
+    if (await this.indexPending()) await this.ensureAlarm();
+  }
+
+  /** Scarica le carte singole di alcune espansioni, entro un tempo massimo, e le salva nell'indice. */
+  async indexStep(budgetMs = 20_000) {
+    const meta = await this.get('ixmeta', null);
+    if (!meta || meta.complete) return;
+    const exps = await this.pokemonExpansions();
+    const singleIds = await this.singleCategoryIds();
+    const done = new Set(meta.done);
+    const have = new Set(meta.have);
+    const errors = meta.errors || {};
+    const t0 = Date.now();
+    try {
+      for (const e of exps) {
+        if (done.has(e.id)) continue;
+        if (Date.now() - t0 > budgetMs) break;
+        let raw;
+        try {
+          raw = await this.ct(`/blueprints/export?expansion_id=${e.id}`);
+        } catch (err) {
+          if (err.rateLimited) break;
+          errors[e.id] = (errors[e.id] || 0) + 1;
+          if (errors[e.id] >= 2) done.add(e.id); // non riesce: lo saltiamo
+          continue;
+        }
+        if (!Array.isArray(raw)) raw = (raw && (raw.blueprints || raw.array || raw.data)) || [];
+        const rows = raw
+          .filter((b) => isSingleCard(b, singleIds))
+          .map((b) => [b.id, b.name, b.version || '', b.category_id || 0, packImg(b.id, b.image_url)]);
+        if (rows.length) {
+          await this.ctx.storage.put(`ix:${e.id}`, rows);
+          have.add(e.id);
+        }
+        done.add(e.id);
+      }
+    } finally {
+      const complete = exps.every((e) => done.has(e.id));
+      await this.ctx.storage.put('ixmeta', {
+        have: [...have],
+        done: [...done],
+        errors,
+        complete,
+        ts: complete ? Date.now() : meta.ts,
+        total: exps.length,
+      });
+    }
+  }
+
+  /** Cerca per nome in tutte le espansioni indicizzate: risultati raggruppati per espansione, dalle più recenti. */
+  async searchIndex(terms) {
+    const meta = await this.indexMeta();
+    const exps = await this.pokemonExpansions().catch(() => []);
+    const byId = new Map(exps.map((e) => [e.id, e]));
+    const sets = [];
+    let totalCards = 0;
+    for (let i = 0; i < meta.have.length; i += 100) {
+      const ids = meta.have.slice(i, i + 100);
+      const got = await this.ctx.storage.get(ids.map((id) => `ix:${id}`));
+      for (const [key, rows] of got) {
+        const expId = parseInt(key.slice(3), 10);
+        const hits = [];
+        for (const r of rows) {
+          const n = normText(r[1]);
+          if (matchesTerms(n, terms)) hits.push({ rank: relevance(n, terms), id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]) });
+        }
+        if (!hits.length) continue;
+        hits.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+        totalCards += hits.length;
+        const e = byId.get(expId) || {};
+        sets.push({ id: expId, name: e.name || `Espansione ${expId}`, code: e.code || '', cards: hits.map(({ rank, ...c }) => c) });
+      }
+    }
+    sets.sort((a, b) => b.id - a.id); // id più alto = espansione più recente
+    return {
+      sets,
+      totalCards,
+      index: { done: meta.done.length, total: meta.total || exps.length, complete: !!meta.complete },
+    };
+  }
+
   // ---------- Scan ----------
 
   async ensureAlarm() {
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
-    if (!rules.length) return;
+    if (!rules.length && !(await this.indexPending())) return;
     const current = await this.ctx.storage.getAlarm();
     if (current === null) await this.ctx.storage.setAlarm(Date.now() + 1000);
   }
@@ -504,9 +614,15 @@ export class Scanner extends DurableObject {
       status.lastError = String(e.message || e);
     }
     status.lastScan = Date.now();
+    try {
+      await this.indexStep();
+      status.indexError = null;
+    } catch (e) {
+      status.indexError = String(e.message || e);
+    }
     await this.ctx.storage.put('status', status);
 
-    const active = (await this.get('rules', [])).some((r) => r.enabled);
+    const active = (await this.get('rules', [])).some((r) => r.enabled) || (await this.indexPending());
     if (active) await this.ctx.storage.setAlarm(Math.max(Date.now() + SCAN_EVERY_MS, this.blockedUntil));
   }
 

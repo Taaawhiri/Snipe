@@ -217,8 +217,12 @@
     const sel = $('cardExp');
     const prev = sel.value;
     const items = expansions.filter((e) => !q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q));
-    sel.replaceChildren(el('option', { value: '', text: items.length ? 'Scegli un’espansione…' : 'Nessun risultato' }), ...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})` })));
-    if (items.some((e) => String(e.id) === prev)) sel.value = prev;
+    sel.replaceChildren(
+      el('option', { value: '', text: items.length ? 'Scegli un’espansione…' : 'Nessun risultato' }),
+      el('option', { value: 'all', text: 'Tutte le espansioni (cerca per nome)' }),
+      ...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})` })),
+    );
+    if (prev === 'all' || items.some((e) => String(e.id) === prev)) sel.value = prev;
   }
   $('cardExpFilter').addEventListener('input', fillCardExpansions);
 
@@ -334,6 +338,17 @@
   // ---------- carte ----------
   let cards = [];
   let currentExp = null;
+  let dlgExp = null; // espansione della carta aperta nel dettaglio
+  let searchMode = false; // ricerca per nome su tutte le espansioni
+  let searchSets = [];
+  let searchTotal = 0;
+  let searchIndex = null;
+  let shownSets = 0;
+  let searchRun = 0;
+  let busyRun = 0;
+  let searchTimer = null;
+  let priceNote = '';
+  const SETS_PER_PAGE = 8;
   let current = null;
 
   const LANG_NAMES = { en: 'Inglese', it: 'Italiano', jp: 'Giapponese', fr: 'Francese', de: 'Tedesco', es: 'Spagnolo', pt: 'Portoghese', ko: 'Coreano', zh: 'Cinese', ru: 'Russo', th: 'Thailandese', sconosciuta: 'Lingua non indicata' };
@@ -375,7 +390,7 @@
     const q = $('cardSearch').value.trim().toLowerCase();
     const zeroMode = $('cardPriceMode').value === 'zero';
     const singlesOnly = $('cardKind').value === 'single';
-    const list = cards.filter((c) => (!singlesOnly || c.single !== false) && (!q || c.name.toLowerCase().includes(q) || (c.number || '').toLowerCase() === q));
+    const list = cards.filter((c) => (!singlesOnly || c.single !== false) && (searchMode || !q || c.name.toLowerCase().includes(q) || (c.number || '').toLowerCase() === q));
     const sort = $('cardSort').value;
     const price = (c) => (zeroMode ? view(c).lowestZero : view(c).lowest);
     if (sort === 'price-asc' || sort === 'price-desc') {
@@ -395,17 +410,23 @@
         return el('button', { class: 'tile', type: 'button', onclick: () => openCard(c) },
           el('div', { class: 'art' },
             c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
-            el('span', { class: 'pricepill' + (shown == null ? ' none' : ''), text: priceText(c) }),
+            el('span', { class: 'pricepill' + (c.loading || shown == null ? ' none' : ''), text: c.loading ? '…' : priceText(c) }),
             !zeroMode && view(c).lowestZero != null ? el('span', { class: 'zeropill', text: 'Zero ' + money(view(c).lowestZero, c.currency) }) : null,
           ),
           el('div', null,
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
             el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
+            c.expName ? el('div', { class: 'sub', text: c.expName }) : null,
           ),
         );
       }),
     );
     const msg = $('cardsMsg');
+    if (searchMode) {
+      msg.hidden = false;
+      msg.textContent = searchMessage(list);
+      return;
+    }
     msg.hidden = !currentExp;
     msg.textContent = !currentExp
       ? 'Scegli un’espansione per vedere le carte.'
@@ -416,8 +437,133 @@
           : 'CardTrader non ha restituito carte per questa espansione.';
   }
 
+  function splitVersion(v) {
+    const parts = String(v || '').split('|').map((x) => x.trim());
+    return parts.length > 1 ? { rarity: parts[0], number: parts[1] } : { rarity: null, number: null };
+  }
+
+  function searchMessage(list) {
+    const q = $('cardSearch').value.trim();
+    if (q.replace(/\s/g, '').length < 3) return 'Scrivi il nome di un Pokémon (almeno 3 lettere) per cercarlo in tutte le espansioni.';
+    if (searchTotal === 0 && searchIndex && !searchIndex.complete) return `Indice delle carte in preparazione (${searchIndex.done}/${searchIndex.total} espansioni). Riprovo in automatico.`;
+    if (searchTotal === 0 && searchIndex) return `Nessuna carta trovata per “${q}”.`;
+    const idx = searchIndex && !searchIndex.complete ? ` · indice in preparazione ${searchIndex.done}/${searchIndex.total}` : '';
+    const note = priceNote ? ` · ${priceNote}` : '';
+    return `${list.length} carte da ${shownSets} di ${searchSets.length} espansioni${note}${idx}`;
+  }
+
+  /** Ricerca per nome su tutte le espansioni: i nomi arrivano subito, i prezzi a gruppi di espansioni. */
+  async function runSearch() {
+    const run = ++searchRun;
+    clearTimeout(searchTimer);
+    const q = $('cardSearch').value.trim();
+    cards = [];
+    searchSets = [];
+    searchTotal = 0;
+    shownSets = 0;
+    priceNote = '';
+    $('moreSets').hidden = true;
+    if (q.replace(/\s/g, '').length < 3) { renderCards(); return; }
+    $('cardsMsg').hidden = false;
+    $('cardsMsg').textContent = 'Cerco…';
+    $('cardGrid').replaceChildren(...Array.from({ length: 6 }, () => el('div', { class: 'skel' })));
+    try {
+      const data = await api(`/api/search?q=${encodeURIComponent(q)}`);
+      if (run !== searchRun || !searchMode) return;
+      searchSets = data.sets;
+      searchTotal = data.totalCards;
+      searchIndex = data.index;
+      renderCards();
+      await loadNextSets(run);
+      if (!data.index.complete) watchIndex(run, q, data.totalCards);
+    } catch (e) {
+      if (run !== searchRun) return;
+      $('cardGrid').replaceChildren();
+      $('cardsMsg').textContent = `Ricerca non riuscita: ${e.message}`;
+    }
+  }
+
+  /** Mentre l'indice si completa ricontrolla ogni 30 secondi e rilancia la ricerca se compaiono nuove carte. */
+  function watchIndex(run, q, total) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(async () => {
+      if (!searchMode || run !== searchRun || $('cardSearch').value.trim() !== q) return;
+      try {
+        const data = await api(`/api/search?q=${encodeURIComponent(q)}`);
+        if (run !== searchRun) return;
+        searchIndex = data.index;
+        if (data.totalCards !== total) runSearch();
+        else if (!data.index.complete) { renderCards(); watchIndex(run, q, total); }
+        else renderCards();
+      } catch { watchIndex(run, q, total); }
+    }, 30000);
+  }
+
+  async function loadNextSets(run) {
+    busyRun = run;
+    $('moreSets').hidden = true;
+    const batch = searchSets.slice(shownSets, shownSets + SETS_PER_PAGE);
+    shownSets += batch.length;
+    for (const set of batch) {
+      for (const c of set.cards) {
+        const sv = splitVersion(c.version);
+        cards.push({ id: c.id, name: c.name, version: c.version, image: c.image, single: true, loading: true, expansionId: set.id, expName: set.name, langs: {}, lowest: null, lowestZero: null, currency: 'EUR', number: sv.number, rarity: sv.rarity });
+      }
+    }
+    renderCards();
+    let n = 0;
+    for (const set of batch) {
+      n++;
+      if (run !== searchRun) return;
+      priceNote = `carico i prezzi ${n}/${batch.length}`;
+      renderCards();
+      try {
+        const data = await api(`/api/cards?expansion_id=${set.id}`);
+        if (run !== searchRun) return;
+        const byId = new Map(data.cards.map((x) => [x.id, x]));
+        cards = cards.map((c) => {
+          if (c.expansionId !== set.id || !c.loading) return c;
+          const full = byId.get(c.id);
+          return full ? { ...full, expansionId: set.id, expName: set.name, loading: false } : { ...c, loading: false };
+        });
+      } catch (e) {
+        if (run !== searchRun) return;
+        cards = cards.map((c) => (c.expansionId === set.id ? { ...c, loading: false } : c));
+        priceNote = /429|limit/i.test(e.message) ? 'CardTrader sta limitando le richieste, prezzi parziali' : `prezzi non disponibili per alcune espansioni`;
+        if (/429|limit/i.test(e.message)) break;
+      }
+      fillLanguages(languagesOf(cards));
+    }
+    if (run !== searchRun) return;
+    if (!/limit|parziali|non disponibili/.test(priceNote)) priceNote = '';
+    if (busyRun === run) busyRun = 0;
+    $('moreSets').hidden = shownSets >= searchSets.length;
+    renderCards();
+  }
+  $('moreSetsBtn').addEventListener('click', () => {
+    if (busyRun === searchRun) return;
+    priceNote = '';
+    loadNextSets(searchRun);
+  });
+
   async function loadCards() {
     const id = $('cardExp').value;
+    searchMode = id === 'all';
+    clearTimeout(searchTimer);
+    searchRun++;
+    $('moreSets').hidden = true;
+    $('cardSearch').placeholder = searchMode ? 'Nome del Pokémon (es. Pikachu)' : 'es. Charizard';
+    if (searchMode) {
+      currentExp = null;
+      cards = [];
+      searchSets = [];
+      searchTotal = 0;
+      shownSets = 0;
+      priceNote = '';
+      renderCards();
+      if ($('cardSearch').value.trim().length >= 3) runSearch();
+      return;
+    }
     currentExp = id ? expansions.find((e) => String(e.id) === id) : null;
     cards = [];
     renderCards();
@@ -437,7 +583,12 @@
     }
   }
   $('cardExp').addEventListener('change', loadCards);
-  $('cardSearch').addEventListener('input', renderCards);
+  let typing = null;
+  $('cardSearch').addEventListener('input', () => {
+    if (!searchMode) { renderCards(); return; }
+    clearTimeout(typing);
+    typing = setTimeout(runSearch, 500);
+  });
   $('cardPriceMode').addEventListener('change', renderCards);
   $('cardKind').addEventListener('change', renderCards);
   $('cardLang').addEventListener('change', () => {
@@ -448,9 +599,10 @@
 
   async function openCard(c) {
     current = c;
+    dlgExp = c.expansionId ? { id: c.expansionId, name: c.expName } : currentExp;
     $('dlgName').textContent = c.name + (c.version ? ` (${c.version})` : '');
     $('dlgImg').src = c.image || '';
-    $('dlgMeta').textContent = [currentExp && currentExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
+    $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);
     const lang = $('cardLang').value;
     $('dlgLow').textContent = v.lowest == null ? '—' : money(v.lowest, c.currency);
@@ -495,13 +647,13 @@
 
   $('alertForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    if (!current || !currentExp) return;
+    if (!current || !dlgExp) return;
     const pct = document.querySelector('input[name="amode"]:checked').value === 'percent';
     $('alertError').hidden = true;
     $('alertOk').hidden = true;
     const body = {
-      expansionId: currentExp.id,
-      expansionName: currentExp.name,
+      expansionId: dlgExp.id,
+      expansionName: dlgExp.name,
       blueprintId: current.id,
       cardName: current.name + (current.version ? ` (${current.version})` : ''),
       cardImage: current.image,

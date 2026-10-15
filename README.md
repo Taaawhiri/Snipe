@@ -12,6 +12,7 @@ Gira tutta su Cloudflare, in un solo Worker:
 ## Come si usa
 
 - **Carte**: scegli un'espansione e vedi tutte le carte con immagine e prezzo più basso, in assoluto e con CardTrader Zero. Tocca una carta per vedere gli annunci più economici e creare l'alert: sotto un prezzo che scegli tu, oppure con uno sconto in percentuale.
+- **Ricerca su tutte le espansioni**: nella scheda Carte scegli "Tutte le espansioni" e scrivi il nome di un Pokémon. La prima volta il server prepara in background un indice dei nomi (una richiesta per espansione, circa 10 minuti, poi si rinnova ogni due settimane). I nomi compaiono subito, i prezzi si caricano a gruppi di 8 espansioni, dalle più recenti, per restare nei limiti di CardTrader.
 - **Regole**: l'elenco dei tuoi alert, che puoi mettere in pausa o eliminare. Gli alert si creano dalla scheda Carte.
 - **CardTrader Zero**: ogni regola può considerare tutti i venditori, solo quelli Zero o escluderli. Si basa sul campo `can_sell_via_hub` dell'API.
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#ee1515">
+<meta name="theme-color" content="#9b1c31">
 <title>Snipe</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png">
@@ -20,7 +20,6 @@
   <form id="loginForm" class="panel login-card">
     <div class="reticle"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg></div>
     <div class="logo">Snipe</div>
-    <p class="muted">Inserisci la chiave che hai impostato come <code>APP_KEY</code> su Cloudflare.</p>
     <div class="field">
       <label for="keyInput">Chiave</label>
       <input id="keyInput" type="password" autocomplete="current-password" required>
@@ -105,6 +104,9 @@
       </div>
       <p id="cardsMsg" class="count" hidden></p>
       <div id="cardGrid" class="grid"></div>
+      <div id="moreSets" class="row-btn" hidden>
+        <button class="btn" id="moreSetsBtn" type="button">Mostra altre espansioni</button>
+      </div>
     </section>
 
     <section id="tab-rules" class="tab" hidden>
