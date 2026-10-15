@@ -78,60 +78,20 @@
   }));
   $('sheetBackdrop').addEventListener('click', closeSheets);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
-  // Menu di condivisione del sistema: da lì si sceglie Chrome o un'altra app per aprire la pagina.
-  $('dlgShare').hidden = !navigator.share;
-  $('dlgShare').addEventListener('click', async () => {
-    if (!current) return;
-    try { await navigator.share({ title: current.name, url: cardUrl(current.id) }); } catch { /* annullato */ }
-  });
-  $('dlgCopy').addEventListener('click', async () => {
-    if (!current) return;
-    const url = cardUrl(current.id);
-    try {
-      await navigator.clipboard.writeText(url);
-      $('dlgCopy').textContent = 'Link copiato: incollalo nel browser';
-    } catch {
-      $('dlgCopy').textContent = url; // se la copia è bloccata, mostriamo l'indirizzo da copiare a mano
-    }
-  });
 
   // ---------- link esterni ----------
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isAndroid = /android/i.test(navigator.userAgent);
-  const EXT_OPTIONS = isAndroid
-    ? [['default', 'Nel browser del telefono (consigliato)'], ['chrome', 'Chrome'], ['firefox', 'Firefox'], ['inapp', 'Dentro l’app']]
-    : [['inapp', 'Dentro l’app (predefinito iPhone)'], ['safari', 'Safari (sperimentale)'], ['chrome', 'Chrome'], ['firefox', 'Firefox']];
-  const extMode = () => {
-    try {
-      const v = localStorage.getItem('snipe.ext');
-      if (v && EXT_OPTIONS.some(([k]) => k === v)) return v;
-    } catch {}
-    return EXT_OPTIONS[0][0];
-  };
-
-  /** Indirizzo da aprire con il metodo scelto, o null per lasciare il comportamento normale. */
-  function externalHref(href, mode) {
-    let u;
-    try { u = new URL(href); } catch { return null; }
-    if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return null;
-    if (isAndroid) {
-      // "intent:" chiede ad Android di aprire l'indirizzo in un'altra app; se non c'è, si apre l'indirizzo normale.
-      if (mode === 'inapp') return null;
-      const pkg = mode === 'chrome' ? ';package=com.android.chrome' : mode === 'firefox' ? ';package=org.mozilla.firefox' : '';
-      return `intent://${u.host}${u.pathname}${u.search}${u.hash}#Intent;scheme=${u.protocol.slice(0, -1)};action=android.intent.action.VIEW${pkg};S.browser_fallback_url=${encodeURIComponent(u.href)};end`;
-    }
-    if (mode === 'safari') return `x-safari-${u.href}`;
-    if (mode === 'chrome') return u.href.replace(/^https:/, 'googlechromes:').replace(/^http:/, 'googlechrome:');
-    if (mode === 'firefox') return `firefox://open-url?url=${encodeURIComponent(u.href)}`;
-    return null;
-  }
+  // Su telefono, toccando un link a CardTrader o Cardmarket si apre il menu "Apri con un'altra app" del sistema:
+  // da lì si sceglie il browser, e la pagina si apre fuori dalla webapp. Su computer il link si apre normalmente.
+  const isMobileOS = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
   document.addEventListener('click', (ev) => {
     const a = ev.target.closest && ev.target.closest('a[target="_blank"]');
-    if (!a || !(isIOS || isAndroid)) return;
-    const target = externalHref(a.href, extMode());
-    if (!target) return;
+    if (!a || !isMobileOS || !navigator.share) return;
+    let u;
+    try { u = new URL(a.href); } catch { return; }
+    if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
     ev.preventDefault();
-    location.href = target;
+    const title = (a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) || 'Snipe';
+    navigator.share({ title, url: u.href }).catch(() => { /* menu chiuso senza scegliere */ });
   });
 
   // ---------- login ----------
@@ -321,17 +281,6 @@
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
-    $('extPanel').hidden = !(isIOS || isAndroid);
-    if (!$('setExt').options.length) {
-      for (const [k, label] of EXT_OPTIONS) $('setExt').append(el('option', { value: k, text: label }));
-      $('extHelp').textContent = isAndroid
-        ? 'Dentro la webapp i link a CardTrader e Cardmarket si aprono in una finestra interna. Con la prima opzione Android li apre nel browser del telefono.'
-        : 'Sull’iPhone i link si aprono di solito dentro l’app. Qui puoi provare ad aprirli in un altro browser: scegli un metodo e premi Prova.';
-      $('extHint').textContent = isAndroid
-        ? 'Se toccando un link non succede niente, scegli “Dentro l’app”.'
-        : 'Se toccando un link non succede niente, quel metodo non funziona su questo telefono: torna a “Dentro l’app”. Nella finestra interna c’è anche il pulsante con la bussola per passare a Safari.';
-    }
-    if (free('setExt')) $('setExt').value = extMode();
   }
 
   async function saveSettings(patch) {
@@ -349,14 +298,6 @@
   $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
-  $('setExt').addEventListener('change', () => {
-    try { localStorage.setItem('snipe.ext', $('setExt').value); } catch {}
-  });
-  $('extTest').addEventListener('click', () => {
-    const target = externalHref('https://www.cardtrader.com/', $('setExt').value);
-    if (target) location.href = target;
-    else window.open('https://www.cardtrader.com/', '_blank', 'noopener');
-  });
   $('setSound').addEventListener('change', () => {
     try { localStorage.setItem('snipe.sound', $('setSound').checked ? '1' : '0'); } catch {}
   });
@@ -883,7 +824,6 @@
     $('dlgImg').src = c.image || '';
     renderCmBox(c);
     $('dlgLink').href = cardUrl(c.id);
-    $('dlgCopy').textContent = 'Copia il link di CardTrader';
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);
     const lang = $('cardLang').value;
