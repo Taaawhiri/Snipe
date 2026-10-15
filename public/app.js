@@ -91,12 +91,29 @@
 
   // ---------- link esterni ----------
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const extMode = () => { try { return localStorage.getItem('snipe.ext') || 'inapp'; } catch { return 'inapp'; } };
+  const isAndroid = /android/i.test(navigator.userAgent);
+  const EXT_OPTIONS = isAndroid
+    ? [['default', 'Nel browser del telefono (consigliato)'], ['chrome', 'Chrome'], ['firefox', 'Firefox'], ['inapp', 'Dentro l’app']]
+    : [['inapp', 'Dentro l’app (predefinito iPhone)'], ['safari', 'Safari (sperimentale)'], ['chrome', 'Chrome'], ['firefox', 'Firefox']];
+  const extMode = () => {
+    try {
+      const v = localStorage.getItem('snipe.ext');
+      if (v && EXT_OPTIONS.some(([k]) => k === v)) return v;
+    } catch {}
+    return EXT_OPTIONS[0][0];
+  };
+
   /** Indirizzo da aprire con il metodo scelto, o null per lasciare il comportamento normale. */
   function externalHref(href, mode) {
     let u;
     try { u = new URL(href); } catch { return null; }
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return null;
+    if (isAndroid) {
+      // "intent:" chiede ad Android di aprire l'indirizzo in un'altra app; se non c'è, si apre l'indirizzo normale.
+      if (mode === 'inapp') return null;
+      const pkg = mode === 'chrome' ? ';package=com.android.chrome' : mode === 'firefox' ? ';package=org.mozilla.firefox' : '';
+      return `intent://${u.host}${u.pathname}${u.search}${u.hash}#Intent;scheme=${u.protocol.slice(0, -1)};action=android.intent.action.VIEW${pkg};S.browser_fallback_url=${encodeURIComponent(u.href)};end`;
+    }
     if (mode === 'safari') return `x-safari-${u.href}`;
     if (mode === 'chrome') return u.href.replace(/^https:/, 'googlechromes:').replace(/^http:/, 'googlechrome:');
     if (mode === 'firefox') return `firefox://open-url?url=${encodeURIComponent(u.href)}`;
@@ -104,7 +121,7 @@
   }
   document.addEventListener('click', (ev) => {
     const a = ev.target.closest && ev.target.closest('a[target="_blank"]');
-    if (!a || !isIOS) return;
+    if (!a || !(isIOS || isAndroid)) return;
     const target = externalHref(a.href, extMode());
     if (!target) return;
     ev.preventDefault();
@@ -298,7 +315,16 @@
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
-    $('extPanel').hidden = !isIOS;
+    $('extPanel').hidden = !(isIOS || isAndroid);
+    if (!$('setExt').options.length) {
+      for (const [k, label] of EXT_OPTIONS) $('setExt').append(el('option', { value: k, text: label }));
+      $('extHelp').textContent = isAndroid
+        ? 'Dentro la webapp i link a CardTrader e Cardmarket si aprono in una finestra interna. Con la prima opzione Android li apre nel browser del telefono.'
+        : 'Sull’iPhone i link si aprono di solito dentro l’app. Qui puoi provare ad aprirli in un altro browser: scegli un metodo e premi Prova.';
+      $('extHint').textContent = isAndroid
+        ? 'Se toccando un link non succede niente, scegli “Dentro l’app”.'
+        : 'Se toccando un link non succede niente, quel metodo non funziona su questo telefono: torna a “Dentro l’app”. Nella finestra interna c’è anche il pulsante con la bussola per passare a Safari.';
+    }
     if (free('setExt')) $('setExt').value = extMode();
   }
 
