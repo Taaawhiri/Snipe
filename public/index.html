@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0f14">
+<meta name="theme-color" content="#ee1515">
 <title>Snipe</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png">
@@ -12,14 +12,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <div id="login" class="login" hidden>
   <form id="loginForm" class="panel login-card">
-    <div class="reticle"><svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="13"/><circle cx="24" cy="24" r="2.2" fill="currentColor" stroke="none"/><path d="M24 4v10M24 34v10M4 24h10M34 24h10"/></svg></div>
-    <div class="logo">SNIPE<span>_</span></div>
+    <div class="reticle"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg></div>
+    <div class="logo">Snipe</div>
     <p class="muted">Inserisci la chiave che hai impostato come <code>APP_KEY</code> su Cloudflare.</p>
     <div class="field">
       <label for="keyInput">Chiave</label>
@@ -33,7 +33,7 @@
 <div id="app" hidden>
   <header class="top">
     <div class="top-in">
-      <div class="brand"><svg viewBox="0 0 48 48" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="14"/><circle cx="24" cy="24" r="3" fill="currentColor" stroke="none"/><path d="M24 3v11M24 34v11M3 24h11M34 24h11"/></svg><span class="logo">SNIPE<span>_</span></span></div>
+      <div class="brand"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg><span class="logo">Snipe</span></div>
       <div class="status"><span id="dot" class="dot"></span><span id="statusText">…</span></div>
     </div>
   </header>
@@ -48,7 +48,7 @@
       <p id="statusError" class="banner" hidden></p>
       <div id="alertList" class="list cols"></div>
       <div id="alertEmpty" class="empty-state" hidden>
-        <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="13"/><circle cx="24" cy="24" r="2.2" fill="currentColor" stroke="none"/><path d="M24 4v10M24 34v10M4 24h10M34 24h10"/></svg>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg>
         <h2>Nessun avviso per ora</h2>
         <p>Scegli una carta e imposta un prezzo: appena un annuncio scende sotto la soglia lo trovi qui.</p>
         <button class="btn primary" type="button" data-go="cards">Vai alle carte</button>
@@ -115,7 +115,7 @@
       <p id="ruleError" class="banner" hidden></p>
       <div id="ruleList" class="list cols"></div>
       <div id="ruleEmpty" class="empty-state" hidden>
-        <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="13"/><circle cx="24" cy="24" r="2.2" fill="currentColor" stroke="none"/><path d="M24 4v10M24 34v10M4 24h10M34 24h10"/></svg>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg>
         <h2>Nessun alert</h2>
         <p>Creane uno dalla scheda Carte per avviare lo scan.</p>
         <button class="btn primary" type="button" data-go="cards">Vai alle carte</button>

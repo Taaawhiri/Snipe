@@ -1,9 +1,11 @@
-// Genera le icone PNG della PWA (mirino su fondo scuro) senza dipendenze. Esegui: npm run icons
+// Genera le icone PNG della PWA (Poké Ball su fondo giallo) senza dipendenze. Esegui: npm run icons
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
-const BG = [15, 20, 25];
-const FG = [61, 219, 192];
+const BG = [255, 203, 5]; // giallo Pokémon
+const RED = [238, 21, 21];
+const WHITE = [255, 255, 255];
+const INK = [27, 35, 64];
 
 function crc32(buf) {
   let c, crc = ~0;
@@ -24,25 +26,38 @@ function chunk(type, data) {
   return Buffer.concat([len, td, crc]);
 }
 
+/** Colore di un punto: Poké Ball con contorno scuro su fondo giallo. Coordinate da -1 a 1. */
+function ballAt(dx, dy) {
+  const d = Math.hypot(dx, dy);
+  if (d > 0.82) return BG;
+  if (d > 0.74) return INK; // contorno
+  if (d < 0.2 && d > 0.12) return INK; // anello del pulsante
+  if (d <= 0.12) return WHITE;
+  if (Math.abs(dy) < 0.055) return INK; // fascia centrale
+  return dy < 0 ? RED : WHITE;
+}
+
 function png(size, maskable) {
-  const scale = maskable ? 0.7 : 1; // la versione maskable tiene il disegno nella zona sicura
+  const scale = maskable ? 0.72 : 1; // la versione maskable tiene il disegno nella zona sicura
   const cx = size / 2;
+  const SS = 3; // supersampling per i bordi lisci
   const rows = [];
   for (let y = 0; y < size; y++) {
     const row = Buffer.alloc(1 + size * 3);
     for (let x = 0; x < size; x++) {
-      const dx = (x + 0.5 - cx) / (size / 2) / scale;
-      const dy = (y + 0.5 - cx) / (size / 2) / scale;
-      const d = Math.hypot(dx, dy);
-      const ring = Math.abs(d - 0.55) < 0.07;
-      const cross = (Math.abs(dx) < 0.04 && Math.abs(dy) < 0.85) || (Math.abs(dy) < 0.04 && Math.abs(dx) < 0.85);
-      const hole = d < 0.3 && cross; // il mirino non attraversa il centro
-      const dot = d < 0.09;
-      const on = (ring || (cross && !hole && d > 0.3) || dot) && d < 0.9;
-      const c = on ? FG : BG;
-      row[1 + x * 3] = c[0];
-      row[2 + x * 3] = c[1];
-      row[3 + x * 3] = c[2];
+      let r = 0, g = 0, b = 0;
+      for (let sy = 0; sy < SS; sy++) {
+        for (let sx = 0; sx < SS; sx++) {
+          const dx = (x + (sx + 0.5) / SS - cx) / (size / 2) / scale;
+          const dy = (y + (sy + 0.5) / SS - cx) / (size / 2) / scale;
+          const c = ballAt(dx, dy);
+          r += c[0]; g += c[1]; b += c[2];
+        }
+      }
+      const n = SS * SS;
+      row[1 + x * 3] = Math.round(r / n);
+      row[2 + x * 3] = Math.round(g / n);
+      row[3 + x * 3] = Math.round(b / n);
     }
     rows.push(row);
   }
