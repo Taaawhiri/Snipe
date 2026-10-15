@@ -62,6 +62,23 @@
     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
   }
 
+  // ---------- pannelli a comparsa ----------
+  const sheets = ['cardDialog', 'editDialog', 'explainDialog'].map((id) => $(id));
+  function openSheet(d) {
+    if (!d.open) d.show(); // non modale: il browser non usa il livello superiore
+    $('sheetBackdrop').hidden = false;
+    document.documentElement.classList.add('noscroll');
+    d.scrollTop = 0;
+  }
+  function closeSheets() { sheets.forEach((s) => s.open && s.close()); }
+  sheets.forEach((d) => d.addEventListener('close', () => {
+    if (sheets.some((s) => s.open)) return;
+    $('sheetBackdrop').hidden = true;
+    document.documentElement.classList.remove('noscroll');
+  }));
+  $('sheetBackdrop').addEventListener('click', closeSheets);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
+
   // ---------- link esterni ----------
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const safariOn = () => { try { return localStorage.getItem('snipe.safari') !== '0'; } catch { return true; } };
@@ -402,7 +419,7 @@
     $('edCond').value = r.minCondition || 'Slightly Played';
     $('edLang').value = r.language || '';
     $('edError').hidden = true;
-    $('editDialog').showModal();
+    openSheet($('editDialog'));
   }
 
   document.querySelectorAll('input[name="emode"]').forEach((x) =>
@@ -454,7 +471,7 @@
     $('exTitle').textContent = r.cardName || r.expansionName || 'Alert';
     $('exInfo').textContent = 'Controllo gli annunci attuali…';
     $('exRows').replaceChildren();
-    if (!d.open) d.showModal();
+    openSheet(d);
     try {
       const data = await api(`/api/explain?rule_id=${r.id}`);
       const ok = data.rows.filter((x) => !x.reasons.length).length;
@@ -835,7 +852,7 @@
     $('alertMax').value = base && Number(base) > 0 ? base : low == null ? '' : (low / 100).toFixed(2);
     $('dlgListings').replaceChildren(el('p', { class: 'muted', text: 'Carico gli annunci…' }));
     const d = $('cardDialog');
-    if (!d.open) d.showModal();
+    openSheet(d);
     try {
       const rows = await api(`/api/listings?blueprint_id=${c.id}${lang ? `&lang=${lang}` : ''}${minRank !== '' ? `&minrank=${minRank}` : ''}`);
       if (current !== c) return;
