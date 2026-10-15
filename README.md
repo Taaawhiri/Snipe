@@ -57,3 +57,4 @@ npm test
 ## Stato
 
 Se l'app mostra "APP_KEY non configurata", apri `/api/health`: elenca quali Secret il Worker riesce a leggere.
+
