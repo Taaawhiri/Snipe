@@ -1,0 +1,17 @@
+{
+  "name": "snipe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sniping dei prezzi Pokémon su CardTrader, con PWA e notifiche push (Cloudflare Workers)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.mjs",
+    "vapid": "node scripts/gen-vapid.mjs",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

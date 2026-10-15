@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1419">
+<title>Snipe</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <form id="loginForm" class="card">
+    <div class="logo">SNIPE<span>_</span></div>
+    <p class="muted">Inserisci la chiave che hai impostato come <code>APP_KEY</code> su Cloudflare.</p>
+    <label for="keyInput">Chiave</label>
+    <input id="keyInput" type="password" autocomplete="current-password" required>
+    <p id="loginError" class="error" hidden></p>
+    <button class="btn primary" type="submit">Entra</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="logo">SNIPE<span>_</span></div>
+    <div class="status"><span id="dot" class="dot"></span><span id="statusText">…</span></div>
+  </header>
+
+  <main>
+    <section id="tab-alerts" class="tab">
+      <div class="stats">
+        <div class="stat"><div class="k">Regole attive</div><div class="v" id="statRules">0</div></div>
+        <div class="stat"><div class="k">Alert totali</div><div class="v" id="statAlerts">0</div></div>
+        <div class="stat"><div class="k">Scansioni</div><div class="v" id="statScans">0</div></div>
+      </div>
+      <p id="statusError" class="error" hidden></p>
+      <div id="alertList" class="list"></div>
+      <p id="alertEmpty" class="empty" hidden>Nessun alert per ora. Crea una regola nella scheda Regole: gli annunci già presenti vengono ignorati, avvisiamo solo i nuovi.</p>
+    </section>
+
+    <section id="tab-rules" class="tab" hidden>
+      <form id="ruleForm" class="card">
+        <h2>Nuova regola</h2>
+        <label for="expFilter">Espansione</label>
+        <input id="expFilter" type="search" placeholder="Cerca (es. 151, Obsidian, Paldea)" autocomplete="off">
+        <select id="expSelect" size="1" required></select>
+
+        <label for="nameContains">Nome carta (facoltativo)</label>
+        <input id="nameContains" type="text" placeholder="es. Charizard" maxlength="60">
+
+        <div class="row">
+          <div>
+            <label for="minCondition">Condizione minima</label>
+            <select id="minCondition"></select>
+          </div>
+          <div>
+            <label for="language">Lingua</label>
+            <select id="language">
+              <option value="">Tutte</option>
+              <option value="en">Inglese</option>
+              <option value="it">Italiano</option>
+              <option value="ja">Giapponese</option>
+              <option value="fr">Francese</option>
+              <option value="de">Tedesco</option>
+              <option value="es">Spagnolo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="minDiscount">Sconto minimo: <b id="discLabel">30%</b></label>
+            <input id="minDiscount" type="range" min="10" max="80" step="5" value="30">
+          </div>
+          <div>
+            <label for="minPrice">Prezzo minimo (€)</label>
+            <input id="minPrice" type="number" min="0" step="0.5" value="5" inputmode="decimal">
+          </div>
+        </div>
+        <p id="ruleError" class="error" hidden></p>
+        <button class="btn primary" type="submit">Aggiungi regola</button>
+      </form>
+
+      <h2 class="section">Le tue regole</h2>
+      <div id="ruleList" class="list"></div>
+      <p id="ruleEmpty" class="empty" hidden>Nessuna regola. Aggiungine una sopra per avviare lo scan.</p>
+    </section>
+
+    <section id="tab-settings" class="tab" hidden>
+      <div class="card">
+        <h2>Notifiche</h2>
+        <p class="muted" id="pushInfo"></p>
+        <div class="row-btn">
+          <button class="btn primary" id="pushEnable" type="button">Attiva notifiche su questo dispositivo</button>
+          <button class="btn" id="pushTest" type="button">Invia notifica di prova</button>
+        </div>
+        <p class="muted small">Su iPhone installa prima l'app: Condividi → Aggiungi a Home, poi aprila da lì. Serve iOS 16.4 o successivo.</p>
+      </div>
+      <div class="card">
+        <h2>Dati</h2>
+        <button class="btn" id="clearAlerts" type="button">Cancella lo storico alert</button>
+        <button class="btn" id="logout" type="button">Esci</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="Sezioni">
+    <button data-tab="alerts" class="on" type="button">Alert</button>
+    <button data-tab="rules" type="button">Regole</button>
+    <button data-tab="settings" type="button">Impostazioni</button>
+  </nav>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
