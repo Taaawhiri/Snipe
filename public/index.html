@@ -68,6 +68,14 @@
             <input id="cardSearch" type="search" placeholder="es. Charizard" autocomplete="off">
           </div>
           <div class="field">
+            <label for="cardLang">Lingua</label>
+            <select id="cardLang">
+              <option value="">Tutte le lingue</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
             <label for="cardSort">Ordina per</label>
             <select id="cardSort">
               <option value="price-desc">Prezzo: dal più alto</option>
@@ -76,24 +84,22 @@
               <option value="name">Nome</option>
             </select>
           </div>
+          <div class="field">
+            <label for="cardPriceMode">Prezzo mostrato</label>
+            <select id="cardPriceMode">
+              <option value="all">Il più basso in assoluto</option>
+              <option value="zero">Solo con CardTrader Zero</option>
+            </select>
+          </div>
         </div>
         <details class="more">
           <summary>Altri filtri</summary>
-          <div class="row">
-            <div class="field">
-              <label for="cardPriceMode">Prezzo mostrato</label>
-              <select id="cardPriceMode">
-                <option value="all">Il più basso in assoluto</option>
-                <option value="zero">Solo con CardTrader Zero</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="cardKind">Mostra</label>
-              <select id="cardKind">
-                <option value="single">Solo carte singole</option>
-                <option value="all">Tutti i prodotti</option>
-              </select>
-            </div>
+          <div class="field">
+            <label for="cardKind">Mostra</label>
+            <select id="cardKind">
+              <option value="single">Solo carte singole</option>
+              <option value="all">Tutti i prodotti</option>
+            </select>
           </div>
         </details>
       </div>
@@ -230,6 +236,7 @@
       <img id="dlgImg" alt="" width="120" height="168">
       <div class="dlg-info">
         <div id="dlgMeta" class="muted"></div>
+        <div id="dlgLangNote" class="chips"></div>
         <div class="dlg-prices">
           <div><div class="k">Più basso</div><div id="dlgLow" class="price">—</div></div>
           <div><div class="k">Con Zero</div><div id="dlgLowZero" class="price">—</div></div>

@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, findDeals, isListable, isSingleCard, isZero, listingLang, rejectReasons } from './deals.js';
+import { CONDITIONS, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { generateVapidKeys, sendPush } from './push.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -230,7 +230,12 @@ export class Scanner extends DurableObject {
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
       try {
         const data = await this.ct(`/marketplace/products?blueprint_id=${id}`);
-        const list = (data[id] || data[String(id)] || []).filter(isListable).sort(byPrice).slice(0, 12);
+        const wanted = normLang(url.searchParams.get('lang'));
+        const list = (data[id] || data[String(id)] || [])
+          .filter(isListable)
+          .filter((p) => !wanted || normLang(listingLang(p)) === wanted)
+          .sort(byPrice)
+          .slice(0, 12);
         return json(
           list.map((p) => {
             const h = p.properties_hash || {};
@@ -410,11 +415,21 @@ export class Scanner extends DurableObject {
     }
     const products = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
 
+    const langCount = {};
     const cards = blueprints.map((bp) => {
       const list = (products[bp.id] || products[String(bp.id)] || []).filter(isListable).sort(byPrice);
       const low = list[0];
       const lowZero = list.find(isZero);
       const num = prop(list, /^collector_number$/i);
+      // Prezzi più bassi per lingua (codici normalizzati: il giapponese è sempre "jp").
+      const langs = {};
+      for (const p of list) {
+        const code = normLang(listingLang(p)) || 'sconosciuta';
+        langCount[code] = (langCount[code] || 0) + 1;
+        const e = (langs[code] = langs[code] || { lowest: null, lowestZero: null });
+        if (e.lowest == null) e.lowest = p.price.cents;
+        if (e.lowestZero == null && isZero(p)) e.lowestZero = p.price.cents;
+      }
       const single = isSingleCard(bp, singleIds);
       return {
         single,
@@ -428,6 +443,7 @@ export class Scanner extends DurableObject {
         currency: (low && low.price.currency) || 'EUR',
         lowest: low ? low.price.cents : null,
         lowestZero: lowZero ? lowZero.price.cents : null,
+        langs,
       };
     });
     cards.sort((a, b) => {
@@ -437,7 +453,8 @@ export class Scanner extends DurableObject {
       return a.name.localeCompare(b.name);
     });
 
-    const data = { expansionId, cards };
+    const languages = Object.keys(langCount).sort((a, b) => langCount[b] - langCount[a]);
+    const data = { expansionId, cards, languages };
     this.cardCache.set(expansionId, { ts: Date.now(), data });
     return data;
   }

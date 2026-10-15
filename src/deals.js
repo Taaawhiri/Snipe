@@ -33,7 +33,18 @@ export function isListable(p) {
   return !!(p.price && p.price.cents > 0);
 }
 
-const LANGS = { ja: 'jp', jp: 'jp', japanese: 'jp', japan: 'jp', en: 'en', english: 'en', it: 'it', italian: 'it', fr: 'fr', french: 'fr', de: 'de', german: 'de', es: 'es', spanish: 'es' };
+const LANGS = {
+  ja: 'jp', jp: 'jp', japanese: 'jp', japan: 'jp',
+  en: 'en', english: 'en',
+  it: 'it', italian: 'it',
+  fr: 'fr', french: 'fr',
+  de: 'de', german: 'de',
+  es: 'es', spanish: 'es',
+  pt: 'pt', portuguese: 'pt',
+  ko: 'ko', kr: 'ko', korean: 'ko',
+  zh: 'zh', 'zh-cn': 'zh', 'zh-tw': 'zh', chinese: 'zh',
+  ru: 'ru', russian: 'ru',
+};
 
 /** Normalizza i codici lingua (CardTrader e il nostro menu non usano gli stessi per il giapponese). */
 export function normLang(v) {
