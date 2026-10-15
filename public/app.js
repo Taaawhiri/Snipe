@@ -47,7 +47,9 @@
     if (s < 86400) return `${Math.floor(s / 3600)}h fa`;
     return `${Math.floor(s / 86400)}g fa`;
   }
+  function soundOn() { try { return localStorage.getItem('snipe.sound') !== '0'; } catch { return true; } }
   function beep() {
+    if (!soundOn()) return;
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const o = ctx.createOscillator();
@@ -197,8 +199,115 @@
     );
     $('ruleEmpty').hidden = state.rules.length > 0;
 
+    renderSettings();
     updatePushUI();
   }
+
+  // ---------- impostazioni ----------
+  const hhmmss = (ts) => new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+  function kvRow(k, v, cls = '') {
+    return el('div', null, el('span', { class: 'k', text: k }), el('span', { class: ('v ' + cls).trim(), text: v }));
+  }
+
+  function renderSettings() {
+    if (!state || !state.settings) return;
+    const s = state.settings;
+    const sys = state.system || {};
+    const st = state.status || {};
+    const active = state.rules.filter((r) => r.enabled).length;
+    const limited = sys.limitUntil && sys.limitUntil > Date.now();
+
+    const badge = $('sysBadge');
+    if (s.paused) { badge.className = 'state off'; badge.textContent = 'In pausa'; }
+    else if (st.lastError || limited) { badge.className = 'state off'; badge.textContent = 'Attenzione'; }
+    else if (active) { badge.className = 'state on'; badge.textContent = 'Attivo'; }
+    else { badge.className = 'state'; badge.textContent = 'Nessun alert'; }
+
+    const idx = sys.index;
+    const rows = [
+      kvRow('Scansione', s.paused ? 'In pausa' : active ? (st.lastScan ? `ultimo controllo ${ago(st.lastScan)}` : 'in avvio…') : 'nessun alert attivo'),
+      kvRow('Alert attivi', `${active} su ${state.rules.length}`),
+      kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? st.lastError : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
+      kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
+      kvRow('Dispositivi con notifiche', String(state.pushDevices)),
+      kvRow('Versione', sys.build || '—'),
+    ];
+    if (sys.indexError) rows.push(kvRow('Errore indice', sys.indexError, 'bad'));
+    $('sysList').replaceChildren(...rows);
+    const bar = $('indexBar');
+    bar.hidden = !idx || idx.complete;
+    if (idx && !idx.complete && idx.total) bar.firstElementChild.style.width = `${Math.round((idx.done / idx.total) * 100)}%`;
+
+    // i controlli non vengono toccati mentre li stai usando
+    const free = (id) => document.activeElement !== $(id);
+    if (free('setPaused')) $('setPaused').checked = !!s.paused;
+    if (free('setScan')) $('setScan').value = String(s.scanEverySec);
+    if (free('setQuiet')) $('setQuiet').checked = !!s.quietEnabled;
+    if (free('setFrom')) $('setFrom').value = s.quietFrom;
+    if (free('setTo')) $('setTo').value = s.quietTo;
+    if (free('setSound')) $('setSound').checked = soundOn();
+  }
+
+  async function saveSettings(patch) {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    try {
+      await api('/api/settings', { method: 'POST', body: JSON.stringify({ ...patch, tz }) });
+      await refresh();
+    } catch (e) {
+      $('sysMsg').hidden = false;
+      $('sysMsg').textContent = `Impostazione non salvata: ${e.message}`;
+    }
+  }
+  $('setPaused').addEventListener('change', () => saveSettings({ paused: $('setPaused').checked }));
+  $('setScan').addEventListener('change', () => saveSettings({ scanEverySec: Number($('setScan').value) }));
+  $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
+  $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
+  $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
+  $('setSound').addEventListener('change', () => {
+    try { localStorage.setItem('snipe.sound', $('setSound').checked ? '1' : '0'); } catch {}
+  });
+  $('indexRefresh').addEventListener('click', async () => {
+    try {
+      await api('/api/index/refresh', { method: 'POST' });
+      $('sysMsg').hidden = false;
+      $('sysMsg').textContent = 'Indice in rinnovo: ci vorranno circa 10 minuti. La ricerca continua a funzionare nel frattempo.';
+      await refresh();
+    } catch (e) { $('sysMsg').hidden = false; $('sysMsg').textContent = e.message; }
+  });
+
+  // backup degli alert
+  $('exportRules').addEventListener('click', async () => {
+    const msg = $('backupMsg');
+    msg.hidden = false;
+    try {
+      const data = await api('/api/export');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `snipe-alert-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      msg.textContent = `${data.rules.length} alert esportati.`;
+    } catch (e) { msg.textContent = `Esportazione non riuscita: ${e.message}`; }
+  });
+  $('importRules').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', async () => {
+    const msg = $('backupMsg');
+    msg.hidden = false;
+    const f = $('importFile').files[0];
+    $('importFile').value = '';
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!data || !Array.isArray(data.rules)) throw new Error('il file non contiene alert');
+      const r = await api('/api/import', { method: 'POST', body: JSON.stringify({ rules: data.rules }) });
+      msg.textContent = `${r.added} alert importati${r.skipped ? `, ${r.skipped} saltati` : ''}.`;
+      await refresh();
+    } catch (e) { msg.textContent = `Importazione non riuscita: ${e.message}`; }
+  });
 
   async function refresh() {
     try {

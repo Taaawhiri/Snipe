@@ -271,3 +271,20 @@ h2.section { font-size: 13px; font-weight: 700; color: var(--muted); text-transf
 .lrow.link:hover { border-color: var(--blue); background: var(--blue-soft); }
 .lrow .go { color: var(--blue); font-weight: 700; }
 #dlgLink { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; align-self: flex-start; }
+
+/* ---------- impostazioni ---------- */
+.switch { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; font-weight: 700; font-size: 15px; color: var(--text); }
+.switch input { appearance: none; -webkit-appearance: none; width: 54px; min-height: 0; height: 32px; padding: 0; border-radius: 999px; border: 2px solid var(--outline); background: var(--surface-2); position: relative; flex: none; cursor: pointer; transition: background 0.15s; }
+.switch input::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--outline); transition: left 0.15s, background 0.15s; }
+.switch input:checked { background: var(--red); }
+.switch input:checked::after { left: 25px; background: #fff; }
+.switch input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; box-shadow: none; }
+.kv { display: flex; flex-direction: column; gap: 10px; }
+.kv > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px; }
+.kv .k { color: var(--muted); font-weight: 700; }
+.kv .v { font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.kv .v.bad { color: var(--bad); }
+.bar { height: 12px; border-radius: 999px; background: var(--surface-2); border: 2px solid var(--outline); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--yellow); transition: width 0.4s; }
+.sep { border: 0; border-top: 2px dashed var(--line); margin: 2px 0; width: 100%; }
+input[type='time'] { min-width: 0; }

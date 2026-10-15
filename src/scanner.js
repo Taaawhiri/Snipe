@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
+import { DEFAULT_SETTINGS, cleanSettings, isQuiet } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
@@ -42,6 +43,10 @@ export class Scanner extends DurableObject {
   lastCall = 0;
   blockedUntil = 0;
 
+  async settings() {
+    return { ...DEFAULT_SETTINGS, ...(await this.get('settings', {})) };
+  }
+
   async get(key, fallback) {
     const v = await this.ctx.storage.get(key);
     return v === undefined ? fallback : v;
@@ -67,6 +72,16 @@ export class Scanner extends DurableObject {
     } finally {
       release();
     }
+  }
+
+  async systemInfo(status) {
+    const m = await this.get('ixmeta', null);
+    return {
+      build: BUILD,
+      index: m ? { done: m.done.length, total: m.total || null, complete: !!m.complete, withCards: m.have.length } : null,
+      indexError: (status && status.indexError) || null,
+      limitUntil: this.blockedUntil > Date.now() ? this.blockedUntil : null,
+    };
   }
 
   /** Chiavi per le notifiche push: se non impostate a mano come Secret, le genera il server una volta sola. */
@@ -147,6 +162,8 @@ export class Scanner extends DurableObject {
         alerts: alerts.slice(0, 60),
         status,
         pushDevices: subs.length,
+        settings: await this.settings(),
+        system: await this.systemInfo(status),
         vapidPublic: (await this.vapid()).publicKey,
         conditions: CONDITIONS,
       });
@@ -168,6 +185,41 @@ export class Scanner extends DurableObject {
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
+    }
+
+    if (path === '/api/settings' && method === 'POST') {
+      const next = cleanSettings(await req.json(), await this.settings());
+      await this.ctx.storage.put('settings', next);
+      if (!next.paused) await this.ensureAlarm();
+      return json(next);
+    }
+
+    if (path === '/api/export' && method === 'GET') {
+      return json({ app: 'snipe', version: 1, exportedAt: new Date().toISOString(), rules: await this.get('rules', []), settings: await this.settings() });
+    }
+
+    if (path === '/api/import' && method === 'POST') {
+      const body = await req.json();
+      const incoming = Array.isArray(body && body.rules) ? body.rules : [];
+      const rules = await this.get('rules', []);
+      let added = 0;
+      for (const raw of incoming) {
+        if (rules.length >= MAX_RULES) break;
+        const rule = this.cleanRule({ ...raw, id: undefined }); // nuovo id: non sovrascrive quelli esistenti
+        if (!rule) continue;
+        rules.push(rule);
+        added++;
+      }
+      await this.ctx.storage.put('rules', rules);
+      if (added) await this.ensureAlarm();
+      return json({ added, skipped: incoming.length - added });
+    }
+
+    if (path === '/api/index/refresh' && method === 'POST') {
+      const meta = (await this.get('ixmeta', null)) || { have: [] };
+      await this.ctx.storage.put('ixmeta', { ...meta, done: [], complete: false, errors: {} });
+      await this.ensureAlarm();
+      return json({ ok: true });
     }
 
     if (path === '/api/search' && method === 'GET') {
@@ -368,7 +420,7 @@ export class Scanner extends DurableObject {
       };
       const alerts = await this.get('alerts', []);
       await this.ctx.storage.put('alerts', [alert, ...alerts].slice(0, MAX_ALERTS));
-      return json({ sent: await this.notify() });
+      return json({ sent: await this.notify(true) });
     }
 
     if (path === '/api/alerts' && method === 'DELETE') {
@@ -626,7 +678,8 @@ export class Scanner extends DurableObject {
 
   async ensureAlarm() {
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
-    if (!rules.length && !(await this.indexPending())) return;
+    const paused = (await this.settings()).paused;
+    if ((paused || !rules.length) && !(await this.indexPending())) return;
     const current = await this.ctx.storage.getAlarm();
     if (current === null) await this.ctx.storage.setAlarm(Date.now() + 1000);
   }
@@ -648,12 +701,17 @@ export class Scanner extends DurableObject {
     }
     await this.ctx.storage.put('status', status);
 
-    const active = (await this.get('rules', [])).some((r) => r.enabled) || (await this.indexPending());
-    if (active) await this.ctx.storage.setAlarm(Math.max(Date.now() + SCAN_EVERY_MS, this.blockedUntil));
+    const settings = await this.settings();
+    const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
+    if (scanning || (await this.indexPending())) {
+      const every = scanning ? settings.scanEverySec * 1000 : SCAN_EVERY_MS;
+      await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
+    }
   }
 
   async scanOnce(status) {
     if (!this.env.CARDTRADER_TOKEN) throw new Error('CARDTRADER_TOKEN non configurato');
+    if ((await this.settings()).paused) return;
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
     const baselined = new Set(await this.get('baselined', []));
     const seen = await this.get('seen', {});
@@ -721,7 +779,8 @@ export class Scanner extends DurableObject {
     }
   }
 
-  async notify() {
+  async notify(force = false) {
+    if (!force && isQuiet(await this.settings())) return 0; // orari silenziosi: l'avviso resta nell'elenco
     const subs = await this.get('subs', []);
     if (!subs.length) return 0;
     const keys = await this.vapid();

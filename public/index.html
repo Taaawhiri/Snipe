@@ -139,6 +139,34 @@
     <section id="tab-settings" class="tab" hidden>
       <div class="panel">
         <div class="panel-head">
+          <h2>Stato</h2>
+          <span id="sysBadge" class="state">—</span>
+        </div>
+        <div id="sysList" class="kv"></div>
+        <div id="indexBar" class="bar" hidden><i></i></div>
+        <div class="row-btn">
+          <button class="btn" id="indexRefresh" type="button">Rinnova l'indice delle carte</button>
+        </div>
+        <p id="sysMsg" class="muted small" hidden></p>
+      </div>
+
+      <div class="panel">
+        <h2>Scansione</h2>
+        <label class="switch"><input id="setPaused" type="checkbox"><span>Metti in pausa tutti gli alert</span></label>
+        <div class="field">
+          <label for="setScan">Controlla CardTrader ogni</label>
+          <select id="setScan">
+            <option value="10">10 secondi</option>
+            <option value="20">20 secondi</option>
+            <option value="30">30 secondi</option>
+            <option value="60">60 secondi</option>
+          </select>
+          <p class="muted small">Più è lungo l'intervallo, meno richieste fai a CardTrader. Con tanti alert conviene 20 o 30 secondi.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
           <h2>Notifiche</h2>
           <span id="pushBadge" class="state">—</span>
         </div>
@@ -152,7 +180,33 @@
           <button class="btn primary" id="pushEnable" type="button">Attiva notifiche</button>
           <button class="btn" id="pushTest" type="button">Invia notifica di prova</button>
         </div>
+        <hr class="sep">
+        <label class="switch"><input id="setQuiet" type="checkbox"><span>Orari silenziosi</span></label>
+        <div class="row">
+          <div class="field">
+            <label for="setFrom">Dalle</label>
+            <input id="setFrom" type="time" value="23:00">
+          </div>
+          <div class="field">
+            <label for="setTo">Alle</label>
+            <input id="setTo" type="time" value="08:00">
+          </div>
+        </div>
+        <p class="muted small">Negli orari silenziosi non ricevi notifiche, ma gli avvisi compaiono comunque nell'elenco.</p>
+        <label class="switch"><input id="setSound" type="checkbox"><span>Suono e vibrazione con l'app aperta</span></label>
       </div>
+
+      <div class="panel">
+        <h2>Backup degli alert</h2>
+        <p class="muted small">Salva i tuoi alert in un file, per ritrovarli se cambi telefono o ricrei il progetto. L'importazione aggiunge gli alert senza cancellare quelli che hai.</p>
+        <div class="row-btn">
+          <button class="btn" id="exportRules" type="button">Esporta in un file</button>
+          <button class="btn" id="importRules" type="button">Importa da un file</button>
+          <input id="importFile" type="file" accept="application/json,.json" hidden>
+        </div>
+        <p id="backupMsg" class="muted small" hidden></p>
+      </div>
+
       <div class="panel">
         <h2>Dati</h2>
         <div class="row-btn">
