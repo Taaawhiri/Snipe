@@ -54,9 +54,16 @@ export function normLang(v) {
 
 /** Lingua dell'annuncio, qualunque sia il nome del campo nelle proprietà del gioco. */
 export function listingLang(p) {
-  const h = (p && p.properties_hash) || {};
-  const k = Object.keys(h).find((x) => /language/i.test(x));
-  return k && h[k] ? String(h[k]) : null;
+  if (!p) return null;
+  const h = p.properties_hash || {};
+  const k = Object.keys(h).find((x) => /lang|idioma|sprache|langue/i.test(x));
+  if (k && h[k]) return String(h[k]);
+  // Se il campo ha un nome inatteso, cerchiamo un valore che sia un codice o un nome di lingua noto.
+  for (const v of Object.values(h)) {
+    if (typeof v === 'string' && Object.hasOwn(LANGS, v.toLowerCase().trim())) return v;
+  }
+  const top = p.language || p.lang;
+  return top ? String(top) : null;
 }
 
 /** Motivi per cui un annuncio non rispetta i filtri della regola. Lista vuota = valido. */

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findDeals, median, condRank, rejectReasons, normLang, isSingleCard } from '../src/deals.js';
+import { findDeals, median, condRank, rejectReasons, normLang, isSingleCard, listingLang } from '../src/deals.js';
 
 const p = (id, cents, extra = {}) => ({
   id,
@@ -116,4 +116,15 @@ test('carte singole contro sigillati e accessori', () => {
   // senza categorie note e senza versione: valgono nome e assenza di parole da sigillato
   assert.equal(isSingleCard({ name: 'Mew', version: null }, null), true);
   assert.equal(isSingleCard({ name: 'Mew', version: null, category_id: 9 }, [1]), false);
+});
+
+test('lingua letta anche da campi con nome diverso', () => {
+  const mk = (h, extra = {}) => ({ properties_hash: h, ...extra });
+  assert.equal(listingLang(mk({ pokemon_language: 'jp' })), 'jp');
+  assert.equal(listingLang(mk({ language: 'zh-CN' })), 'zh-CN');
+  assert.equal(listingLang(mk({ condition: 'Near Mint', idioma: 'es' })), 'es');
+  assert.equal(listingLang(mk({ condition: 'Near Mint', l: 'ko' })), 'ko');
+  assert.equal(listingLang(mk({ condition: 'Near Mint' })), null);
+  assert.equal(listingLang(mk({}, { language: 'fr' })), 'fr');
+  assert.equal(normLang('zh-CN'), 'zh');
 });

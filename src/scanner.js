@@ -200,6 +200,22 @@ export class Scanner extends DurableObject {
 
         const pr = await this.ct(`/marketplace/products?expansion_id=${id}`);
         const keys = Object.keys(pr || {});
+        // Quali proprietà e quali valori di lingua hanno gli annunci: serve a capire dove sta la lingua.
+        const propKeys = {};
+        const langValues = {};
+        for (const list of Object.values(pr || {})) {
+          for (const p of Array.isArray(list) ? list : []) {
+            const h = p.properties_hash || {};
+            for (const [key, val] of Object.entries(h)) {
+              propKeys[key] = (propKeys[key] || 0) + 1;
+              if (/lang/i.test(key)) {
+                langValues[`${key}=${val}`] = (langValues[`${key}=${val}`] || 0) + 1;
+              }
+            }
+          }
+        }
+        out.propertyKeys = propKeys;
+        out.languageValues = langValues;
         out.products = {
           type: Array.isArray(pr) ? 'array' : typeof pr,
           blueprintKeys: keys.length,

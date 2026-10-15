@@ -355,7 +355,7 @@
     const sel = $('cardLang');
     const prev = sel.value || savedLang();
     sel.replaceChildren(
-      el('option', { value: '', text: 'Tutte le lingue' }),
+      el('option', { value: '', text: codes.length ? 'Tutte le lingue' : 'Tutte (lingue non indicate)' }),
       ...codes.map((c) => el('option', { value: c, text: LANG_NAMES[c] || c.toUpperCase() })),
     );
     sel.value = codes.includes(prev) ? prev : '';
