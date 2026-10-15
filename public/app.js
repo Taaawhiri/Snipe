@@ -78,6 +78,12 @@
   }));
   $('sheetBackdrop').addEventListener('click', closeSheets);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
+  // Menu di condivisione del sistema: da lì si sceglie Chrome o un'altra app per aprire la pagina.
+  $('dlgShare').hidden = !navigator.share;
+  $('dlgShare').addEventListener('click', async () => {
+    if (!current) return;
+    try { await navigator.share({ title: current.name, url: cardUrl(current.id) }); } catch { /* annullato */ }
+  });
   $('dlgCopy').addEventListener('click', async () => {
     if (!current) return;
     const url = cardUrl(current.id);
