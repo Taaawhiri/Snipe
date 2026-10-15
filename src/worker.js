@@ -29,6 +29,10 @@ export default {
       return Response.json({
         build: BUILD,
         dataServerBuild: (data && data.build) || 'precedente (non ancora aggiornato)',
+        indice: data ? data.indice : null,
+        erroreIndice: data ? data.erroreIndice : null,
+        erroreScan: data ? data.erroreScan : null,
+        limiteRichiesteFinoA: data ? data.limiteRichiesteFinoA : null,
         APP_KEY: has('APP_KEY'),
         CARDTRADER_TOKEN: has('CARDTRADER_TOKEN'),
         VAPID_PUBLIC_KEY: has('VAPID_PUBLIC_KEY'),

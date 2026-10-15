@@ -116,7 +116,19 @@ export class Scanner extends DurableObject {
       return json(alerts[0] || null);
     }
 
-    if (path === '/api/_version') return json({ build: BUILD });
+    if (path === '/api/_version') {
+      const m = await this.get('ixmeta', null);
+      const st = await this.get('status', {});
+      return json({
+        build: BUILD,
+        indice: m
+          ? { fatte: m.done.length, totale: m.total || null, completo: !!m.complete, conCarte: m.have.length, errori: Object.keys(m.errors || {}).length }
+          : 'non ancora avviato',
+        erroreIndice: st.indexError || null,
+        erroreScan: st.lastError || null,
+        limiteRichiesteFinoA: this.blockedUntil > Date.now() ? new Date(this.blockedUntil).toISOString() : null,
+      });
+    }
 
     if (path === '/api/_tick' && method === 'POST') {
       await this.ensureAlarm();
