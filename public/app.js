@@ -37,6 +37,7 @@
     return n;
   }
   const cardUrl = (blueprintId) => `https://www.cardtrader.com/cards/${blueprintId}`;
+  const cmSearchUrl = (c) => `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent([c.name, c.number].filter(Boolean).join(' '))}`;
   const chip = (text, cls = '') => el('span', { class: ('chip ' + cls).trim(), text });
   const thumb = (src) => (src ? el('img', { class: 'thumbimg', src, alt: '', loading: 'lazy' }) : el('div', { class: 'thumbimg ph', 'aria-hidden': 'true' }));
   const money = (c, cur) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
@@ -142,7 +143,7 @@
             ),
             a.test ? null : el('div', { class: 'prices' },
               el('span', { class: 'price', text: money(a.cents, a.currency) }),
-              el('span', { class: 'ref', text: money(a.refCents, a.currency) }),
+              el('span', { class: 'ref' }, money(a.refCents, a.currency), a.refKind === 'cardmarket' ? el('span', { class: 'cmtag', text: 'Cardmarket' }) : null),
             ),
           ),
           el('div', { class: 'side' },
@@ -174,7 +175,7 @@
               r.cardName ? el('div', { class: 'e', text: r.expansionName || '' }) : null,
             ),
             el('div', { class: 'chips' },
-              chip(r.maxPriceCents ? `Sotto ${money(r.maxPriceCents)}` : `Sconto da ${r.minDiscount}%`, 'on'),
+              chip(r.cmDiscount ? `Cardmarket −${r.cmDiscount}%` : r.maxPriceCents ? `Sotto ${money(r.maxPriceCents)}` : `Sconto da ${r.minDiscount}%`, 'on'),
               r.nameContains ? chip(`“${r.nameContains}”`) : null,
               chip(r.minCondition || 'Qualsiasi condizione', 'cond'),
               chip(r.language ? r.language.toUpperCase() : 'Tutte le lingue', 'lang'),
@@ -230,6 +231,7 @@
       kvRow('Alert attivi', `${active} su ${state.rules.length}`),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? st.lastError : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
+      kvRow('Prezzi Cardmarket', sys.cm ? `aggiornati ${ago(sys.cm.ts)}` : sys.cmError ? `non disponibili: ${sys.cmError}` : 'in scaricamento…', !sys.cm && sys.cmError ? 'bad' : ''),
       kvRow('Dispositivi con notifiche', String(state.pushDevices)),
       kvRow('Versione', sys.build || '—'),
     ];
@@ -354,9 +356,10 @@
   // ---------- modifica alert ----------
   let editing = null;
 
-  function setEditMode(pct) {
-    $('edPrice').hidden = pct;
-    $('edPercent').hidden = !pct;
+  function setEditMode(mode) {
+    $('edPrice').hidden = mode !== 'price';
+    $('edPercent').hidden = mode !== 'percent';
+    $('edCm').hidden = mode !== 'cm';
   }
 
   function openEdit(r) {
@@ -364,9 +367,12 @@
     const legacy = !r.blueprintId;
     $('edTitle').textContent = r.cardName || r.expansionName || 'Modifica alert';
     $('edSub').textContent = r.cardName ? r.expansionName || '' : 'Alert su tutta l’espansione';
-    const pct = !r.maxPriceCents;
-    document.querySelector(`input[name="emode"][value="${pct ? 'percent' : 'price'}"]`).checked = true;
-    setEditMode(pct);
+    const mode = r.cmDiscount ? 'cm' : r.maxPriceCents ? 'price' : 'percent';
+    document.querySelector(`input[name="emode"][value="${mode}"]`).checked = true;
+    $('emodeCmLabel').hidden = !(r.cmId || r.cmDiscount);
+    $('edCmPct').value = r.cmDiscount || 20;
+    $('edCmLabel').textContent = `${$('edCmPct').value}%`;
+    setEditMode(mode);
     $('edMax').value = r.maxPriceCents ? (r.maxPriceCents / 100).toFixed(2) : '';
     $('edPct').value = r.minDiscount || 30;
     $('edPctLabel').textContent = `${$('edPct').value}%`;
@@ -381,14 +387,16 @@
   }
 
   document.querySelectorAll('input[name="emode"]').forEach((x) =>
-    x.addEventListener('change', () => setEditMode(document.querySelector('input[name="emode"]:checked').value === 'percent')),
+    x.addEventListener('change', () => setEditMode(document.querySelector('input[name="emode"]:checked').value)),
   );
+  $('edCmPct').addEventListener('input', () => ($('edCmLabel').textContent = `${$('edCmPct').value}%`));
   $('edPct').addEventListener('input', () => ($('edPctLabel').textContent = `${$('edPct').value}%`));
 
   $('editForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!editing) return;
-    const pct = document.querySelector('input[name="emode"]:checked').value === 'percent';
+    const emode = document.querySelector('input[name="emode"]:checked').value;
+    const pct = emode === 'percent';
     const body = {
       id: editing.id,
       expansionId: editing.expansionId,
@@ -404,7 +412,10 @@
       language: $('edLang').value,
       minDiscount: pct ? Number($('edPct').value) : editing.minDiscount,
     };
-    if (!pct) {
+    if (emode === 'cm') {
+      body.cmDiscount = Number($('edCmPct').value);
+      body.cmId = editing.cmId;
+    } else if (!pct) {
       const v = Number($('edMax').value);
       if (!(v > 0)) { $('edError').textContent = 'Inserisci un prezzo maggiore di zero.'; $('edError').hidden = false; return; }
       body.maxPrice = v;
@@ -428,8 +439,9 @@
     try {
       const data = await api(`/api/explain?rule_id=${r.id}`);
       const ok = data.rows.filter((x) => !x.reasons.length).length;
+      if (data.note) { $('exInfo').textContent = data.note; return; }
       $('exInfo').textContent = data.rows.length
-        ? `${data.total} annunci in vendita, i ${data.rows.length} più economici qui sotto. ${ok ? `${ok} rispettano i filtri e fanno scattare l’alert.` : 'Nessuno rispetta i filtri.'}`
+        ? `${data.cmTrend ? `Tendenza Cardmarket ${money(Math.round(data.cmTrend * 100))}. ` : ''}${data.total} annunci in vendita, i ${data.rows.length} più economici qui sotto. ${ok ? `${ok} rispettano i filtri e fanno scattare l’alert.` : 'Nessuno rispetta i filtri.'}`
         : 'CardTrader non mostra annunci per questa carta.';
       $('exRows').replaceChildren(
         ...data.rows.map((x) =>
@@ -483,6 +495,13 @@
     return { lowest, lowestZero };
   }
 
+  /** Quanto il prezzo mostrato è sotto la tendenza Cardmarket (0,25 = 25% in meno). null se manca uno dei due. */
+  function cmDelta(c) {
+    const p = $('cardPriceMode').value === 'zero' ? view(c).lowestZero : view(c).lowest;
+    if (p == null || !c.cm || !(c.cm.trend > 0)) return null;
+    return 1 - p / (c.cm.trend * 100);
+  }
+
   function priceText(c) {
     const v = view(c);
     const n = $('cardPriceMode').value === 'zero' ? v.lowestZero : v.lowest;
@@ -522,6 +541,15 @@
         if (pb == null) return -1;
         return sort === 'price-asc' ? pa - pb : pb - pa;
       });
+    } else if (sort === 'cm') {
+      // dalle carte più sotto Cardmarket; quelle senza confronto in fondo
+      list.sort((a, b) => {
+        const da = cmDelta(a), db = cmDelta(b);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return db - da;
+      });
     } else if (sort === 'name') {
       list.sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -535,11 +563,13 @@
             c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
             el('span', { class: 'pricepill' + (c.loading || shown == null ? ' none' : ''), text: c.loading ? '…' : priceText(c) }),
             !zeroMode && view(c).lowestZero != null ? el('span', { class: 'zeropill', text: 'Zero ' + money(view(c).lowestZero, c.currency) }) : null,
+            cmDelta(c) >= 0.05 ? el('span', { class: 'cmpill', text: `−${Math.round(cmDelta(c) * 100)}% CM` }) : null,
           ),
           el('div', null,
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
             el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
             c.expName ? el('div', { class: 'sub', text: c.expName }) : null,
+            c.cm ? el('div', { class: 'cmtxt', text: `Cardmarket ${money(Math.round(c.cm.trend * 100), c.currency)}` }) : null,
           ),
           ),
         );
@@ -731,11 +761,37 @@
   });
   $('cardSort').addEventListener('change', renderCards);
 
+  function renderCmBox(c) {
+    const box = $('dlgCm');
+    if (!c.cm) { box.hidden = true; box.replaceChildren(); $('amodeCmLabel').hidden = true; return; }
+    const d = cmDelta(c);
+    box.hidden = false;
+    box.replaceChildren(
+      el('div', null, 'Cardmarket'),
+      el('div', { class: 'cmrow' },
+        el('div', null, el('span', { text: 'tendenza ' }), money(Math.round(c.cm.trend * 100), c.currency)),
+        c.cm.avg30 != null ? el('div', null, el('span', { text: 'media 30 giorni ' }), money(Math.round(c.cm.avg30 * 100), c.currency)) : null,
+        c.cm.low != null ? el('div', null, el('span', { text: 'più basso ' }), money(Math.round(c.cm.low * 100), c.currency)) : null,
+      ),
+      d == null ? null : el('div', { class: 'delta ' + (d >= 0.05 ? 'good' : d <= -0.05 ? 'bad' : ''), text: d >= 0 ? `Su CardTrader costa il ${Math.round(d * 100)}% in meno della tendenza` : `Su CardTrader costa il ${Math.round(-d * 100)}% in più della tendenza` }),
+      el('a', { href: cmSearchUrl(c), target: '_blank', rel: 'noopener noreferrer', text: 'Cerca su Cardmarket ↗' }),
+    );
+    $('amodeCmLabel').hidden = !c.cmId;
+    updateCmHint();
+  }
+
+  function updateCmHint() {
+    $('alertCmLabel').textContent = `${$('alertCmPct').value}%`;
+    const c = current;
+    if (c && c.cm) $('alertCmHint').textContent = `Scatta sotto ${money(Math.floor(c.cm.trend * 100 * (1 - Number($('alertCmPct').value) / 100)), c.currency)} (tendenza ${money(Math.round(c.cm.trend * 100), c.currency)}). La tendenza si aggiorna ogni giorno.`;
+  }
+
   async function openCard(c) {
     current = c;
     dlgExp = c.expansionId ? { id: c.expansionId, name: c.expName } : currentExp;
     $('dlgName').textContent = c.name + (c.version ? ` (${c.version})` : '');
     $('dlgImg').src = c.image || '';
+    renderCmBox(c);
     $('dlgLink').href = cardUrl(c.id);
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);
@@ -752,6 +808,10 @@
     $('alertLang').value = [...$('alertLang').options].some((o) => o.value === toRuleLang(lang)) ? toRuleLang(lang) : '';
     $('alertError').hidden = true;
     $('alertOk').hidden = true;
+    document.querySelector('input[name="amode"][value="price"]').checked = true;
+    $('amodePrice').hidden = false;
+    $('amodePercent').hidden = true;
+    $('amodeCm').hidden = true;
     const low = v.lowest;
     const base = low == null ? '' : (Math.floor((low * 0.8) / 50) * 0.5).toFixed(2);
     $('alertMax').value = base && Number(base) > 0 ? base : low == null ? '' : (low / 100).toFixed(2);
@@ -780,17 +840,20 @@
 
   document.querySelectorAll('input[name="amode"]').forEach((r) =>
     r.addEventListener('change', () => {
-      const pct = document.querySelector('input[name="amode"]:checked').value === 'percent';
-      $('amodePrice').hidden = pct;
-      $('amodePercent').hidden = !pct;
+      const mode = document.querySelector('input[name="amode"]:checked').value;
+      $('amodePrice').hidden = mode !== 'price';
+      $('amodePercent').hidden = mode !== 'percent';
+      $('amodeCm').hidden = mode !== 'cm';
     }),
   );
+  $('alertCmPct').addEventListener('input', updateCmHint);
   $('alertPct').addEventListener('input', () => ($('alertPctLabel').textContent = `${$('alertPct').value}%`));
 
   $('alertForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!current || !dlgExp) return;
-    const pct = document.querySelector('input[name="amode"]:checked').value === 'percent';
+    const mode = document.querySelector('input[name="amode"]:checked').value;
+    const pct = mode === 'percent';
     $('alertError').hidden = true;
     $('alertOk').hidden = true;
     const body = {
@@ -804,7 +867,11 @@
       language: $('alertLang').value,
       minPrice: 0,
     };
-    if (pct) body.minDiscount = Number($('alertPct').value);
+    if (mode === 'cm') {
+      if (!current.cmId) { $('alertError').textContent = 'Per questa carta non c’è un riferimento Cardmarket.'; $('alertError').hidden = false; return; }
+      body.cmDiscount = Number($('alertCmPct').value);
+      body.cmId = current.cmId;
+    } else if (pct) body.minDiscount = Number($('alertPct').value);
     else {
       const v = Number($('alertMax').value);
       if (!(v > 0)) { $('alertError').textContent = 'Inserisci un prezzo maggiore di zero.'; $('alertError').hidden = false; return; }

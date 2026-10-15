@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
+import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
@@ -39,6 +40,8 @@ const prop = (list, re) => {
 
 export class Scanner extends DurableObject {
   cardCache = new Map();
+  cmCache = new Map();
+  cmFailedAt = 0;
   queue = Promise.resolve();
   lastCall = 0;
   blockedUntil = 0;
@@ -80,6 +83,8 @@ export class Scanner extends DurableObject {
       build: BUILD,
       index: m ? { done: m.done.length, total: m.total || null, complete: !!m.complete, withCards: m.have.length } : null,
       indexError: (status && status.indexError) || null,
+      cm: await this.get('cmmeta', null),
+      cmError: (status && status.cmError) || null,
       limitUntil: this.blockedUntil > Date.now() ? this.blockedUntil : null,
     };
   }
@@ -234,9 +239,16 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/explain' && method === 'GET') {
-      const rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));
+      let rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));
       if (!rule) return json({ error: 'Regola non trovata' }, 404);
       try {
+        let cmTrend = null;
+        if (rule.cmDiscount && rule.cmId) {
+          const e = (await this.cmLookup([rule.cmId])).get(rule.cmId);
+          if (!e) return json({ rows: [], total: 0, note: 'Per questa carta non c’è un prezzo Cardmarket: l’alert non può scattare.' });
+          cmTrend = e.trend;
+          rule = { ...rule, maxPriceCents: maxCentsBelow(e.trend, rule.cmDiscount) };
+        }
         const data = await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`);
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const rows = all
@@ -256,7 +268,7 @@ export class Scanner extends DurableObject {
               reasons,
             };
           });
-        return json({ rows, total: all.length });
+        return json({ rows, total: all.length, cmTrend });
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
@@ -446,6 +458,9 @@ export class Scanner extends DurableObject {
     const language = String(b.language || '').toLowerCase();
     const blueprintId = parseInt(b.blueprintId, 10);
     const maxPrice = Number(b.maxPrice);
+    const cmDiscount = Number(b.cmDiscount);
+    const cmId = parseInt(b.cmId, 10);
+    const cm = Number.isFinite(cmDiscount) && cmDiscount > 0 && Number.isInteger(cmId) && cmId > 0;
     return {
       id: typeof b.id === 'string' && b.id ? b.id.slice(0, 64) : crypto.randomUUID(),
       expansionId,
@@ -455,7 +470,10 @@ export class Scanner extends DurableObject {
       cardImage: /^https:\/\//.test(b.cardImage || '') ? String(b.cardImage).slice(0, 300) : null,
       nameContains: String(b.nameContains || '').trim().slice(0, 60),
       // Se presente, l'alert scatta per prezzo assoluto e lo sconto percentuale non conta.
-      maxPriceCents: Number.isFinite(maxPrice) && maxPrice > 0 ? Math.round(clamp(maxPrice, 0.01, 100000, 1) * 100) : null,
+      maxPriceCents: !cm && Number.isFinite(maxPrice) && maxPrice > 0 ? Math.round(clamp(maxPrice, 0.01, 100000, 1) * 100) : null,
+      // Alert "almeno X% sotto la tendenza Cardmarket": la soglia in euro si calcola a ogni controllo.
+      cmDiscount: cm ? clamp(cmDiscount, 5, 90, 20) : null,
+      cmId: cm ? cmId : null,
       zero: b.zero === 'only' || b.zero === 'exclude' ? b.zero : '',
       minDiscount: clamp(Number(b.minDiscount), 5, 90, 30),
       minPriceCents: Math.round(clamp(Number(b.minPrice), 0, 100000, 5) * 100),
@@ -513,7 +531,7 @@ export class Scanner extends DurableObject {
     if (hit && Date.now() - hit.ts < 30_000) return hit.data;
 
     const singleIds = await this.singleCategoryIds();
-    const bpKey = `bp3:${expansionId}`;
+    const bpKey = `bp4:${expansionId}`;
     let blueprints;
     const savedBp = await this.get(bpKey, null);
     if (savedBp && Date.now() - savedBp.ts < 24 * 3600_000) {
@@ -521,11 +539,12 @@ export class Scanner extends DurableObject {
     } else {
       let raw = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
       if (!Array.isArray(raw)) raw = (raw && (raw.blueprints || raw.array || raw.data)) || [];
-      blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url, category_id: b.category_id, fp: b.fixed_properties || {} }));
+      blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url, category_id: b.category_id, fp: b.fixed_properties || {}, cm: Array.isArray(b.card_market_ids) ? b.card_market_ids[0] || null : null }));
       await this.ctx.storage.put(bpKey, { ts: Date.now(), list: blueprints });
     }
     const products = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
 
+    const cmMap = await this.cmLookup(blueprints.map((b) => b.cm).filter(Boolean));
     const langCount = {};
     const cards = blueprints.map((bp) => {
       const list = (products[bp.id] || products[String(bp.id)] || []).filter(isListable).sort(byPrice);
@@ -561,6 +580,8 @@ export class Scanner extends DurableObject {
         lowestZero: lowZero ? lowZero.price.cents : null,
         langs,
         lc,
+        cmId: bp.cm || null,
+        cm: (bp.cm && cmMap.get(bp.cm)) || null,
       };
     });
     cards.sort((a, b) => {
@@ -574,6 +595,52 @@ export class Scanner extends DurableObject {
     const data = { expansionId, cards, languages };
     this.cardCache.set(expansionId, { ts: Date.now(), data });
     return data;
+  }
+
+  // ---------- Prezzi Cardmarket (listino pubblico giornaliero) ----------
+
+  /** Il listino va scaricato se manca o ha più di 20 ore; dopo un errore si aspettano 30 minuti. */
+  async cmDue() {
+    const m = await this.get('cmmeta', null);
+    const stale = !m || Date.now() - m.ts > 20 * 3600_000;
+    return stale && !(this.cmFailedAt && Date.now() - this.cmFailedAt < 30 * 60_000);
+  }
+
+  async cmStep() {
+    if (!(await this.cmDue())) return;
+    try {
+      const res = await fetch(this.env.CM_PRICE_URL || CM_PRICE_URL, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`Listino Cardmarket: HTTP ${res.status}`);
+      const rows = parsePriceGuide(await res.text());
+      if (rows.length < 1000) throw new Error('Listino Cardmarket incompleto');
+      const entries = {};
+      toShards(rows).forEach((shard, i) => (entries[`cm:${i}`] = shard));
+      await this.ctx.storage.put(entries);
+      await this.ctx.storage.put('cmmeta', { ts: Date.now(), count: rows.length });
+      this.cmCache.clear();
+      this.cmFailedAt = 0;
+    } catch (e) {
+      this.cmFailedAt = Date.now();
+      throw e;
+    }
+  }
+
+  /** Prezzi Cardmarket (tendenza, media 30 giorni, minimo) per un elenco di prodotti. Map id -> prezzi. */
+  async cmLookup(ids) {
+    const out = new Map();
+    const need = new Set();
+    const fresh = (c) => c && Date.now() - c.ts < 10 * 60_000;
+    for (const id of ids) if (id && !fresh(this.cmCache.get(shardOf(id)))) need.add(shardOf(id));
+    if (need.size) {
+      const got = await this.ctx.storage.get([...need].map((n) => `cm:${n}`));
+      for (const [k, data] of got) this.cmCache.set(Number(k.slice(3)), { ts: Date.now(), data });
+    }
+    for (const id of ids) {
+      const c = this.cmCache.get(shardOf(id));
+      const e = c && cmEntry(c.data[id]);
+      if (e) out.set(id, e);
+    }
+    return out;
   }
 
   // ---------- Indice dei nomi (ricerca su tutte le espansioni) ----------
@@ -679,7 +746,7 @@ export class Scanner extends DurableObject {
   async ensureAlarm() {
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
     const paused = (await this.settings()).paused;
-    if ((paused || !rules.length) && !(await this.indexPending())) return;
+    if ((paused || !rules.length) && !(await this.indexPending()) && !(await this.cmDue())) return;
     const current = await this.ctx.storage.getAlarm();
     if (current === null) await this.ctx.storage.setAlarm(Date.now() + 1000);
   }
@@ -694,6 +761,12 @@ export class Scanner extends DurableObject {
     }
     status.lastScan = Date.now();
     try {
+      await this.cmStep();
+      status.cmError = null;
+    } catch (e) {
+      status.cmError = String(e.message || e);
+    }
+    try {
       await this.indexStep();
       status.indexError = null;
     } catch (e) {
@@ -703,7 +776,7 @@ export class Scanner extends DurableObject {
 
     const settings = await this.settings();
     const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
-    if (scanning || (await this.indexPending())) {
+    if (scanning || (await this.indexPending()) || (await this.cmDue())) {
       const every = scanning ? settings.scanEverySec * 1000 : SCAN_EVERY_MS;
       await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
     }
@@ -720,12 +793,23 @@ export class Scanner extends DurableObject {
     let requests = 0;
 
     for (const rule of rules) {
+      let evalRule = rule;
+      let cmRef = null;
+      if (rule.cmDiscount && rule.cmId) {
+        const e = (await this.cmLookup([rule.cmId])).get(rule.cmId);
+        const max = e && maxCentsBelow(e.trend, rule.cmDiscount);
+        if (!max) continue; // senza prezzo Cardmarket non c'è un riferimento: nessun alert
+        cmRef = e.trend;
+        evalRule = { ...rule, maxPriceCents: max };
+      }
       const key = String(rule.expansionId);
       if (!cache.has(key)) {
         cache.set(key, await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`));
         requests++;
       }
-      const deals = findDeals(cache.get(key), rule);
+      const deals = findDeals(cache.get(key), evalRule).map((d) =>
+        cmRef ? { ...d, refCents: Math.round(cmRef * 100), discount: Math.max(0, 1 - d.cents / (cmRef * 100)) } : d,
+      );
       // Gli alert su una carta valutano subito anche gli annunci già in vendita. Solo le vecchie regole
       // su un'intera espansione, che potrebbero produrre decine di alert, alla prima scansione
       // memorizzano soltanto ciò che c'è.
@@ -749,6 +833,7 @@ export class Scanner extends DurableObject {
           refCents: d.refCents,
           currency: p.price.currency || 'EUR',
           discount: d.discount,
+          refKind: cmRef ? 'cardmarket' : null,
           seller: p.user && p.user.username,
           country: p.user && p.user.country_code,
           zero: isZero(p),

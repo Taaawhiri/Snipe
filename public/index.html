@@ -89,6 +89,7 @@
             <select id="cardSort">
               <option value="price-desc">Prezzo: dal più alto</option>
               <option value="price-asc">Prezzo: dal più basso</option>
+              <option value="cm">Più sotto Cardmarket</option>
               <option value="number">Numero</option>
               <option value="name">Nome</option>
             </select>
@@ -241,10 +242,15 @@
     <div class="seg" role="radiogroup" aria-label="Tipo di alert">
       <label><input type="radio" name="emode" value="price"> Sotto un prezzo</label>
       <label><input type="radio" name="emode" value="percent"> Sconto in %</label>
+      <label id="emodeCmLabel" hidden><input type="radio" name="emode" value="cm"> Sotto Cardmarket</label>
     </div>
     <div id="edPrice">
       <label for="edMax">Avvisami se costa meno di (€)</label>
       <input id="edMax" type="number" min="0.01" step="0.01" inputmode="decimal">
+    </div>
+    <div id="edCm" hidden>
+      <label for="edCmPct">Almeno <b id="edCmLabel">20%</b> sotto la tendenza Cardmarket</label>
+      <input id="edCmPct" type="range" min="5" max="80" step="5" value="20">
     </div>
     <div id="edPercent" hidden>
       <label for="edPct">Sconto minimo sul prezzo tipico: <b id="edPctLabel">30%</b></label>
@@ -305,6 +311,7 @@
       <div class="dlg-info">
         <div id="dlgMeta" class="muted"></div>
         <div id="dlgLangNote" class="chips"></div>
+        <div id="dlgCm" class="cmbox" hidden></div>
         <a id="dlgLink" class="btn primary" href="#" target="_blank" rel="noopener noreferrer">Apri su CardTrader ↗</a>
         <div class="dlg-prices">
           <div><div class="k">Più basso</div><div id="dlgLow" class="price">—</div></div>
@@ -321,10 +328,16 @@
       <div class="seg" role="radiogroup" aria-label="Tipo di alert">
         <label><input type="radio" name="amode" value="price" checked> Sotto un prezzo</label>
         <label><input type="radio" name="amode" value="percent"> Sconto in %</label>
+        <label id="amodeCmLabel" hidden><input type="radio" name="amode" value="cm"> Sotto Cardmarket</label>
       </div>
       <div id="amodePrice">
         <label for="alertMax">Avvisami se costa meno di (€)</label>
         <input id="alertMax" type="number" min="0.01" step="0.01" inputmode="decimal">
+      </div>
+      <div id="amodeCm" hidden>
+        <label for="alertCmPct">Almeno <b id="alertCmLabel">20%</b> sotto la tendenza Cardmarket</label>
+        <input id="alertCmPct" type="range" min="5" max="80" step="5" value="20">
+        <p id="alertCmHint" class="muted small"></p>
       </div>
       <div id="amodePercent" hidden>
         <label for="alertPct">Sconto minimo sul prezzo tipico: <b id="alertPctLabel">30%</b></label>
