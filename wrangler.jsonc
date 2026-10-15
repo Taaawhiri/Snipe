@@ -2,6 +2,8 @@
   "name": "snipe",
   "main": "src/worker.js",
   "compatibility_date": "2025-09-01",
+  // Un deploy da Git non cancella le variabili impostate a mano dalla dashboard.
+  "keep_vars": true,
   "assets": { "directory": "./public" },
   "durable_objects": {
     "bindings": [{ "name": "SCANNER", "class_name": "Scanner" }]
