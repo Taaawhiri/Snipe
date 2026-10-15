@@ -36,6 +36,7 @@
     for (const c of children) if (c) n.append(c);
     return n;
   }
+  const cardUrl = (blueprintId) => `https://www.cardtrader.com/cards/${blueprintId}`;
   const chip = (text, cls = '') => el('span', { class: ('chip ' + cls).trim(), text });
   const thumb = (src) => (src ? el('img', { class: 'thumbimg', src, alt: '', loading: 'lazy' }) : el('div', { class: 'thumbimg ph', 'aria-hidden': 'true' }));
   const money = (c, cur) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
@@ -407,7 +408,9 @@
     $('cardGrid').replaceChildren(
       ...list.map((c) => {
         const shown = price(c);
-        return el('button', { class: 'tile', type: 'button', onclick: () => openCard(c) },
+        return el('div', { class: 'tile' },
+          el('a', { class: 'tile-go', href: cardUrl(c.id), target: '_blank', rel: 'noopener noreferrer', 'aria-label': `Apri ${c.name} su CardTrader`, title: 'Apri su CardTrader', text: '↗' }),
+          el('button', { class: 'tile-main', type: 'button', onclick: () => openCard(c) },
           el('div', { class: 'art' },
             c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
             el('span', { class: 'pricepill' + (c.loading || shown == null ? ' none' : ''), text: c.loading ? '…' : priceText(c) }),
@@ -417,6 +420,7 @@
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
             el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
             c.expName ? el('div', { class: 'sub', text: c.expName }) : null,
+          ),
           ),
         );
       }),
@@ -604,6 +608,7 @@
     dlgExp = c.expansionId ? { id: c.expansionId, name: c.expName } : currentExp;
     $('dlgName').textContent = c.name + (c.version ? ` (${c.version})` : '');
     $('dlgImg').src = c.image || '';
+    $('dlgLink').href = cardUrl(c.id);
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);
     const lang = $('cardLang').value;
@@ -625,10 +630,11 @@
       $('dlgListings').replaceChildren(
         ...(rows.length
           ? rows.map((r) =>
-              el('div', { class: 'lrow' },
+              el('a', { class: 'lrow link', href: cardUrl(c.id), target: '_blank', rel: 'noopener noreferrer', title: 'Apri su CardTrader' },
                 el('span', { class: 'p', text: money(r.cents, r.currency) }),
                 el('span', { class: 'd', text: [r.condition, r.language && r.language.toUpperCase(), r.seller && `${r.seller}${r.country ? ' (' + r.country + ')' : ''}`, r.quantity > 1 && `x${r.quantity}`].filter(Boolean).join(' · ') }),
                 r.zero ? el('span', { class: 'zero-tag', text: 'Zero' }) : null,
+                el('span', { class: 'go', text: '↗' }),
               ),
             )
           : [el('p', { class: 'muted', text: 'Nessun annuncio in vendita.' })]),
