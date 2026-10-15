@@ -19,7 +19,7 @@ Gira tutta su Cloudflare, in un solo Worker:
 
 Per ogni carta prende gli annunci in vendita (esclusi graded e venditori in vacanza) e guarda i 3 più economici. Ognuno viene confrontato con la **mediana dei 5 annunci successivi**. Se costa almeno il tuo sconto minimo in meno, almeno il prezzo minimo impostato e ci sono almeno 3 annunci di riferimento, scatta l'alert.
 
-Un alert "sotto un prezzo" su una carta scatta subito anche per gli annunci già in vendita sotto la soglia. Gli alert in percentuale alla prima scansione memorizzano soltanto ciò che c'è già e avvisano per i nuovi annunci o per i cali di prezzo.
+Gli alert su una carta valutano subito anche gli annunci già in vendita, poi avvisano una sola volta per ogni annuncio (e di nuovo se il suo prezzo cambia). Se modifichi i criteri di un alert, gli annunci vengono rivalutati.
 
 ## Messa online su Cloudflare
 

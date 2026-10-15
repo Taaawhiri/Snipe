@@ -461,9 +461,10 @@ export class Scanner extends DurableObject {
         requests++;
       }
       const deals = findDeals(cache.get(key), rule);
-      // Un alert "sotto X €" su una carta scatta anche per gli annunci già presenti; gli altri tipi
-      // di regola alla prima scansione memorizzano soltanto ciò che c'è.
-      const firstRun = !baselined.has(rule.id) && !(rule.blueprintId && rule.maxPriceCents);
+      // Gli alert su una carta valutano subito anche gli annunci già in vendita. Solo le vecchie regole
+      // su un'intera espansione, che potrebbero produrre decine di alert, alla prima scansione
+      // memorizzano soltanto ciò che c'è.
+      const firstRun = !baselined.has(rule.id) && !rule.blueprintId;
 
       for (const d of deals) {
         const sid = `${rule.id}:${d.product.id}:${d.cents}`; // per regola: due alert sulla stessa carta non si oscurano
