@@ -200,8 +200,20 @@
 
       <div class="panel" id="extPanel" hidden>
         <h2>Link esterni</h2>
-        <label class="switch"><input id="setSafari" type="checkbox"><span>Apri CardTrader e Cardmarket in Safari</span></label>
-        <p class="muted small">Sull'iPhone i link si aprirebbero dentro l'app. Con questa opzione si apre Safari. Se toccando un link non succede niente, spegni l'opzione.</p>
+        <p class="muted small">Sull'iPhone i link a CardTrader e Cardmarket si aprono di solito dentro l'app. Qui puoi provare ad aprirli in un altro browser. Scegli un metodo e premi Prova: se si apre il browser giusto, tienilo.</p>
+        <div class="field">
+          <label for="setExt">Metodo di apertura</label>
+          <select id="setExt">
+            <option value="inapp">Dentro l'app (predefinito iPhone)</option>
+            <option value="safari">Safari (sperimentale)</option>
+            <option value="chrome">Chrome</option>
+            <option value="firefox">Firefox</option>
+          </select>
+        </div>
+        <div class="row-btn">
+          <button class="btn" id="extTest" type="button">Prova con CardTrader</button>
+        </div>
+        <p class="muted small">Se tocchi un link e non succede niente, quel metodo non funziona su questo telefono: torna a "Dentro l'app". In ogni finestra interna c'è anche il pulsante con la bussola per passare a Safari.</p>
       </div>
 
       <div class="panel">
@@ -327,6 +339,7 @@
     </div>
     <div id="dlgCm" class="cmbox" hidden></div>
     <a id="dlgLink" class="btn primary wide" href="#" target="_blank" rel="noopener noreferrer">Apri su CardTrader ↗</a>
+    <button id="dlgCopy" class="btn wide" type="button">Copia il link di CardTrader</button>
 
     <h2 class="section">Annunci più economici</h2>
     <div id="dlgListings" class="list"></div>

@@ -78,19 +78,37 @@
   }));
   $('sheetBackdrop').addEventListener('click', closeSheets);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
+  $('dlgCopy').addEventListener('click', async () => {
+    if (!current) return;
+    const url = cardUrl(current.id);
+    try {
+      await navigator.clipboard.writeText(url);
+      $('dlgCopy').textContent = 'Link copiato: incollalo nel browser';
+    } catch {
+      $('dlgCopy').textContent = url; // se la copia è bloccata, mostriamo l'indirizzo da copiare a mano
+    }
+  });
 
   // ---------- link esterni ----------
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const safariOn = () => { try { return localStorage.getItem('snipe.safari') !== '0'; } catch { return true; } };
-  // Su iPhone un link esterno nella webapp si apre in una finestra interna: con lo schema x-safari- si apre Safari.
+  const extMode = () => { try { return localStorage.getItem('snipe.ext') || 'inapp'; } catch { return 'inapp'; } };
+  /** Indirizzo da aprire con il metodo scelto, o null per lasciare il comportamento normale. */
+  function externalHref(href, mode) {
+    let u;
+    try { u = new URL(href); } catch { return null; }
+    if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return null;
+    if (mode === 'safari') return `x-safari-${u.href}`;
+    if (mode === 'chrome') return u.href.replace(/^https:/, 'googlechromes:').replace(/^http:/, 'googlechrome:');
+    if (mode === 'firefox') return `firefox://open-url?url=${encodeURIComponent(u.href)}`;
+    return null;
+  }
   document.addEventListener('click', (ev) => {
     const a = ev.target.closest && ev.target.closest('a[target="_blank"]');
-    if (!a || !isIOS || !safariOn()) return;
-    let u;
-    try { u = new URL(a.href); } catch { return; }
-    if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
+    if (!a || !isIOS) return;
+    const target = externalHref(a.href, extMode());
+    if (!target) return;
     ev.preventDefault();
-    location.href = `x-safari-${u.href}`;
+    location.href = target;
   });
 
   // ---------- login ----------
@@ -281,7 +299,7 @@
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
     $('extPanel').hidden = !isIOS;
-    if (free('setSafari')) $('setSafari').checked = safariOn();
+    if (free('setExt')) $('setExt').value = extMode();
   }
 
   async function saveSettings(patch) {
@@ -299,8 +317,13 @@
   $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
-  $('setSafari').addEventListener('change', () => {
-    try { localStorage.setItem('snipe.safari', $('setSafari').checked ? '1' : '0'); } catch {}
+  $('setExt').addEventListener('change', () => {
+    try { localStorage.setItem('snipe.ext', $('setExt').value); } catch {}
+  });
+  $('extTest').addEventListener('click', () => {
+    const target = externalHref('https://www.cardtrader.com/', $('setExt').value);
+    if (target) location.href = target;
+    else window.open('https://www.cardtrader.com/', '_blank', 'noopener');
   });
   $('setSound').addEventListener('change', () => {
     try { localStorage.setItem('snipe.sound', $('setSound').checked ? '1' : '0'); } catch {}
@@ -828,6 +851,7 @@
     $('dlgImg').src = c.image || '';
     renderCmBox(c);
     $('dlgLink').href = cardUrl(c.id);
+    $('dlgCopy').textContent = 'Copia il link di CardTrader';
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);
     const lang = $('cardLang').value;
