@@ -23,7 +23,7 @@ export default {
         return Response.json({ error: 'APP_KEY non configurata su Cloudflare' }, { status: 500 });
       }
       const given = req.headers.get('x-app-key') || '';
-      if (!sameKey(given, env.APP_KEY)) return Response.json({ error: 'Chiave non valida' }, { status: 401 });
+      if (!sameKey(given.trim(), String(env.APP_KEY).trim())) return Response.json({ error: 'Chiave non valida' }, { status: 401 });
     }
     return stub(env).fetch(req);
   },
