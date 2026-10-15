@@ -406,6 +406,18 @@
   $('pushTest').addEventListener('click', async () => {
     try { await api('/api/test-push', { method: 'POST' }); await refresh(); } catch (e) { $('pushInfo').textContent = e.message; }
   });
+  $('runDebug').addEventListener('click', async () => {
+    const out = $('debugOut');
+    out.hidden = false;
+    out.textContent = 'Controllo…';
+    try {
+      const id = $('cardExp').value;
+      const r = await api('/api/debug' + (id ? `?expansion_id=${id}` : ''));
+      out.textContent = JSON.stringify(r, null, 2);
+    } catch (e) {
+      out.textContent = 'Errore: ' + e.message;
+    }
+  });
   $('clearAlerts').addEventListener('click', async () => { await api('/api/alerts', { method: 'DELETE' }); knownTop = null; refresh(); });
 
   // ---------- avvio ----------

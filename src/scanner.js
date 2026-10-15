@@ -131,6 +131,44 @@ export class Scanner extends DurableObject {
       }
     }
 
+    if (path === '/api/debug' && method === 'GET') {
+      // Diagnosi: riassume cosa risponde CardTrader, senza dati personali.
+      const out = { steps: [] };
+      try {
+        let id = parseInt(url.searchParams.get('expansion_id'), 10);
+        const exps = await this.pokemonExpansions();
+        out.expansionsCount = exps.length;
+        if (!Number.isInteger(id)) id = (exps.find((e) => /151/.test(e.name)) || exps[0] || {}).id;
+        out.expansionId = id;
+        out.expansionName = (exps.find((e) => e.id === id) || {}).name;
+
+        const bp = await this.ct(`/blueprints/export?expansion_id=${id}`);
+        out.blueprints = {
+          type: Array.isArray(bp) ? 'array' : typeof bp,
+          count: Array.isArray(bp) ? bp.length : null,
+          keys: Array.isArray(bp) ? undefined : Object.keys(bp || {}).slice(0, 10),
+          first: Array.isArray(bp) ? bp[0] : undefined,
+        };
+
+        const pr = await this.ct(`/marketplace/products?expansion_id=${id}`);
+        const keys = Object.keys(pr || {});
+        out.products = {
+          type: Array.isArray(pr) ? 'array' : typeof pr,
+          blueprintKeys: keys.length,
+          firstKeys: keys.slice(0, 5),
+          sample: keys.length ? (pr[keys[0]] || [])[0] : undefined,
+        };
+        if (out.products.sample && out.products.sample.user) {
+          out.products.sample = { ...out.products.sample, user: { ...out.products.sample.user, username: '(nascosto)' } };
+        }
+        out.ok = true;
+      } catch (e) {
+        out.ok = false;
+        out.error = String(e.message || e);
+      }
+      return json(out);
+    }
+
     if (path === '/api/listings' && method === 'GET') {
       const id = parseInt(url.searchParams.get('blueprint_id'), 10);
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
@@ -274,7 +312,8 @@ export class Scanner extends DurableObject {
     if (savedBp && Date.now() - savedBp.ts < 24 * 3600_000) {
       blueprints = savedBp.list;
     } else {
-      const raw = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
+      let raw = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
+      if (!Array.isArray(raw)) raw = (raw && (raw.blueprints || raw.array || raw.data)) || [];
       blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url }));
       await this.ctx.storage.put(bpKey, { ts: Date.now(), list: blueprints });
     }
