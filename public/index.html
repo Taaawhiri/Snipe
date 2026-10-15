@@ -75,6 +75,16 @@
         </div>
         <div class="row">
           <div class="field">
+            <label for="cardCond">Condizione minima</label>
+            <select id="cardCond">
+              <option value="">Qualsiasi</option>
+              <option value="5">Near Mint o migliore</option>
+              <option value="4">Slightly Played o migliore</option>
+              <option value="3">Moderately Played o migliore</option>
+              <option value="2">Played o migliore</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="cardSort">Ordina per</label>
             <select id="cardSort">
               <option value="price-desc">Prezzo: dal più alto</option>
@@ -83,6 +93,10 @@
               <option value="name">Nome</option>
             </select>
           </div>
+        </div>
+        <details class="more">
+          <summary>Altri filtri</summary>
+          <div class="row">
           <div class="field">
             <label for="cardPriceMode">Prezzo mostrato</label>
             <select id="cardPriceMode">
@@ -90,15 +104,13 @@
               <option value="zero">Solo con CardTrader Zero</option>
             </select>
           </div>
-        </div>
-        <details class="more">
-          <summary>Altri filtri</summary>
           <div class="field">
             <label for="cardKind">Mostra</label>
             <select id="cardKind">
               <option value="single">Solo carte singole</option>
               <option value="all">Tutti i prodotti</option>
             </select>
+          </div>
           </div>
         </details>
       </div>

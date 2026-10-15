@@ -359,8 +359,19 @@
   /** Prezzi più bassi di una carta, per la lingua scelta nel filtro (o in totale). */
   function view(c) {
     const lang = $('cardLang').value;
-    if (!lang) return { lowest: c.lowest, lowestZero: c.lowestZero };
-    return (c.langs && c.langs[lang]) || { lowest: null, lowestZero: null };
+    const min = $('cardCond').value === '' ? null : Number($('cardCond').value);
+    if (!lang && min == null) return { lowest: c.lowest, lowestZero: c.lowestZero };
+    // lc: "lingua|condizione" -> [prezzo più basso, prezzo più basso Zero]
+    let lowest = null;
+    let lowestZero = null;
+    for (const [key, cell] of Object.entries(c.lc || {})) {
+      const [code, rank] = key.split('|');
+      if (lang && code !== lang) continue;
+      if (min != null && Number(rank) >= 0 && Number(rank) < min) continue; // condizione ignota: non la scartiamo
+      if (cell[0] != null && (lowest == null || cell[0] < lowest)) lowest = cell[0];
+      if (cell[1] != null && (lowestZero == null || cell[1] < lowestZero)) lowestZero = cell[1];
+    }
+    return { lowest, lowestZero };
   }
 
   function priceText(c) {
@@ -597,6 +608,14 @@
   });
   $('cardPriceMode').addEventListener('change', renderCards);
   $('cardKind').addEventListener('change', renderCards);
+  $('cardCond').addEventListener('change', () => {
+    try { localStorage.setItem('snipe.cardCond', $('cardCond').value); } catch {}
+    renderCards();
+  });
+  try {
+    const saved = localStorage.getItem('snipe.cardCond');
+    if (saved !== null && [...$('cardCond').options].some((o) => o.value === saved)) $('cardCond').value = saved;
+  } catch {}
   $('cardLang').addEventListener('change', () => {
     try { localStorage.setItem('snipe.cardLang', $('cardLang').value); } catch {}
     renderCards();
@@ -612,9 +631,15 @@
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);
     const lang = $('cardLang').value;
+    const minRank = $('cardCond').value;
+    const condNames = ['Poor', 'Heavily Played', 'Played', 'Moderately Played', 'Slightly Played', 'Near Mint', 'Mint'];
+    $('alertCond').value = minRank !== '' ? condNames[Number(minRank)] : 'Slightly Played';
     $('dlgLow').textContent = v.lowest == null ? '—' : money(v.lowest, c.currency);
     $('dlgLowZero').textContent = v.lowestZero == null ? '—' : money(v.lowestZero, c.currency);
-    $('dlgLangNote').replaceChildren(...(lang ? [chip(`Prezzi in ${LANG_NAMES[lang] || lang.toUpperCase()}`, 'zero')] : []));
+    $('dlgLangNote').replaceChildren(
+      ...(lang ? [chip(`Prezzi in ${LANG_NAMES[lang] || lang.toUpperCase()}`, 'zero')] : []),
+      ...(minRank !== '' ? [chip(`${condNames[Number(minRank)]} o migliore`, 'cond')] : []),
+    );
     $('alertLang').value = [...$('alertLang').options].some((o) => o.value === toRuleLang(lang)) ? toRuleLang(lang) : '';
     $('alertError').hidden = true;
     $('alertOk').hidden = true;
@@ -625,7 +650,7 @@
     const d = $('cardDialog');
     if (!d.open) d.showModal();
     try {
-      const rows = await api(`/api/listings?blueprint_id=${c.id}${lang ? `&lang=${lang}` : ''}`);
+      const rows = await api(`/api/listings?blueprint_id=${c.id}${lang ? `&lang=${lang}` : ''}${minRank !== '' ? `&minrank=${minRank}` : ''}`);
       if (current !== c) return;
       $('dlgListings').replaceChildren(
         ...(rows.length

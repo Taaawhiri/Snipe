@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
+import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
@@ -281,6 +281,11 @@ export class Scanner extends DurableObject {
         const list = (data[id] || data[String(id)] || [])
           .filter(isListable)
           .filter((p) => !wanted || normLang(listingLang(p)) === wanted)
+          .filter((p) => {
+            const minRank = parseInt(url.searchParams.get('minrank'), 10);
+            const r = condRank(p.properties_hash && p.properties_hash.condition);
+            return !Number.isInteger(minRank) || r < 0 || r >= minRank;
+          })
           .sort(byPrice)
           .slice(0, 12);
         return json(
@@ -477,8 +482,13 @@ export class Scanner extends DurableObject {
       const num = prop(list, /^collector_number$/i) || fixedProp(bp.fp, /collector_number/i);
       // Prezzi più bassi per lingua (codici normalizzati: il giapponese è sempre "jp").
       const langs = {};
+      const lc = {}; // "lingua|condizione" -> [prezzo più basso, prezzo più basso Zero]; condizione = posizione 0-6, -1 se ignota
       for (const p of list) {
         const code = normLang(listingLang(p)) || 'sconosciuta';
+        const key = `${code}|${condRank(p.properties_hash && p.properties_hash.condition)}`;
+        const cell = (lc[key] = lc[key] || [null, null]);
+        if (cell[0] == null) cell[0] = p.price.cents;
+        if (cell[1] == null && isZero(p)) cell[1] = p.price.cents;
         langCount[code] = (langCount[code] || 0) + 1;
         const e = (langs[code] = langs[code] || { lowest: null, lowestZero: null });
         if (e.lowest == null) e.lowest = p.price.cents;
@@ -498,6 +508,7 @@ export class Scanner extends DurableObject {
         lowest: low ? low.price.cents : null,
         lowestZero: lowZero ? lowZero.price.cents : null,
         langs,
+        lc,
       };
     });
     cards.sort((a, b) => {
