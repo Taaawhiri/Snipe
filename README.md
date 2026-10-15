@@ -9,6 +9,12 @@ Gira tutta su Cloudflare, in un solo Worker:
 - `src/scanner.js`: Durable Object che ogni 10 secondi interroga CardTrader, confronta i prezzi e manda le notifiche push.
 - `src/deals.js`: la logica che decide se un annuncio è anomalo (con test in `test/`).
 
+## Come si usa
+
+- **Carte**: scegli un'espansione e vedi tutte le carte con immagine e prezzo più basso, in assoluto e con CardTrader Zero. Tocca una carta per vedere gli annunci più economici e creare l'alert: sotto un prezzo che scegli tu, oppure con uno sconto in percentuale.
+- **Regole**: alert sull'intera espansione (con filtro facoltativo sul nome), sempre con sconto in percentuale.
+- **CardTrader Zero**: ogni regola può considerare tutti i venditori, solo quelli Zero o escluderli. Si basa sul campo `can_sell_via_hub` dell'API.
+
 ## Come decide che un prezzo è sbagliato
 
 Per ogni carta prende gli annunci in vendita (esclusi graded e venditori in vacanza) e guarda i 3 più economici. Ognuno viene confrontato con la **mediana dei 5 annunci successivi**. Se costa almeno il tuo sconto minimo in meno, almeno il prezzo minimo impostato e ci sono almeno 3 annunci di riferimento, scatta l'alert.

@@ -64,3 +64,26 @@ test('rispetta prezzo minimo e filtro nome', () => {
   assert.equal(findDeals({ 1: list }, { ...rule, nameContains: 'pikachu' }).length, 0);
   assert.equal(findDeals({ 1: list }, { ...rule, nameContains: 'charizard' }).length, 1);
 });
+
+test('prezzo assoluto: scatta sotto la soglia anche con pochi annunci', () => {
+  const list = [p(1, 1800), p(2, 2500)];
+  const res = findDeals({ 1: list }, { maxPriceCents: 2000 });
+  assert.equal(res.length, 1);
+  assert.equal(res[0].product.id, 1);
+  assert.equal(findDeals({ 1: list }, { maxPriceCents: 1000 }).length, 0);
+});
+
+test('filtro CardTrader Zero', () => {
+  const z = (id, cents, hub) => p(id, cents, { user: { can_sell_via_hub: hub } });
+  const list = [z(1, 1000, true), z(2, 1100, false)];
+  assert.equal(findDeals({ 1: list }, { maxPriceCents: 5000, zero: 'only' }).length, 1);
+  assert.equal(findDeals({ 1: list }, { maxPriceCents: 5000, zero: 'exclude' })[0].product.id, 2);
+  assert.equal(findDeals({ 1: list }, { maxPriceCents: 5000 }).length, 2);
+});
+
+test('blueprintId limita il controllo a una carta', () => {
+  const products = { 10: [p(1, 1000)], 20: [p(2, 1000)] };
+  const res = findDeals(products, { maxPriceCents: 5000, blueprintId: 20 });
+  assert.equal(res.length, 1);
+  assert.equal(res[0].product.id, 2);
+});

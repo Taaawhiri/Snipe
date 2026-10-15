@@ -86,7 +86,7 @@
   document.querySelectorAll('.tabs button').forEach((b) =>
     b.addEventListener('click', () => {
       document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
-      for (const t of ['alerts', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
+      for (const t of ['alerts', 'cards', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
     }),
   );
 
@@ -115,7 +115,7 @@
     list.replaceChildren(
       ...state.alerts.map((a) => {
         const hot = a.discount >= 0.5;
-        const meta = [a.expansion, a.condition, a.language && a.language.toUpperCase(), a.seller && `${a.seller}${a.country ? ' (' + a.country + ')' : ''}`]
+        const meta = [a.expansion, a.condition, a.language && a.language.toUpperCase(), a.seller && `${a.seller}${a.country ? ' (' + a.country + ')' : ''}`, a.zero && 'Zero']
           .filter(Boolean)
           .join(' · ');
         return el(
@@ -147,20 +147,24 @@
     const rl = $('ruleList');
     rl.replaceChildren(
       ...state.rules.map((r) => {
+        const zeroTxt = r.zero === 'only' ? 'solo Zero' : r.zero === 'exclude' ? 'senza Zero' : '';
         const parts = [
-          `da −${r.minDiscount}%`,
+          r.maxPriceCents ? `sotto ${money(r.maxPriceCents)}` : `da −${r.minDiscount}%`,
           r.nameContains && `“${r.nameContains}”`,
           r.minCondition,
           r.language ? r.language.toUpperCase() : 'tutte le lingue',
-          `da ${money(r.minPriceCents)}`,
+          zeroTxt,
+          !r.maxPriceCents && !r.blueprintId && `da ${money(r.minPriceCents)}`,
         ].filter(Boolean);
+        const title = r.cardName ? `${r.cardName} · ${r.expansionName || ''}` : r.expansionName || `Espansione ${r.expansionId}`;
         return el('div', { class: 'rule' + (r.enabled ? '' : ' off') },
+          r.cardImage ? el('img', { class: 'thumb', src: r.cardImage, alt: '', loading: 'lazy' }) : null,
           el('div', { class: 'info' },
-            el('div', { class: 't', text: r.expansionName || `Espansione ${r.expansionId}` }),
+            el('div', { class: 't', text: title }),
             el('div', { class: 'd', text: parts.join(' · ') }),
           ),
           el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Attiva',
-            onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, enabled: !r.enabled }) }),
+            onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }),
           el('button', { class: 'btn danger', type: 'button', 'aria-label': 'Elimina regola', text: 'Elimina',
             onclick: async () => { await api(`/api/rules/${r.id}`, { method: 'DELETE' }); refresh(); } }),
         );
@@ -185,6 +189,8 @@
       if (!$('minCondition').options.length) {
         for (const c of state.conditions) $('minCondition').append(el('option', { value: c, text: c }));
         $('minCondition').value = 'Slightly Played';
+        for (const c of state.conditions) $('alertCond').append(el('option', { value: c, text: c }));
+        $('alertCond').value = 'Slightly Played';
       }
       render();
     } catch {}
@@ -199,6 +205,15 @@
     sel.replaceChildren(...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})` })));
     if (items.some((e) => String(e.id) === prev)) sel.value = prev;
   }
+  function fillCardExpansions() {
+    const q = $('cardExpFilter').value.trim().toLowerCase();
+    const sel = $('cardExp');
+    const prev = sel.value;
+    const items = expansions.filter((e) => !q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q));
+    sel.replaceChildren(el('option', { value: '', text: items.length ? 'Scegli un’espansione…' : 'Nessun risultato' }), ...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})` })));
+    if (items.some((e) => String(e.id) === prev)) sel.value = prev;
+  }
+  $('cardExpFilter').addEventListener('input', fillCardExpansions);
   $('expFilter').addEventListener('input', fillExpansions);
   $('minDiscount').addEventListener('input', () => ($('discLabel').textContent = `${$('minDiscount').value}%`));
 
@@ -229,8 +244,138 @@
       language: $('language').value,
       minDiscount: Number($('minDiscount').value),
       minPrice: Number($('minPrice').value),
+      zero: $('ruleZero').value,
     });
     if (ok) $('nameContains').value = '';
+  });
+
+  // ---------- carte ----------
+  let cards = [];
+  let currentExp = null;
+  let current = null;
+
+  function priceText(c) {
+    const zero = $('cardPriceMode').value === 'zero';
+    const v = zero ? c.lowestZero : c.lowest;
+    return v == null ? '—' : money(v, c.currency);
+  }
+
+  function renderCards() {
+    const q = $('cardSearch').value.trim().toLowerCase();
+    const zeroMode = $('cardPriceMode').value === 'zero';
+    const list = cards.filter((c) => !q || c.name.toLowerCase().includes(q) || (c.number || '').toLowerCase() === q);
+    $('cardGrid').replaceChildren(
+      ...list.map((c) =>
+        el('button', { class: 'tile', type: 'button', onclick: () => openCard(c) },
+          c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
+          el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
+          el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
+          el('div', { class: 'pr', text: priceText(c) }),
+          zeroMode || c.lowestZero == null ? null : el('div', { class: 'pz', text: 'Zero ' + money(c.lowestZero, c.currency) }),
+        ),
+      ),
+    );
+    const msg = $('cardsMsg');
+    msg.hidden = list.length > 0 && !!currentExp;
+    msg.textContent = !currentExp ? 'Scegli un’espansione per vedere le carte.' : list.length ? '' : 'Nessuna carta trovata.';
+  }
+
+  async function loadCards() {
+    const id = $('cardExp').value;
+    currentExp = id ? expansions.find((e) => String(e.id) === id) : null;
+    cards = [];
+    renderCards();
+    if (!currentExp) return;
+    $('cardsMsg').hidden = false;
+    $('cardsMsg').textContent = 'Carico le carte…';
+    try {
+      const data = await api(`/api/cards?expansion_id=${currentExp.id}`);
+      if (!currentExp || String(currentExp.id) !== String(data.expansionId)) return;
+      cards = data.cards;
+      renderCards();
+    } catch (e) {
+      $('cardsMsg').hidden = false;
+      $('cardsMsg').textContent = `Impossibile caricare le carte: ${e.message}`;
+    }
+  }
+  $('cardExp').addEventListener('change', loadCards);
+  $('cardSearch').addEventListener('input', renderCards);
+  $('cardPriceMode').addEventListener('change', renderCards);
+
+  async function openCard(c) {
+    current = c;
+    $('dlgName').textContent = c.name + (c.version ? ` (${c.version})` : '');
+    $('dlgImg').src = c.image || '';
+    $('dlgMeta').textContent = [currentExp && currentExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
+    $('dlgLow').textContent = c.lowest == null ? '—' : money(c.lowest, c.currency);
+    $('dlgLowZero').textContent = c.lowestZero == null ? '—' : money(c.lowestZero, c.currency);
+    $('alertError').hidden = true;
+    $('alertOk').hidden = true;
+    const base = c.lowest == null ? '' : (Math.floor((c.lowest * 0.8) / 50) * 0.5).toFixed(2);
+    $('alertMax').value = base && Number(base) > 0 ? base : c.lowest == null ? '' : (c.lowest / 100).toFixed(2);
+    $('dlgListings').replaceChildren(el('p', { class: 'muted', text: 'Carico gli annunci…' }));
+    const d = $('cardDialog');
+    if (!d.open) d.showModal();
+    try {
+      const rows = await api(`/api/listings?blueprint_id=${c.id}`);
+      if (current !== c) return;
+      $('dlgListings').replaceChildren(
+        ...(rows.length
+          ? rows.map((r) =>
+              el('div', { class: 'lrow' },
+                el('span', { class: 'p', text: money(r.cents, r.currency) }),
+                el('span', { class: 'd', text: [r.condition, r.language && r.language.toUpperCase(), r.seller && `${r.seller}${r.country ? ' (' + r.country + ')' : ''}`, r.quantity > 1 && `x${r.quantity}`].filter(Boolean).join(' · ') }),
+                r.zero ? el('span', { class: 'zero-tag', text: 'Zero' }) : null,
+              ),
+            )
+          : [el('p', { class: 'muted', text: 'Nessun annuncio in vendita.' })]),
+      );
+    } catch (e) {
+      $('dlgListings').replaceChildren(el('p', { class: 'error', text: e.message }));
+    }
+  }
+
+  document.querySelectorAll('input[name="amode"]').forEach((r) =>
+    r.addEventListener('change', () => {
+      const pct = document.querySelector('input[name="amode"]:checked').value === 'percent';
+      $('amodePrice').hidden = pct;
+      $('amodePercent').hidden = !pct;
+    }),
+  );
+  $('alertPct').addEventListener('input', () => ($('alertPctLabel').textContent = `${$('alertPct').value}%`));
+
+  $('alertForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    if (!current || !currentExp) return;
+    const pct = document.querySelector('input[name="amode"]:checked').value === 'percent';
+    $('alertError').hidden = true;
+    $('alertOk').hidden = true;
+    const body = {
+      expansionId: currentExp.id,
+      expansionName: currentExp.name,
+      blueprintId: current.id,
+      cardName: current.name + (current.version ? ` (${current.version})` : ''),
+      cardImage: current.image,
+      zero: $('alertZero').value,
+      minCondition: $('alertCond').value,
+      language: $('alertLang').value,
+      minPrice: 0,
+    };
+    if (pct) body.minDiscount = Number($('alertPct').value);
+    else {
+      const v = Number($('alertMax').value);
+      if (!(v > 0)) { $('alertError').textContent = 'Inserisci un prezzo maggiore di zero.'; $('alertError').hidden = false; return; }
+      body.maxPrice = v;
+    }
+    try {
+      await api('/api/rules', { method: 'POST', body: JSON.stringify(body) });
+      await refresh();
+      $('alertOk').textContent = 'Alert creato. Lo trovi nella scheda Regole.';
+      $('alertOk').hidden = false;
+    } catch (e) {
+      $('alertError').textContent = e.message;
+      $('alertError').hidden = false;
+    }
   });
 
   // ---------- notifiche ----------
@@ -262,7 +407,7 @@
     $('login').hidden = true;
     $('app').hidden = false;
     await refresh();
-    api('/api/expansions').then((l) => { expansions = l; fillExpansions(); }).catch((e) => {
+    api('/api/expansions').then((l) => { expansions = l; fillExpansions(); fillCardExpansions(); }).catch((e) => {
       $('ruleError').textContent = `Elenco espansioni non disponibile: ${e.message}`;
       $('ruleError').hidden = false;
     });

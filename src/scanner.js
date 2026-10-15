@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, findDeals } from './deals.js';
+import { CONDITIONS, findDeals, isListable, isZero } from './deals.js';
 import { sendPush } from './push.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -14,14 +14,27 @@ const json = (data, status = 200) =>
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const imageUrl = (u) => (!u ? null : /^https?:/.test(u) ? u : `https://www.cardtrader.com${u.startsWith('/') ? '' : '/'}${u}`);
+const byPrice = (a, b) => a.price.cents - b.price.cents;
+const prop = (list, re) => {
+  for (const p of list) {
+    const h = p.properties_hash || {};
+    const k = Object.keys(h).find((x) => re.test(x));
+    if (k && h[k] !== null && h[k] !== undefined && h[k] !== '') return String(h[k]);
+  }
+  return null;
+};
+
 export class Scanner extends DurableObject {
+  cardCache = new Map();
+
   async get(key, fallback) {
     const v = await this.ctx.storage.get(key);
     return v === undefined ? fallback : v;
   }
 
   async ct(path) {
-    const res = await fetch(API + path, {
+    const res = await fetch((this.env.CARDTRADER_API || API) + path, {
       headers: { Authorization: `Bearer ${this.env.CARDTRADER_TOKEN}`, Accept: 'application/json' },
     });
     if (res.status === 429) {
@@ -70,6 +83,43 @@ export class Scanner extends DurableObject {
     if (path === '/api/expansions' && method === 'GET') {
       try {
         return json(await this.pokemonExpansions());
+      } catch (e) {
+        return json({ error: String(e.message || e) }, 502);
+      }
+    }
+
+    if (path === '/api/cards' && method === 'GET') {
+      const id = parseInt(url.searchParams.get('expansion_id'), 10);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'expansion_id mancante' }, 400);
+      try {
+        return json(await this.cardsFor(id));
+      } catch (e) {
+        return json({ error: String(e.message || e) }, 502);
+      }
+    }
+
+    if (path === '/api/listings' && method === 'GET') {
+      const id = parseInt(url.searchParams.get('blueprint_id'), 10);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
+      try {
+        const data = await this.ct(`/marketplace/products?blueprint_id=${id}`);
+        const list = (data[id] || data[String(id)] || []).filter(isListable).sort(byPrice).slice(0, 12);
+        return json(
+          list.map((p) => {
+            const h = p.properties_hash || {};
+            return {
+              id: p.id,
+              cents: p.price.cents,
+              currency: p.price.currency || 'EUR',
+              condition: h.condition || null,
+              language: h.pokemon_language || h.language || h.mtg_language || null,
+              zero: isZero(p),
+              seller: p.user && p.user.username,
+              country: p.user && p.user.country_code,
+              quantity: p.quantity,
+            };
+          }),
+        );
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
@@ -143,11 +193,19 @@ export class Scanner extends DurableObject {
     if (!Number.isInteger(expansionId) || expansionId <= 0) return null;
     const clamp = (n, lo, hi, d) => (Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d);
     const language = String(b.language || '').toLowerCase();
+    const blueprintId = parseInt(b.blueprintId, 10);
+    const maxPrice = Number(b.maxPrice);
     return {
       id: typeof b.id === 'string' && b.id ? b.id.slice(0, 64) : crypto.randomUUID(),
       expansionId,
       expansionName: String(b.expansionName || '').slice(0, 80),
+      blueprintId: Number.isInteger(blueprintId) && blueprintId > 0 ? blueprintId : null,
+      cardName: String(b.cardName || '').slice(0, 80),
+      cardImage: /^https:\/\//.test(b.cardImage || '') ? String(b.cardImage).slice(0, 300) : null,
       nameContains: String(b.nameContains || '').trim().slice(0, 60),
+      // Se presente, l'alert scatta per prezzo assoluto e lo sconto percentuale non conta.
+      maxPriceCents: Number.isFinite(maxPrice) && maxPrice > 0 ? Math.round(clamp(maxPrice, 0.01, 100000, 1) * 100) : null,
+      zero: b.zero === 'only' || b.zero === 'exclude' ? b.zero : '',
       minDiscount: clamp(Number(b.minDiscount), 5, 90, 30),
       minPriceCents: Math.round(clamp(Number(b.minPrice), 0, 100000, 5) * 100),
       language: /^[a-z]{2}$/.test(language) ? language : '',
@@ -170,6 +228,45 @@ export class Scanner extends DurableObject {
       .sort((a, b) => a.name.localeCompare(b.name));
     await this.ctx.storage.put('expansions', { ts: Date.now(), list: out });
     return out;
+  }
+
+  /** Carte di un'espansione con immagine e prezzo più basso (in totale e con CardTrader Zero). */
+  async cardsFor(expansionId) {
+    const hit = this.cardCache.get(expansionId);
+    if (hit && Date.now() - hit.ts < 30_000) return hit.data;
+
+    const blueprints = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
+    await sleep(REQUEST_GAP_MS);
+    const products = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
+
+    const cards = blueprints.map((bp) => {
+      const list = (products[bp.id] || products[String(bp.id)] || []).filter(isListable).sort(byPrice);
+      const low = list[0];
+      const lowZero = list.find(isZero);
+      const num = prop(list, /^collector_number$/i);
+      return {
+        id: bp.id,
+        name: bp.name,
+        version: bp.version || null,
+        image: imageUrl(bp.image_url),
+        number: num,
+        rarity: prop(list, /rarity/i),
+        listings: list.length,
+        currency: (low && low.price.currency) || 'EUR',
+        lowest: low ? low.price.cents : null,
+        lowestZero: lowZero ? lowZero.price.cents : null,
+      };
+    });
+    cards.sort((a, b) => {
+      const na = parseInt(a.number, 10);
+      const nb = parseInt(b.number, 10);
+      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+      return a.name.localeCompare(b.name);
+    });
+
+    const data = { expansionId, cards };
+    this.cardCache.set(expansionId, { ts: Date.now(), data });
+    return data;
   }
 
   // ---------- Scan ----------
@@ -237,6 +334,8 @@ export class Scanner extends DurableObject {
           discount: d.discount,
           seller: p.user && p.user.username,
           country: p.user && p.user.country_code,
+          zero: isZero(p),
+          cardImage: rule.cardImage || null,
           url: `https://www.cardtrader.com/cards/${p.blueprint_id}`,
         });
       }

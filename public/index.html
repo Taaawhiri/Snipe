@@ -42,6 +42,29 @@
       <p id="alertEmpty" class="empty" hidden>Nessun alert per ora. Crea una regola nella scheda Regole: gli annunci già presenti vengono ignorati, avvisiamo solo i nuovi.</p>
     </section>
 
+    <section id="tab-cards" class="tab" hidden>
+      <div class="card">
+        <label for="cardExpFilter">Espansione</label>
+        <input id="cardExpFilter" type="search" placeholder="Cerca (es. 151, Obsidian, Paldea)" autocomplete="off">
+        <select id="cardExp" size="1"></select>
+        <div class="row">
+          <div>
+            <label for="cardSearch">Cerca carta</label>
+            <input id="cardSearch" type="search" placeholder="es. Charizard" autocomplete="off">
+          </div>
+          <div>
+            <label for="cardPriceMode">Prezzo mostrato</label>
+            <select id="cardPriceMode">
+              <option value="all">Il più basso in assoluto</option>
+              <option value="zero">Solo con CardTrader Zero</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <p id="cardsMsg" class="muted" hidden></p>
+      <div id="cardGrid" class="grid"></div>
+    </section>
+
     <section id="tab-rules" class="tab" hidden>
       <form id="ruleForm" class="card">
         <h2>Nuova regola</h2>
@@ -81,6 +104,12 @@
             <input id="minPrice" type="number" min="0" step="0.5" value="5" inputmode="decimal">
           </div>
         </div>
+        <label for="ruleZero">CardTrader Zero</label>
+        <select id="ruleZero">
+          <option value="">Tutti i venditori</option>
+          <option value="only">Solo venditori Zero</option>
+          <option value="exclude">Escludi i venditori Zero</option>
+        </select>
         <p id="ruleError" class="error" hidden></p>
         <button class="btn primary" type="submit">Aggiungi regola</button>
       </form>
@@ -110,10 +139,76 @@
 
   <nav class="tabs" aria-label="Sezioni">
     <button data-tab="alerts" class="on" type="button">Alert</button>
+    <button data-tab="cards" type="button">Carte</button>
     <button data-tab="rules" type="button">Regole</button>
     <button data-tab="settings" type="button">Impostazioni</button>
   </nav>
 </div>
+<dialog id="cardDialog" class="sheet" aria-labelledby="dlgName">
+  <form method="dialog" class="sheet-head">
+    <h2 id="dlgName">Carta</h2>
+    <button class="btn" aria-label="Chiudi">Chiudi</button>
+  </form>
+  <div class="sheet-body">
+    <div class="dlg-top">
+      <img id="dlgImg" alt="" width="120" height="168">
+      <div class="dlg-info">
+        <div id="dlgMeta" class="muted"></div>
+        <div class="dlg-prices">
+          <div><div class="k">Più basso</div><div id="dlgLow" class="price">—</div></div>
+          <div><div class="k">Con Zero</div><div id="dlgLowZero" class="price">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="section">Annunci più economici</h2>
+    <div id="dlgListings" class="list"></div>
+
+    <form id="alertForm" class="card">
+      <h2>Crea alert</h2>
+      <div class="seg" role="radiogroup" aria-label="Tipo di alert">
+        <label><input type="radio" name="amode" value="price" checked> Sotto un prezzo</label>
+        <label><input type="radio" name="amode" value="percent"> Sconto in %</label>
+      </div>
+      <div id="amodePrice">
+        <label for="alertMax">Avvisami se costa meno di (€)</label>
+        <input id="alertMax" type="number" min="0.01" step="0.01" inputmode="decimal">
+      </div>
+      <div id="amodePercent" hidden>
+        <label for="alertPct">Sconto minimo sul prezzo tipico: <b id="alertPctLabel">30%</b></label>
+        <input id="alertPct" type="range" min="10" max="80" step="5" value="30">
+        <p class="muted small">Il prezzo tipico è la mediana dei 5 annunci successivi. Servono almeno 3 altri annunci.</p>
+      </div>
+      <div class="row">
+        <div>
+          <label for="alertZero">CardTrader Zero</label>
+          <select id="alertZero">
+            <option value="">Tutti</option>
+            <option value="only">Solo Zero</option>
+            <option value="exclude">Senza Zero</option>
+          </select>
+        </div>
+        <div>
+          <label for="alertCond">Condizione minima</label>
+          <select id="alertCond"></select>
+        </div>
+      </div>
+      <label for="alertLang">Lingua</label>
+      <select id="alertLang">
+        <option value="">Tutte</option>
+        <option value="en">Inglese</option>
+        <option value="it">Italiano</option>
+        <option value="ja">Giapponese</option>
+        <option value="fr">Francese</option>
+        <option value="de">Tedesco</option>
+        <option value="es">Spagnolo</option>
+      </select>
+      <p id="alertError" class="error" hidden></p>
+      <p id="alertOk" class="ok" hidden></p>
+      <button class="btn primary" type="submit">Crea alert</button>
+    </form>
+  </div>
+</dialog>
 <script src="/app.js"></script>
 </body>
 </html>
