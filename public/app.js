@@ -479,7 +479,9 @@
     } catch (e) {
       if (run !== searchRun) return;
       $('cardGrid').replaceChildren();
-      $('cardsMsg').textContent = `Ricerca non riuscita: ${e.message}`;
+      $('cardsMsg').textContent = e.message === 'Not found'
+        ? 'Il server dei dati si sta ancora aggiornando: riprova tra un minuto.'
+        : `Ricerca non riuscita: ${e.message}`;
     }
   }
 

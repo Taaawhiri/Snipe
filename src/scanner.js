@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
+import { BUILD } from './build.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
@@ -114,6 +115,8 @@ export class Scanner extends DurableObject {
       const alerts = await this.get('alerts', []);
       return json(alerts[0] || null);
     }
+
+    if (path === '/api/_version') return json({ build: BUILD });
 
     if (path === '/api/_tick' && method === 'POST') {
       await this.ensureAlarm();
