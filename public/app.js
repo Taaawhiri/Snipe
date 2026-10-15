@@ -563,13 +563,13 @@
             c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
             el('span', { class: 'pricepill' + (c.loading || shown == null ? ' none' : ''), text: c.loading ? '…' : priceText(c) }),
             !zeroMode && view(c).lowestZero != null ? el('span', { class: 'zeropill', text: 'Zero ' + money(view(c).lowestZero, c.currency) }) : null,
-            cmDelta(c) >= 0.05 ? el('span', { class: 'cmpill', text: `−${Math.round(cmDelta(c) * 100)}% CM` }) : null,
+            cmDelta(c) >= 0.05 ? el('span', { class: 'cmpill', text: `−${Math.round(cmDelta(c) * 100)}% CM${$('cardLang').value ? '*' : ''}` }) : null,
           ),
           el('div', null,
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
             el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
             c.expName ? el('div', { class: 'sub', text: c.expName }) : null,
-            c.cm ? el('div', { class: 'cmtxt', text: `Cardmarket ${money(Math.round(c.cm.trend * 100), c.currency)}` }) : null,
+            c.cm ? el('div', { class: 'cmtxt', text: `Cardmarket ${money(Math.round(c.cm.trend * 100), c.currency)}${$('cardLang').value ? ' (tutte le lingue)' : ''}` }) : null,
           ),
           ),
         );
@@ -767,13 +767,14 @@
     const d = cmDelta(c);
     box.hidden = false;
     box.replaceChildren(
-      el('div', null, 'Cardmarket'),
+      el('div', null, 'Cardmarket · tutte le lingue'),
       el('div', { class: 'cmrow' },
         el('div', null, el('span', { text: 'tendenza ' }), money(Math.round(c.cm.trend * 100), c.currency)),
         c.cm.avg30 != null ? el('div', null, el('span', { text: 'media 30 giorni ' }), money(Math.round(c.cm.avg30 * 100), c.currency)) : null,
         c.cm.low != null ? el('div', null, el('span', { text: 'più basso ' }), money(Math.round(c.cm.low * 100), c.currency)) : null,
       ),
       d == null ? null : el('div', { class: 'delta ' + (d >= 0.05 ? 'good' : d <= -0.05 ? 'bad' : ''), text: d >= 0 ? `Su CardTrader costa il ${Math.round(d * 100)}% in meno della tendenza` : `Su CardTrader costa il ${Math.round(-d * 100)}% in più della tendenza` }),
+      $('cardLang').value ? el('div', { class: 'cmwarn', text: 'Il listino Cardmarket non distingue le lingue: con un filtro lingua il confronto è solo indicativo.' }) : null,
       el('a', { href: cmSearchUrl(c), target: '_blank', rel: 'noopener noreferrer', text: 'Cerca su Cardmarket ↗' }),
     );
     $('amodeCmLabel').hidden = !c.cmId;
@@ -783,7 +784,7 @@
   function updateCmHint() {
     $('alertCmLabel').textContent = `${$('alertCmPct').value}%`;
     const c = current;
-    if (c && c.cm) $('alertCmHint').textContent = `Scatta sotto ${money(Math.floor(c.cm.trend * 100 * (1 - Number($('alertCmPct').value) / 100)), c.currency)} (tendenza ${money(Math.round(c.cm.trend * 100), c.currency)}). La tendenza si aggiorna ogni giorno.`;
+    if (c && c.cm) $('alertCmHint').textContent = `Scatta sotto ${money(Math.floor(c.cm.trend * 100 * (1 - Number($('alertCmPct').value) / 100)), c.currency)} (tendenza ${money(Math.round(c.cm.trend * 100), c.currency)}, tutte le lingue insieme). Se segui una lingua precisa, "Sconto in %" confronta solo annunci della stessa lingua.`;
   }
 
   async function openCard(c) {
