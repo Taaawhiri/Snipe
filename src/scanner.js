@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, findDeals, isListable, isZero, listingLang, rejectReasons } from './deals.js';
+import { CONDITIONS, findDeals, isListable, isSingleCard, isZero, listingLang, rejectReasons } from './deals.js';
 import { sendPush } from './push.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -29,7 +29,6 @@ const prop = (list, re) => {
   return null;
 };
 
-const SEALED_NAME = /\b(booster|box|display|bundle|deck|tin|collection|case|pack|elite trainer|etb|sleeves|playmat|binder|portfolio|album|coin|blister|starter|figure|pin)\b/i;
 
 export class Scanner extends DurableObject {
   cardCache = new Map();
@@ -240,8 +239,13 @@ export class Scanner extends DurableObject {
       const rule = this.cleanRule(await req.json());
       if (!rule) return json({ error: 'Regola non valida' }, 400);
       const i = rules.findIndex((r) => r.id === rule.id);
-      if (i >= 0) rules[i] = rule;
-      else if (rules.length >= MAX_RULES) return json({ error: `Massimo ${MAX_RULES} regole` }, 400);
+      if (i >= 0) {
+        const old = rules[i];
+        rules[i] = rule;
+        // Se cambiano i criteri, gli annunci già visti vanno rivalutati con i criteri nuovi.
+        const keys = ['maxPriceCents', 'minDiscount', 'minPriceCents', 'zero', 'language', 'minCondition', 'nameContains'];
+        if (keys.some((k) => old[k] !== rule[k])) await this.resetRuleMemory(rule.id);
+      } else if (rules.length >= MAX_RULES) return json({ error: `Massimo ${MAX_RULES} regole` }, 400);
       else rules.push(rule);
       await this.ctx.storage.put('rules', rules);
       await this.ensureAlarm();
@@ -295,6 +299,13 @@ export class Scanner extends DurableObject {
     }
 
     return json({ error: 'Not found' }, 404);
+  }
+
+  async resetRuleMemory(ruleId) {
+    const seen = await this.get('seen', {});
+    for (const k of Object.keys(seen)) if (k.startsWith(`${ruleId}:`)) delete seen[k];
+    const baselined = (await this.get('baselined', [])).filter((id) => id !== ruleId);
+    await this.ctx.storage.put({ seen, baselined });
   }
 
   cleanRule(b) {
@@ -383,8 +394,7 @@ export class Scanner extends DurableObject {
       const low = list[0];
       const lowZero = list.find(isZero);
       const num = prop(list, /^collector_number$/i);
-      // Carta singola: dalla categoria se nota, altrimenti dal numero di collezione o dal nome.
-      const single = singleIds ? singleIds.includes(bp.category_id) : !!num || !SEALED_NAME.test(bp.name || '');
+      const single = isSingleCard(bp, singleIds);
       return {
         single,
         id: bp.id,

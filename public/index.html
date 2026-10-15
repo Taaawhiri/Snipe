@@ -123,6 +123,59 @@
     <button data-tab="settings" type="button">Impostazioni</button>
   </nav>
 </div>
+<dialog id="editDialog" class="sheet" aria-labelledby="edTitle">
+  <form method="dialog" class="sheet-head">
+    <h2 id="edTitle">Modifica alert</h2>
+    <button class="btn" aria-label="Chiudi">Chiudi</button>
+  </form>
+  <form id="editForm" class="sheet-body">
+    <p id="edSub" class="muted small"></p>
+    <div class="seg" role="radiogroup" aria-label="Tipo di alert">
+      <label><input type="radio" name="emode" value="price"> Sotto un prezzo</label>
+      <label><input type="radio" name="emode" value="percent"> Sconto in %</label>
+    </div>
+    <div id="edPrice">
+      <label for="edMax">Avvisami se costa meno di (€)</label>
+      <input id="edMax" type="number" min="0.01" step="0.01" inputmode="decimal">
+    </div>
+    <div id="edPercent" hidden>
+      <label for="edPct">Sconto minimo sul prezzo tipico: <b id="edPctLabel">30%</b></label>
+      <input id="edPct" type="range" min="10" max="80" step="5" value="30">
+    </div>
+    <div id="edLegacy" hidden>
+      <label for="edName">Nome carta (facoltativo)</label>
+      <input id="edName" type="text" maxlength="60">
+      <label for="edMinPrice">Prezzo minimo (€)</label>
+      <input id="edMinPrice" type="number" min="0" step="0.5" inputmode="decimal">
+    </div>
+    <div class="row">
+      <div>
+        <label for="edZero">CardTrader Zero</label>
+        <select id="edZero">
+          <option value="">Tutti</option>
+          <option value="only">Solo Zero</option>
+          <option value="exclude">Senza Zero</option>
+        </select>
+      </div>
+      <div>
+        <label for="edCond">Condizione minima</label>
+        <select id="edCond"></select>
+      </div>
+    </div>
+    <label for="edLang">Lingua</label>
+    <select id="edLang">
+      <option value="">Tutte</option>
+      <option value="en">Inglese</option>
+      <option value="it">Italiano</option>
+      <option value="ja">Giapponese</option>
+      <option value="fr">Francese</option>
+      <option value="de">Tedesco</option>
+      <option value="es">Spagnolo</option>
+    </select>
+    <p id="edError" class="error" hidden></p>
+    <button class="btn primary" type="submit">Salva modifiche</button>
+  </form>
+</dialog>
 <dialog id="explainDialog" class="sheet" aria-labelledby="exTitle">
   <form method="dialog" class="sheet-head">
     <h2 id="exTitle">Verifica alert</h2>

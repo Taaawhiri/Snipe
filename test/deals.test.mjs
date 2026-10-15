@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findDeals, median, condRank, rejectReasons, normLang } from '../src/deals.js';
+import { findDeals, median, condRank, rejectReasons, normLang, isSingleCard } from '../src/deals.js';
 
 const p = (id, cents, extra = {}) => ({
   id,
@@ -102,4 +102,18 @@ test('rejectReasons spiega perché un annuncio è scartato', () => {
   const x = p(1, 1000, { user: { can_sell_via_hub: false }, properties_hash: { condition: 'Played' } });
   const reasons = rejectReasons(x, { zero: 'only', minCondition: 'Near Mint' });
   assert.equal(reasons.length, 2);
+});
+
+test('carte singole contro sigillati e accessori', () => {
+  const single = (name, version, category_id = 1) => isSingleCard({ name, version, category_id }, [1]);
+  assert.equal(single('Charizard', 'Holo Rare | 137/103'), true);
+  assert.equal(single('Pikachu', 'Common | 025/165'), true);
+  for (const n of ['151 Booster Box', 'Elite Trainer Box', 'Ultra Pro Binder 9 Pocket', 'Trainer Box', 'Booster Bundle', 'Premium Collection', 'Sleeves 65 pcs']) {
+    assert.equal(isSingleCard({ name: n, version: null, category_id: 1 }, [1]), false, n);
+  }
+  // un nome da carta ma con "Box" nel nome viene scartato anche se la categoria sembra giusta
+  assert.equal(single('Charizard Box', 'Holo Rare | 1/1'), false);
+  // senza categorie note e senza versione: valgono nome e assenza di parole da sigillato
+  assert.equal(isSingleCard({ name: 'Mew', version: null }, null), true);
+  assert.equal(isSingleCard({ name: 'Mew', version: null, category_id: 9 }, [1]), false);
 });

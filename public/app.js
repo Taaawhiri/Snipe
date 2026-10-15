@@ -163,11 +163,14 @@
             el('div', { class: 't', text: title }),
             el('div', { class: 'd', text: parts.join(' · ') }),
           ),
-          el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
-          el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Attiva',
-            onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }),
-          el('button', { class: 'btn danger', type: 'button', 'aria-label': 'Elimina regola', text: 'Elimina',
-            onclick: async () => { await api(`/api/rules/${r.id}`, { method: 'DELETE' }); refresh(); } }),
+          el('div', { class: 'acts' },
+            el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
+            el('button', { class: 'btn', type: 'button', text: 'Modifica', onclick: () => openEdit(r) }),
+            el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Attiva',
+              onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }),
+            el('button', { class: 'btn danger', type: 'button', 'aria-label': 'Elimina regola', text: 'Elimina',
+              onclick: async () => { await api(`/api/rules/${r.id}`, { method: 'DELETE' }); refresh(); } }),
+          ),
         );
       }),
     );
@@ -188,6 +191,7 @@
     try {
       state = await api('/api/state');
       if (!$('alertCond').options.length) {
+        for (const c of state.conditions) $('edCond').append(el('option', { value: c, text: c }));
         for (const c of state.conditions) $('alertCond').append(el('option', { value: c, text: c }));
         $('alertCond').value = 'Slightly Played';
       }
@@ -220,6 +224,74 @@
     }
   }
 
+
+  // ---------- modifica alert ----------
+  let editing = null;
+
+  function setEditMode(pct) {
+    $('edPrice').hidden = pct;
+    $('edPercent').hidden = !pct;
+  }
+
+  function openEdit(r) {
+    editing = r;
+    const legacy = !r.blueprintId;
+    $('edTitle').textContent = r.cardName || r.expansionName || 'Modifica alert';
+    $('edSub').textContent = r.cardName ? r.expansionName || '' : 'Alert su tutta l’espansione';
+    const pct = !r.maxPriceCents;
+    document.querySelector(`input[name="emode"][value="${pct ? 'percent' : 'price'}"]`).checked = true;
+    setEditMode(pct);
+    $('edMax').value = r.maxPriceCents ? (r.maxPriceCents / 100).toFixed(2) : '';
+    $('edPct').value = r.minDiscount || 30;
+    $('edPctLabel').textContent = `${$('edPct').value}%`;
+    $('edLegacy').hidden = !legacy;
+    $('edName').value = r.nameContains || '';
+    $('edMinPrice').value = ((r.minPriceCents || 0) / 100).toString();
+    $('edZero').value = r.zero || '';
+    $('edCond').value = r.minCondition || 'Slightly Played';
+    $('edLang').value = r.language || '';
+    $('edError').hidden = true;
+    $('editDialog').showModal();
+  }
+
+  document.querySelectorAll('input[name="emode"]').forEach((x) =>
+    x.addEventListener('change', () => setEditMode(document.querySelector('input[name="emode"]:checked').value === 'percent')),
+  );
+  $('edPct').addEventListener('input', () => ($('edPctLabel').textContent = `${$('edPct').value}%`));
+
+  $('editForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    if (!editing) return;
+    const pct = document.querySelector('input[name="emode"]:checked').value === 'percent';
+    const body = {
+      id: editing.id,
+      expansionId: editing.expansionId,
+      expansionName: editing.expansionName,
+      blueprintId: editing.blueprintId,
+      cardName: editing.cardName,
+      cardImage: editing.cardImage,
+      enabled: editing.enabled,
+      nameContains: editing.blueprintId ? editing.nameContains : $('edName').value,
+      minPrice: editing.blueprintId ? 0 : Number($('edMinPrice').value),
+      zero: $('edZero').value,
+      minCondition: $('edCond').value,
+      language: $('edLang').value,
+      minDiscount: pct ? Number($('edPct').value) : editing.minDiscount,
+    };
+    if (!pct) {
+      const v = Number($('edMax').value);
+      if (!(v > 0)) { $('edError').textContent = 'Inserisci un prezzo maggiore di zero.'; $('edError').hidden = false; return; }
+      body.maxPrice = v;
+    }
+    try {
+      await api('/api/rules', { method: 'POST', body: JSON.stringify(body) });
+      $('editDialog').close();
+      await refresh();
+    } catch (e) {
+      $('edError').textContent = e.message;
+      $('edError').hidden = false;
+    }
+  });
 
   async function explainRule(r) {
     const d = $('explainDialog');
@@ -292,7 +364,7 @@
     msg.textContent = !currentExp
       ? 'Scegli un’espansione per vedere le carte.'
       : list.length
-        ? `${list.length} ${list.length === 1 ? 'carta' : 'carte'}`
+        ? `${list.length} ${list.length === 1 ? 'carta' : 'carte'}${singlesOnly && cards.some((c) => c.single === false) ? ` (${cards.filter((c) => c.single === false).length} prodotti sigillati nascosti)` : ''}`
         : cards.length
           ? `Nessuna carta corrisponde a “${q}” (${cards.length} carte in questa espansione). Nelle espansioni giapponesi i nomi possono essere in giapponese: prova con il numero della carta.`
           : 'CardTrader non ha restituito carte per questa espansione.';

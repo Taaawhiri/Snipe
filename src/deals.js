@@ -122,3 +122,17 @@ export function findDeals(products, rule, opts = {}) {
   }
   return out;
 }
+
+// Nomi che indicano prodotti sigillati o accessori, mai carte singole.
+export const SEALED_NAME = /\b(booster|boosters|box|boxes|display|bundle|deck|decks|tin|tins|collection|collections|case|pack|packs|elite trainer|etb|trainer kit|kit|sleeve|sleeves|playmat|mat|binder|portfolio|album|folder|coin|blister|starter|figure|pin|pins|build\s*&\s*battle|prerelease|promo set|gift|calendar|poster|mug|dice|marker|counter|lot|bulk|jumbo|oversize)\b/i;
+
+/**
+ * Distingue le carte singole dai prodotti sigillati e dagli accessori.
+ * Su CardTrader le singole Pokémon hanno nella versione rarità e numero ("Holo Rare | 137/103").
+ */
+export function isSingleCard(bp, singleCategoryIds) {
+  if (SEALED_NAME.test(String(bp.name || ''))) return false;
+  if (typeof bp.version === 'string' && bp.version.includes('|')) return true;
+  if (singleCategoryIds) return singleCategoryIds.includes(bp.category_id);
+  return true;
+}
