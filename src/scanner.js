@@ -20,6 +20,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const imageUrl = (u) => (!u ? null : /^(https?|data):/.test(u) ? u : `https://www.cardtrader.com${u.startsWith('/') ? '' : '/'}${u}`);
 const byPrice = (a, b) => a.price.cents - b.price.cents;
+const fixedProp = (fp, re) => {
+  const k = Object.keys(fp || {}).find((x) => re.test(x));
+  return k && fp[k] !== null && fp[k] !== undefined && fp[k] !== '' ? String(fp[k]) : null;
+};
 const prop = (list, re) => {
   for (const p of list) {
     const h = p.properties_hash || {};
@@ -379,7 +383,8 @@ export class Scanner extends DurableObject {
 
   async pokemonExpansions() {
     const cached = await this.get('expansions', null);
-    if (cached && Date.now() - cached.ts < 24 * 3600_000) return cached.list;
+    const savedGame = await this.get('gameId', null);
+    if (cached && savedGame && Date.now() - cached.ts < 24 * 3600_000) return cached.list;
     const games = await this.ct('/games');
     const list = Array.isArray(games) ? games : games.array || [];
     const game = list.find((g) => /pok[eé]mon/i.test(`${g.name} ${g.display_name}`));
@@ -395,16 +400,22 @@ export class Scanner extends DurableObject {
 
   /** Id delle categorie "carta singola" per Pokémon, se l'API le espone. null = sconosciute. */
   async singleCategoryIds() {
-    const saved = await this.get('cats', null);
+    const saved = await this.get('cats2', null);
     if (saved && Date.now() - saved.ts < 7 * 86400_000) return saved.ids;
     if (this.catsFailedAt && Date.now() - this.catsFailedAt < 10 * 60_000) return null;
     try {
-      const gameId = await this.get('gameId', null);
-      const raw = await this.ct(`/categories${gameId ? `?game_id=${gameId}` : ''}`);
+      let gameId = await this.get('gameId', null);
+      if (!gameId) {
+        await this.pokemonExpansions();
+        gameId = await this.get('gameId', null);
+      }
+      if (!gameId) return null;
+      const raw = await this.ct('/categories');
       const arr = Array.isArray(raw) ? raw : (raw && (raw.array || raw.categories || raw.data)) || [];
-      const ids = arr.filter((c) => (!gameId || c.game_id === gameId) && /single/i.test(c.name || '')).map((c) => c.id);
+      // Solo le categorie del gioco Pokémon: l'elenco di CardTrader contiene tutti i giochi.
+      const ids = arr.filter((c) => c.game_id === gameId && /single/i.test(c.name || '')).map((c) => c.id);
       const value = ids.length ? ids : null;
-      await this.ctx.storage.put('cats', { ts: Date.now(), ids: value });
+      await this.ctx.storage.put('cats2', { ts: Date.now(), ids: value });
       return value;
     } catch {
       this.catsFailedAt = Date.now();
@@ -418,7 +429,7 @@ export class Scanner extends DurableObject {
     if (hit && Date.now() - hit.ts < 30_000) return hit.data;
 
     const singleIds = await this.singleCategoryIds();
-    const bpKey = `bp2:${expansionId}`;
+    const bpKey = `bp3:${expansionId}`;
     let blueprints;
     const savedBp = await this.get(bpKey, null);
     if (savedBp && Date.now() - savedBp.ts < 24 * 3600_000) {
@@ -426,7 +437,7 @@ export class Scanner extends DurableObject {
     } else {
       let raw = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
       if (!Array.isArray(raw)) raw = (raw && (raw.blueprints || raw.array || raw.data)) || [];
-      blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url, category_id: b.category_id }));
+      blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url, category_id: b.category_id, fp: b.fixed_properties || {} }));
       await this.ctx.storage.put(bpKey, { ts: Date.now(), list: blueprints });
     }
     const products = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
@@ -436,7 +447,7 @@ export class Scanner extends DurableObject {
       const list = (products[bp.id] || products[String(bp.id)] || []).filter(isListable).sort(byPrice);
       const low = list[0];
       const lowZero = list.find(isZero);
-      const num = prop(list, /^collector_number$/i);
+      const num = prop(list, /^collector_number$/i) || fixedProp(bp.fp, /collector_number/i);
       // Prezzi più bassi per lingua (codici normalizzati: il giapponese è sempre "jp").
       const langs = {};
       for (const p of list) {
@@ -454,7 +465,7 @@ export class Scanner extends DurableObject {
         version: bp.version || null,
         image: imageUrl(bp.image_url),
         number: num,
-        rarity: prop(list, /rarity/i),
+        rarity: prop(list, /rarity/i) || fixedProp(bp.fp, /rarity/i),
         listings: list.length,
         currency: (low && low.price.currency) || 'EUR',
         lowest: low ? low.price.cents : null,

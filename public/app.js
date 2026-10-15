@@ -334,7 +334,7 @@
   let currentExp = null;
   let current = null;
 
-  const LANG_NAMES = { en: 'Inglese', it: 'Italiano', jp: 'Giapponese', fr: 'Francese', de: 'Tedesco', es: 'Spagnolo', pt: 'Portoghese', ko: 'Coreano', zh: 'Cinese', ru: 'Russo', sconosciuta: 'Lingua non indicata' };
+  const LANG_NAMES = { en: 'Inglese', it: 'Italiano', jp: 'Giapponese', fr: 'Francese', de: 'Tedesco', es: 'Spagnolo', pt: 'Portoghese', ko: 'Coreano', zh: 'Cinese', ru: 'Russo', th: 'Thailandese', sconosciuta: 'Lingua non indicata' };
   // Il menu dell'alert usa "ja" per il giapponese, il server normalizza in "jp".
   const toRuleLang = (code) => (code === 'jp' ? 'ja' : code);
 
@@ -349,6 +349,13 @@
     const v = view(c);
     const n = $('cardPriceMode').value === 'zero' ? v.lowestZero : v.lowest;
     return n == null ? '—' : money(n, c.currency);
+  }
+
+  /** Lingue presenti nel set, ricavate dalle carte ricevute, dalla più frequente. */
+  function languagesOf(list) {
+    const count = {};
+    for (const c of list) for (const code of Object.keys(c.langs || {})) count[code] = (count[code] || 0) + 1;
+    return Object.keys(count).sort((a, b) => count[b] - count[a]);
   }
 
   function fillLanguages(codes) {
@@ -420,7 +427,7 @@
       const data = await api(`/api/cards?expansion_id=${currentExp.id}`);
       if (!currentExp || String(currentExp.id) !== String(data.expansionId)) return;
       cards = data.cards;
-      fillLanguages(data.languages || []);
+      fillLanguages(languagesOf(cards));
       renderCards();
     } catch (e) {
       $('cardsMsg').hidden = false;

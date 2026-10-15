@@ -44,6 +44,7 @@ const LANGS = {
   ko: 'ko', kr: 'ko', korean: 'ko',
   zh: 'zh', 'zh-cn': 'zh', 'zh-tw': 'zh', chinese: 'zh',
   ru: 'ru', russian: 'ru',
+  th: 'th', thai: 'th',
 };
 
 /** Normalizza i codici lingua (CardTrader e il nostro menu non usano gli stessi per il giapponese). */
