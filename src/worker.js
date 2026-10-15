@@ -17,6 +17,18 @@ export default {
     // I file statici li serve Cloudflare direttamente: qui arrivano solo le API.
     if (!url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
 
+    // Diagnosi: dice solo quali Secret sono presenti, mai i valori.
+    if (url.pathname === '/api/health') {
+      const has = (k) => typeof env[k] === 'string' && env[k].trim().length > 0;
+      return Response.json({
+        APP_KEY: has('APP_KEY'),
+        CARDTRADER_TOKEN: has('CARDTRADER_TOKEN'),
+        VAPID_PUBLIC_KEY: has('VAPID_PUBLIC_KEY'),
+        VAPID_PRIVATE_KEY: has('VAPID_PRIVATE_KEY'),
+        host: url.host,
+      });
+    }
+
     // /api/latest è pubblico: lo legge il service worker per mostrare la notifica.
     if (url.pathname !== '/api/latest') {
       if (!env.APP_KEY) {
