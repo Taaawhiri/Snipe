@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findDeals, median, condRank } from '../src/deals.js';
+import { findDeals, median, condRank, rejectReasons, normLang } from '../src/deals.js';
 
 const p = (id, cents, extra = {}) => ({
   id,
@@ -86,4 +86,20 @@ test('blueprintId limita il controllo a una carta', () => {
   const res = findDeals(products, { maxPriceCents: 5000, blueprintId: 20 });
   assert.equal(res.length, 1);
   assert.equal(res[0].product.id, 2);
+});
+
+test('lingua: giapponese equivale a ja, jp e Japanese', () => {
+  assert.equal(normLang('JA'), normLang('jp'));
+  assert.equal(normLang('Japanese'), 'jp');
+  const jp = p(1, 1000, { properties_hash: { condition: 'Near Mint', pokemon_language: 'jp' } });
+  assert.deepEqual(rejectReasons(jp, { language: 'ja' }), []);
+  assert.deepEqual(rejectReasons(jp, { language: 'en' }), ['lingua jp diversa']);
+  const nolang = p(2, 1000);
+  assert.deepEqual(rejectReasons(nolang, { language: 'ja' }), []);
+});
+
+test('rejectReasons spiega perché un annuncio è scartato', () => {
+  const x = p(1, 1000, { user: { can_sell_via_hub: false }, properties_hash: { condition: 'Played' } });
+  const reasons = rejectReasons(x, { zero: 'only', minCondition: 'Near Mint' });
+  assert.equal(reasons.length, 2);
 });

@@ -163,6 +163,7 @@
             el('div', { class: 't', text: title }),
             el('div', { class: 'd', text: parts.join(' · ') }),
           ),
+          el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
           el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Attiva',
             onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }),
           el('button', { class: 'btn danger', type: 'button', 'aria-label': 'Elimina regola', text: 'Elimina',
@@ -219,6 +220,32 @@
     }
   }
 
+
+  async function explainRule(r) {
+    const d = $('explainDialog');
+    $('exTitle').textContent = r.cardName || r.expansionName || 'Alert';
+    $('exInfo').textContent = 'Controllo gli annunci attuali…';
+    $('exRows').replaceChildren();
+    if (!d.open) d.showModal();
+    try {
+      const data = await api(`/api/explain?rule_id=${r.id}`);
+      const ok = data.rows.filter((x) => !x.reasons.length).length;
+      $('exInfo').textContent = data.rows.length
+        ? `${data.total} annunci in vendita, i ${data.rows.length} più economici qui sotto. ${ok ? `${ok} rispettano i filtri e fanno scattare l’alert.` : 'Nessuno rispetta i filtri.'}`
+        : 'CardTrader non mostra annunci per questa carta.';
+      $('exRows').replaceChildren(
+        ...data.rows.map((x) =>
+          el('div', { class: 'lrow' },
+            el('span', { class: 'p', text: money(x.cents, x.currency) }),
+            el('span', { class: 'd', text: [x.condition, x.language, x.seller].filter(Boolean).join(' · ') + (x.zero ? ' · Zero' : '') }),
+            el('span', x.reasons.length ? { class: 'why', text: x.reasons.join(', ') } : { class: 'zero-tag', text: 'Valido' }),
+          ),
+        ),
+      );
+    } catch (e) {
+      $('exInfo').textContent = e.message;
+    }
+  }
 
   // ---------- carte ----------
   let cards = [];

@@ -123,6 +123,16 @@
     <button data-tab="settings" type="button">Impostazioni</button>
   </nav>
 </div>
+<dialog id="explainDialog" class="sheet" aria-labelledby="exTitle">
+  <form method="dialog" class="sheet-head">
+    <h2 id="exTitle">Verifica alert</h2>
+    <button class="btn" aria-label="Chiudi">Chiudi</button>
+  </form>
+  <div class="sheet-body">
+    <p id="exInfo" class="muted small"></p>
+    <div id="exRows" class="list"></div>
+  </div>
+</dialog>
 <dialog id="cardDialog" class="sheet" aria-labelledby="dlgName">
   <form method="dialog" class="sheet-head">
     <h2 id="dlgName">Carta</h2>

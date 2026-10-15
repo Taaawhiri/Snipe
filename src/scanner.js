@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, findDeals, isListable, isZero } from './deals.js';
+import { CONDITIONS, findDeals, isListable, isZero, listingLang, rejectReasons } from './deals.js';
 import { sendPush } from './push.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -133,6 +133,35 @@ export class Scanner extends DurableObject {
       }
     }
 
+    if (path === '/api/explain' && method === 'GET') {
+      const rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));
+      if (!rule) return json({ error: 'Regola non trovata' }, 404);
+      try {
+        const data = await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`);
+        const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
+        const rows = all
+          .filter((p) => p && p.price)
+          .sort((a, b) => a.price.cents - b.price.cents)
+          .slice(0, 15)
+          .map((p) => {
+            const reasons = rejectReasons(p, rule);
+            if (!reasons.length && rule.maxPriceCents && p.price.cents > rule.maxPriceCents) reasons.push('sopra il prezzo impostato');
+            return {
+              cents: p.price.cents,
+              currency: p.price.currency || 'EUR',
+              condition: (p.properties_hash && p.properties_hash.condition) || null,
+              language: listingLang(p),
+              zero: isZero(p),
+              seller: p.user && p.user.username,
+              reasons,
+            };
+          });
+        return json({ rows, total: all.length });
+      } catch (e) {
+        return json({ error: String(e.message || e) }, 502);
+      }
+    }
+
     if (path === '/api/debug' && method === 'GET') {
       // Diagnosi: riassume cosa risponde CardTrader, senza dati personali.
       const out = { steps: [] };
@@ -193,7 +222,7 @@ export class Scanner extends DurableObject {
               cents: p.price.cents,
               currency: p.price.currency || 'EUR',
               condition: h.condition || null,
-              language: h.pokemon_language || h.language || h.mtg_language || null,
+              language: listingLang(p),
               zero: isZero(p),
               seller: p.user && p.user.username,
               country: p.user && p.user.country_code,
@@ -416,10 +445,9 @@ export class Scanner extends DurableObject {
     let requests = 0;
 
     for (const rule of rules) {
-      const key = `${rule.expansionId}|${rule.language}`;
+      const key = String(rule.expansionId);
       if (!cache.has(key)) {
-        const qs = `expansion_id=${rule.expansionId}${rule.language ? `&language=${rule.language}` : ''}`;
-        cache.set(key, await this.ct(`/marketplace/products?${qs}`));
+        cache.set(key, await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`));
         requests++;
       }
       const deals = findDeals(cache.get(key), rule);
@@ -440,7 +468,7 @@ export class Scanner extends DurableObject {
           name: p.name_en,
           expansion: (p.expansion && p.expansion.name_en) || rule.expansionName,
           condition: p.properties_hash && p.properties_hash.condition,
-          language: p.properties_hash && (p.properties_hash.pokemon_language || p.properties_hash.language),
+          language: listingLang(p),
           cents: d.cents,
           refCents: d.refCents,
           currency: p.price.currency || 'EUR',

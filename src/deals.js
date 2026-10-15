@@ -33,18 +33,47 @@ export function isListable(p) {
   return !!(p.price && p.price.cents > 0);
 }
 
-function eligible(p, rule) {
-  if (!isListable(p)) return false;
+const LANGS = { ja: 'jp', jp: 'jp', japanese: 'jp', japan: 'jp', en: 'en', english: 'en', it: 'it', italian: 'it', fr: 'fr', french: 'fr', de: 'de', german: 'de', es: 'es', spanish: 'es' };
+
+/** Normalizza i codici lingua (CardTrader e il nostro menu non usano gli stessi per il giapponese). */
+export function normLang(v) {
+  const s = String(v || '').toLowerCase().trim();
+  return LANGS[s] || s;
+}
+
+/** Lingua dell'annuncio, qualunque sia il nome del campo nelle proprietà del gioco. */
+export function listingLang(p) {
+  const h = (p && p.properties_hash) || {};
+  const k = Object.keys(h).find((x) => /language/i.test(x));
+  return k && h[k] ? String(h[k]) : null;
+}
+
+/** Motivi per cui un annuncio non rispetta i filtri della regola. Lista vuota = valido. */
+export function rejectReasons(p, rule) {
+  const out = [];
+  if (!p) return ['annuncio mancante'];
+  if (p.graded) out.push('carta gradata');
+  if (p.on_vacation) out.push('venditore in vacanza');
+  if (!(p.quantity > 0)) out.push('non disponibile');
+  if (!(p.price && p.price.cents > 0)) out.push('senza prezzo');
   if (rule.nameContains) {
     const hay = String(p.name_en || '').toLowerCase();
-    if (!hay.includes(String(rule.nameContains).toLowerCase())) return false;
+    if (!hay.includes(String(rule.nameContains).toLowerCase())) out.push('nome diverso');
   }
-  if (rule.zero === 'only' && !isZero(p)) return false;
-  if (rule.zero === 'exclude' && isZero(p)) return false;
+  const z = isZero(p);
+  if (rule.zero === 'only' && !z) out.push('venditore senza CardTrader Zero');
+  if (rule.zero === 'exclude' && z) out.push('venditore con CardTrader Zero (escluso)');
   const min = condRank(rule.minCondition);
-  const r = condRank(p.properties_hash && p.properties_hash.condition);
-  if (min >= 0 && r >= 0 && r < min) return false;
-  return true;
+  const cond = p.properties_hash && p.properties_hash.condition;
+  const r = condRank(cond);
+  if (min >= 0 && r >= 0 && r < min) out.push(`condizione ${cond} sotto il minimo`);
+  const lang = listingLang(p);
+  if (rule.language && lang && normLang(lang) !== normLang(rule.language)) out.push(`lingua ${lang} diversa`);
+  return out;
+}
+
+function eligible(p, rule) {
+  return rejectReasons(p, rule).length === 0;
 }
 
 /**
