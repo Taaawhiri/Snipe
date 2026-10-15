@@ -609,11 +609,11 @@
   $('cardPriceMode').addEventListener('change', renderCards);
   $('cardKind').addEventListener('change', renderCards);
   $('cardCond').addEventListener('change', () => {
-    try { localStorage.setItem('snipe.cardCond', $('cardCond').value); } catch {}
+    try { localStorage.setItem('snipe.cardCond2', $('cardCond').value); } catch {}
     renderCards();
   });
   try {
-    const saved = localStorage.getItem('snipe.cardCond');
+    const saved = localStorage.getItem('snipe.cardCond2');
     if (saved !== null && [...$('cardCond').options].some((o) => o.value === saved)) $('cardCond').value = saved;
   } catch {}
   $('cardLang').addEventListener('change', () => {
