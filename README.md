@@ -28,22 +28,22 @@ Gli alert su una carta valutano subito anche gli annunci già in vendita, poi av
    - Production branch: `main`
    - Build command: vuoto
    - Deploy command: `npx wrangler deploy`
-3. **Secret** (Workers → snipe → Settings → Variables and Secrets → Add, tipo Secret):
+3. **Secret** (Workers → snipe → Settings → Variables and Secrets, nella parte del Worker e non sotto "Build"; tipo Secret):
 
    | Nome | Valore |
    | --- | --- |
    | `CARDTRADER_TOKEN` | il token del punto 1 |
    | `APP_KEY` | una password a tua scelta, la digiti all'apertura dell'app |
-   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | output di `npm run vapid` |
 
-4. In `wrangler.jsonc` sostituisci `VAPID_SUBJECT` con `mailto:la-tua@email`, poi fai push.
-5. Apri l'URL `*.workers.dev`, inserisci `APP_KEY`, crea una regola e attiva le notifiche dalla scheda Impostazioni.
+   Le chiavi per le notifiche push le genera il server da solo alla prima necessità: non serve fare altro.
+4. Controlla che l'app veda i Secret aprendo `/api/health`: `APP_KEY` e `CARDTRADER_TOKEN` devono essere `true`.
+5. Apri l'URL `*.workers.dev`, inserisci `APP_KEY`, crea un alert dalla scheda Carte e attiva le notifiche dalla scheda Impostazioni.
 
 Da qui ogni push su `main` va in produzione da solo.
 
 ### Notifiche su iPhone
 
-Servono iOS 16.4 o successivo e l'app installata: Safari → Condividi → Aggiungi a Home, poi apri l'icona dalla Home.
+Servono iOS 16.4 o successivo e l'app installata: Safari → Condividi → Aggiungi a Home, poi apri l'icona dalla Home e attiva le notifiche da Impostazioni.
 
 ## Sviluppo in locale
 

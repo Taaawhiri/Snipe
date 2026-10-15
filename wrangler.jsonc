@@ -10,9 +10,5 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Scanner"] }],
   // Ogni minuto rimette in moto lo scan se per qualsiasi motivo si fosse fermato.
-  "triggers": { "crons": ["* * * * *"] },
-  "vars": {
-    // Cambia con la tua email: serve ai servizi push (Apple li rifiuta se non è valida).
-    "VAPID_SUBJECT": "mailto:CHANGE_ME@example.com"
-  }
+  "triggers": { "crons": ["* * * * *"] }
 }

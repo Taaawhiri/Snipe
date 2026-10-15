@@ -15,33 +15,48 @@ function b64uDecode(str) {
 }
 
 const enc = new TextEncoder();
-let cachedKey = null;
+const keyCache = new Map();
 
-async function signingKey(env) {
-  if (cachedKey) return cachedKey;
-  const pub = b64uDecode(env.VAPID_PUBLIC_KEY);
+async function signingKey(keys) {
+  if (keyCache.has(keys.privateKey)) return keyCache.get(keys.privateKey);
+  const pub = b64uDecode(keys.publicKey);
   const jwk = {
     kty: 'EC',
     crv: 'P-256',
     x: b64uEncode(pub.slice(1, 33)),
     y: b64uEncode(pub.slice(33, 65)),
-    d: env.VAPID_PRIVATE_KEY,
+    d: keys.privateKey,
     ext: true,
   };
-  cachedKey = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-  return cachedKey;
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  keyCache.set(keys.privateKey, key);
+  return key;
 }
 
-/** Ritorna lo status HTTP del servizio push (201 = ok, 404/410 = iscrizione scaduta). */
-export async function sendPush(env, endpoint) {
-  const key = await signingKey(env);
+/** Genera una coppia di chiavi VAPID (pubblica in formato non compresso, privata = d), entrambe base64url. */
+export async function generateVapidKeys() {
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+  const raw = new Uint8Array(65);
+  raw[0] = 4;
+  raw.set(b64uDecode(jwk.x), 1);
+  raw.set(b64uDecode(jwk.y), 33);
+  return { publicKey: b64uEncode(raw), privateKey: jwk.d };
+}
+
+/**
+ * keys: { publicKey, privateKey, subject }.
+ * Ritorna lo status HTTP del servizio push (201 = ok, 404/410 = iscrizione scaduta).
+ */
+export async function sendPush(keys, endpoint) {
+  const key = await signingKey(keys);
   const header = b64uEncode(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
   const claims = b64uEncode(
     enc.encode(
       JSON.stringify({
         aud: new URL(endpoint).origin,
         exp: Math.floor(Date.now() / 1000) + 12 * 3600,
-        sub: env.VAPID_SUBJECT || 'mailto:admin@example.com',
+        sub: keys.subject,
       }),
     ),
   );
@@ -50,7 +65,7 @@ export async function sendPush(env, endpoint) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      Authorization: `vapid t=${input}.${b64uEncode(sig)}, k=${env.VAPID_PUBLIC_KEY}`,
+      Authorization: `vapid t=${input}.${b64uEncode(sig)}, k=${keys.publicKey}`,
       TTL: '300',
       Urgency: 'high',
     },

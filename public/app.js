@@ -27,7 +27,7 @@
   // ---------- utilità ----------
   function el(tag, props = {}, ...children) {
     const n = document.createElement(tag);
-    for (const [k, v] of Object.entries(props)) {
+    for (const [k, v] of Object.entries(props || {})) {
       if (k === 'class') n.className = v;
       else if (k === 'text') n.textContent = v;
       else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
@@ -36,6 +36,8 @@
     for (const c of children) if (c) n.append(c);
     return n;
   }
+  const chip = (text, cls = '') => el('span', { class: ('chip ' + cls).trim(), text });
+  const thumb = (src) => (src ? el('img', { class: 'thumbimg', src, alt: '', loading: 'lazy' }) : el('div', { class: 'thumbimg ph', 'aria-hidden': 'true' }));
   const money = (c, cur) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
   function ago(ts) {
     const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -83,12 +85,18 @@
   });
 
   // ---------- tab ----------
-  document.querySelectorAll('.tabs button').forEach((b) =>
-    b.addEventListener('click', () => {
-      document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
-      for (const t of ['alerts', 'cards', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
-    }),
-  );
+  function goTab(name) {
+    document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
+    for (const t of ['alerts', 'cards', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
+    window.scrollTo({ top: 0 });
+  }
+  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.tab)));
+  document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.go)));
+
+  // Eliminare un alert cancella anche i suoi avvisi, quindi chiediamo conferma.
+  function confirmDelete(r) {
+    return window.confirm(`Eliminare l'alert "${r.cardName || r.expansionName}"? Anche i suoi avvisi verranno cancellati.`);
+  }
 
   // ---------- render ----------
   function render() {
@@ -114,24 +122,28 @@
     const list = $('alertList');
     list.replaceChildren(
       ...state.alerts.map((a) => {
-        const hot = a.discount >= 0.5;
-        const meta = [a.expansion, a.condition, a.language && a.language.toUpperCase(), a.seller && `${a.seller}${a.country ? ' (' + a.country + ')' : ''}`, a.zero && 'Zero']
-          .filter(Boolean)
-          .join(' · ');
+        const lv = a.discount >= 0.5 ? 'lv3' : a.discount >= 0.3 ? 'lv2' : 'lv1';
+        const who = a.seller && `${a.seller}${a.country ? ' (' + a.country + ')' : ''}`;
         return el(
           'a',
-          { class: 'alert' + (hot ? ' hot' : ''), href: a.url || '#', target: '_blank', rel: 'noopener noreferrer' },
+          { class: 'alert' + (lv === 'lv3' ? ' hot' : ''), href: a.url || '#', target: '_blank', rel: 'noopener noreferrer' },
+          thumb(a.cardImage),
           el('div', { class: 'main' },
             el('div', { class: 'name', text: a.name || '' }),
-            el('div', { class: 'meta', text: meta }),
+            el('div', { class: 'sub', text: a.expansion || '' }),
+            el('div', { class: 'chips' },
+              ...[a.condition, a.language && a.language.toUpperCase(), who].filter(Boolean).map((t) => chip(t)),
+              a.zero ? chip('Zero', 'zero') : null,
+            ),
             a.test ? null : el('div', { class: 'prices' },
               el('span', { class: 'price', text: money(a.cents, a.currency) }),
               el('span', { class: 'ref', text: money(a.refCents, a.currency) }),
             ),
           ),
           el('div', { class: 'side' },
-            a.test ? null : el('span', { class: 'badge', text: `−${Math.round(a.discount * 100)}%` }),
+            a.test ? chip('prova') : a.discount >= 0.01 ? el('span', { class: `badge ${lv}`, text: `−${Math.round(a.discount * 100)}%` }) : chip('Sotto soglia', 'zero'),
             el('span', { class: 'when', text: ago(a.ts) }),
+            a.test ? null : el('span', { class: 'go', text: 'CardTrader ↗' }),
           ),
         );
       }),
@@ -147,44 +159,42 @@
     const rl = $('ruleList');
     rl.replaceChildren(
       ...state.rules.map((r) => {
-        const zeroTxt = r.zero === 'only' ? 'solo Zero' : r.zero === 'exclude' ? 'senza Zero' : '';
-        const parts = [
-          r.maxPriceCents ? `sotto ${money(r.maxPriceCents)}` : `da −${r.minDiscount}%`,
-          r.nameContains && `“${r.nameContains}”`,
-          r.minCondition,
-          r.language ? r.language.toUpperCase() : 'tutte le lingue',
-          zeroTxt,
-          !r.maxPriceCents && !r.blueprintId && `da ${money(r.minPriceCents)}`,
-        ].filter(Boolean);
-        const title = r.cardName ? `${r.cardName} · ${r.expansionName || ''}` : r.expansionName || `Espansione ${r.expansionId}`;
+        const title = r.cardName || r.expansionName || `Espansione ${r.expansionId}`;
+        const zeroTxt = r.zero === 'only' ? 'Solo Zero' : r.zero === 'exclude' ? 'Senza Zero' : '';
         return el('div', { class: 'rule' + (r.enabled ? '' : ' off') },
-          r.cardImage ? el('img', { class: 'thumb', src: r.cardImage, alt: '', loading: 'lazy' }) : null,
+          thumb(r.cardImage),
           el('div', { class: 'info' },
-            el('div', { class: 't', text: title }),
-            el('div', { class: 'd', text: parts.join(' · ') }),
+            el('div', null,
+              el('div', { class: 't', text: title }),
+              r.cardName ? el('div', { class: 'e', text: r.expansionName || '' }) : null,
+            ),
+            el('div', { class: 'chips' },
+              chip(r.maxPriceCents ? `Sotto ${money(r.maxPriceCents)}` : `Sconto da ${r.minDiscount}%`, 'on'),
+              r.nameContains ? chip(`“${r.nameContains}”`) : null,
+              chip(r.minCondition || 'Qualsiasi condizione'),
+              chip(r.language ? r.language.toUpperCase() : 'Tutte le lingue'),
+              zeroTxt ? chip(zeroTxt, 'zero') : null,
+              r.enabled ? null : chip('In pausa', 'warn'),
+            ),
           ),
           el('div', { class: 'acts' },
             el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
             el('button', { class: 'btn', type: 'button', text: 'Modifica', onclick: () => openEdit(r) }),
-            el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Attiva',
+            el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Riattiva',
               onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }),
-            el('button', { class: 'btn danger', type: 'button', 'aria-label': 'Elimina regola', text: 'Elimina',
-              onclick: async () => { await api(`/api/rules/${r.id}`, { method: 'DELETE' }); refresh(); } }),
+            el('button', { class: 'btn danger', type: 'button', 'aria-label': 'Elimina alert', text: 'Elimina',
+              onclick: async () => {
+                if (!confirmDelete(r)) return;
+                await api(`/api/rules/${r.id}`, { method: 'DELETE' });
+                refresh();
+              } }),
           ),
         );
       }),
     );
     $('ruleEmpty').hidden = state.rules.length > 0;
 
-    // impostazioni
-    const supported = 'serviceWorker' in navigator && 'PushManager' in window;
-    $('pushInfo').textContent = !supported
-      ? 'Questo browser non supporta le notifiche push.'
-      : !state.vapidPublic
-        ? 'Chiavi VAPID mancanti su Cloudflare: vedi il README.'
-        : `Dispositivi registrati: ${state.pushDevices}.`;
-    $('pushEnable').disabled = !supported || !state.vapidPublic;
-    $('pushTest').disabled = !state.pushDevices;
+    updatePushUI();
   }
 
   async function refresh() {
@@ -349,15 +359,20 @@
       list.sort((a, b) => a.name.localeCompare(b.name));
     }
     $('cardGrid').replaceChildren(
-      ...list.map((c) =>
-        el('button', { class: 'tile', type: 'button', onclick: () => openCard(c) },
-          c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
-          el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
-          el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
-          el('div', { class: 'pr', text: priceText(c) }),
-          zeroMode || c.lowestZero == null ? null : el('div', { class: 'pz', text: 'Zero ' + money(c.lowestZero, c.currency) }),
-        ),
-      ),
+      ...list.map((c) => {
+        const shown = price(c);
+        return el('button', { class: 'tile', type: 'button', onclick: () => openCard(c) },
+          el('div', { class: 'art' },
+            c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
+            el('span', { class: 'pricepill' + (shown == null ? ' none' : ''), text: priceText(c) }),
+            !zeroMode && c.lowestZero != null ? el('span', { class: 'zeropill', text: 'Zero ' + money(c.lowestZero, c.currency) }) : null,
+          ),
+          el('div', null,
+            el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
+            el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
+          ),
+        );
+      }),
     );
     const msg = $('cardsMsg');
     msg.hidden = !currentExp;
@@ -378,6 +393,7 @@
     if (!currentExp) return;
     $('cardsMsg').hidden = false;
     $('cardsMsg').textContent = 'Carico le carte…';
+    $('cardGrid').replaceChildren(...Array.from({ length: 12 }, () => el('div', { class: 'skel' })));
     try {
       const data = await api(`/api/cards?expansion_id=${currentExp.id}`);
       if (!currentExp || String(currentExp.id) !== String(data.expansionId)) return;
@@ -476,21 +492,76 @@
     const b = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
     return Uint8Array.from(b, (c) => c.charCodeAt(0));
   }
+  let pushSynced = false;
+
+  async function updatePushUI() {
+    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const badge = $('pushBadge');
+    const setBadge = (cls, text) => { badge.className = 'state ' + cls; badge.textContent = text; };
+    document.querySelectorAll('[data-ios]').forEach((li) => (li.hidden = !ios));
+
+    if (!supported || (ios && !standalone)) {
+      setBadge('off', 'Non disponibili');
+      $('pushInfo').textContent = ios && !standalone
+        ? 'Su iPhone le notifiche funzionano solo dall’app installata: aggiungila alla Home e aprila da lì.'
+        : 'Questo browser non supporta le notifiche push.';
+      $('pushEnable').disabled = true;
+      $('pushTest').disabled = true;
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      setBadge('off', 'Bloccate');
+      $('pushInfo').textContent = 'Le notifiche sono bloccate per questo sito: riabilitale dalle impostazioni del browser.';
+      $('pushEnable').disabled = true;
+      $('pushTest').disabled = true;
+      return;
+    }
+    let sub = null;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      sub = await reg.pushManager.getSubscription();
+    } catch {}
+    if (sub && Notification.permission === 'granted') {
+      if (!pushSynced) {
+        pushSynced = true;
+        api('/api/subscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+      }
+      setBadge('on', 'Attive');
+      $('pushInfo').textContent = 'Questo dispositivo riceve una notifica quando un annuncio rispetta uno dei tuoi alert.';
+      $('pushEnable').textContent = 'Notifiche attive';
+      $('pushEnable').disabled = true;
+      $('pushTest').disabled = false;
+    } else {
+      setBadge('', 'Non attive');
+      $('pushInfo').textContent = 'Attivale per ricevere un avviso anche con l’app chiusa.';
+      $('pushEnable').textContent = 'Attiva notifiche';
+      $('pushEnable').disabled = !state || !state.vapidPublic;
+      $('pushTest').disabled = true;
+    }
+  }
+
   $('pushEnable').addEventListener('click', async () => {
     try {
       const perm = await Notification.requestPermission();
-      if (perm !== 'granted') { $('pushInfo').textContent = 'Permesso negato: abilitalo dalle impostazioni del browser.'; return; }
+      if (perm !== 'granted') { await updatePushUI(); return; }
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(state.vapidPublic) });
       await api('/api/subscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) });
+      pushSynced = true;
       await refresh();
     } catch (e) {
       $('pushInfo').textContent = `Impossibile attivare le notifiche: ${e.message}`;
     }
   });
   $('pushTest').addEventListener('click', async () => {
-    try { await api('/api/test-push', { method: 'POST' }); await refresh(); } catch (e) { $('pushInfo').textContent = e.message; }
+    try {
+      const r = await api('/api/test-push', { method: 'POST' });
+      $('pushInfo').textContent = r.sent ? 'Notifica di prova inviata: dovrebbe arrivare entro pochi secondi.' : 'Non è stato possibile inviarla: riattiva le notifiche su questo dispositivo.';
+      await refresh();
+    } catch (e) { $('pushInfo').textContent = e.message; }
   });
   $('runDebug').addEventListener('click', async () => {
     const out = $('debugOut');

@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, findDeals, isListable, isSingleCard, isZero, listingLang, rejectReasons } from './deals.js';
-import { sendPush } from './push.js';
+import { generateVapidKeys, sendPush } from './push.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
@@ -18,7 +18,7 @@ const json = (data, status = 200) =>
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const imageUrl = (u) => (!u ? null : /^https?:/.test(u) ? u : `https://www.cardtrader.com${u.startsWith('/') ? '' : '/'}${u}`);
+const imageUrl = (u) => (!u ? null : /^(https?|data):/.test(u) ? u : `https://www.cardtrader.com${u.startsWith('/') ? '' : '/'}${u}`);
 const byPrice = (a, b) => a.price.cents - b.price.cents;
 const prop = (list, re) => {
   for (const p of list) {
@@ -61,6 +61,24 @@ export class Scanner extends DurableObject {
     } finally {
       release();
     }
+  }
+
+  /** Chiavi per le notifiche push: se non impostate a mano come Secret, le genera il server una volta sola. */
+  async vapid() {
+    const env = this.env;
+    let keys = null;
+    if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) {
+      keys = { publicKey: String(env.VAPID_PUBLIC_KEY).trim(), privateKey: String(env.VAPID_PRIVATE_KEY).trim() };
+    } else {
+      keys = await this.get('vapid', null);
+      if (!keys) {
+        keys = await generateVapidKeys();
+        await this.ctx.storage.put('vapid', keys);
+      }
+    }
+    const configured = env.VAPID_SUBJECT && !/CHANGE_ME/.test(env.VAPID_SUBJECT) ? env.VAPID_SUBJECT : null;
+    const origin = await this.get('origin', null);
+    return { ...keys, subject: configured || origin || 'https://workers.dev' };
   }
 
   async ct(path) {
@@ -109,7 +127,7 @@ export class Scanner extends DurableObject {
         alerts: alerts.slice(0, 60),
         status,
         pushDevices: subs.length,
-        vapidPublic: this.env.VAPID_PUBLIC_KEY || null,
+        vapidPublic: (await this.vapid()).publicKey,
         conditions: CONDITIONS,
       });
     }
@@ -255,13 +273,16 @@ export class Scanner extends DurableObject {
     if (path.startsWith('/api/rules/') && method === 'DELETE') {
       const id = path.split('/').pop();
       const rules = (await this.get('rules', [])).filter((r) => r.id !== id);
-      await this.ctx.storage.put('rules', rules);
+      const alerts = (await this.get('alerts', [])).filter((a) => a.ruleId !== id);
+      await this.ctx.storage.put({ rules, alerts });
+      await this.resetRuleMemory(id);
       return json({ ok: true });
     }
 
     if (path === '/api/subscribe' && method === 'POST') {
       const { endpoint } = await req.json();
       if (typeof endpoint !== 'string' || !/^https:\/\//.test(endpoint)) return json({ error: 'Endpoint non valido' }, 400);
+      await this.ctx.storage.put('origin', url.origin); // serve come "subject" nelle notifiche push
       const subs = await this.get('subs', []);
       if (!subs.includes(endpoint)) subs.push(endpoint);
       await this.ctx.storage.put('subs', subs.slice(-20));
@@ -476,7 +497,7 @@ export class Scanner extends DurableObject {
           id: sid,
           ts: Date.now(),
           ruleId: rule.id,
-          name: p.name_en,
+          name: p.name_en || rule.cardName,
           expansion: (p.expansion && p.expansion.name_en) || rule.expansionName,
           condition: p.properties_hash && p.properties_hash.condition,
           language: listingLang(p),
@@ -515,13 +536,14 @@ export class Scanner extends DurableObject {
   }
 
   async notify() {
-    if (!this.env.VAPID_PUBLIC_KEY || !this.env.VAPID_PRIVATE_KEY) return 0;
     const subs = await this.get('subs', []);
+    if (!subs.length) return 0;
+    const keys = await this.vapid();
     const alive = [];
     let sent = 0;
     for (const endpoint of subs) {
       try {
-        const status = await sendPush(this.env, endpoint);
+        const status = await sendPush(keys, endpoint);
         if (status === 404 || status === 410) continue; // iscrizione scaduta
         alive.push(endpoint);
         if (status >= 200 && status < 300) sent++;

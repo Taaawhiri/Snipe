@@ -1,4 +1,5 @@
-// Genera le chiavi VAPID per le notifiche push. Esegui: npm run vapid
+// Facoltativo: le chiavi VAPID le genera già il server alla prima necessità.
+// Questo script serve solo se vuoi impostarle a mano come Secret (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY).
 import { generateKeyPairSync } from 'node:crypto';
 
 const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
