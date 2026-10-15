@@ -60,6 +60,24 @@
             </select>
           </div>
         </div>
+        <div class="row">
+          <div>
+            <label for="cardKind">Mostra</label>
+            <select id="cardKind">
+              <option value="single">Solo carte singole</option>
+              <option value="all">Tutti i prodotti</option>
+            </select>
+          </div>
+          <div>
+            <label for="cardSort">Ordina per</label>
+            <select id="cardSort">
+              <option value="price-desc">Prezzo: dal più alto</option>
+              <option value="price-asc">Prezzo: dal più basso</option>
+              <option value="number">Numero</option>
+              <option value="name">Nome</option>
+            </select>
+          </div>
+        </div>
       </div>
       <p id="cardsMsg" class="muted" hidden></p>
       <div id="cardGrid" class="grid"></div>

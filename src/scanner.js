@@ -29,6 +29,8 @@ const prop = (list, re) => {
   return null;
 };
 
+const SEALED_NAME = /\b(booster|box|display|bundle|deck|tin|collection|case|pack|elite trainer|etb|sleeves|playmat|binder|portfolio|album|coin|blister|starter|figure|pin)\b/i;
+
 export class Scanner extends DurableObject {
   cardCache = new Map();
   queue = Promise.resolve();
@@ -161,6 +163,14 @@ export class Scanner extends DurableObject {
         if (out.products.sample && out.products.sample.user) {
           out.products.sample = { ...out.products.sample, user: { ...out.products.sample.user, username: '(nascosto)' } };
         }
+        try {
+          const gameId = await this.get('gameId', null);
+          const cats = await this.ct(`/categories${gameId ? `?game_id=${gameId}` : ''}`);
+          out.categories = (Array.isArray(cats) ? cats : []).map((c) => ({ id: c.id, name: c.name, game_id: c.game_id }));
+        } catch (e) {
+          out.categories = `non disponibili: ${String(e.message || e)}`;
+        }
+        out.singleCategoryIds = await this.singleCategoryIds();
         out.ok = true;
       } catch (e) {
         out.ok = false;
@@ -297,8 +307,27 @@ export class Scanner extends DurableObject {
       .filter((e) => e.game_id === game.id)
       .map((e) => ({ id: e.id, code: e.code, name: e.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
-    await this.ctx.storage.put('expansions', { ts: Date.now(), list: out });
+    await this.ctx.storage.put({ expansions: { ts: Date.now(), list: out }, gameId: game.id });
     return out;
+  }
+
+  /** Id delle categorie "carta singola" per Pokémon, se l'API le espone. null = sconosciute. */
+  async singleCategoryIds() {
+    const saved = await this.get('cats', null);
+    if (saved && Date.now() - saved.ts < 7 * 86400_000) return saved.ids;
+    if (this.catsFailedAt && Date.now() - this.catsFailedAt < 10 * 60_000) return null;
+    try {
+      const gameId = await this.get('gameId', null);
+      const raw = await this.ct(`/categories${gameId ? `?game_id=${gameId}` : ''}`);
+      const arr = Array.isArray(raw) ? raw : (raw && (raw.array || raw.categories || raw.data)) || [];
+      const ids = arr.filter((c) => (!gameId || c.game_id === gameId) && /single/i.test(c.name || '')).map((c) => c.id);
+      const value = ids.length ? ids : null;
+      await this.ctx.storage.put('cats', { ts: Date.now(), ids: value });
+      return value;
+    } catch {
+      this.catsFailedAt = Date.now();
+      return null;
+    }
   }
 
   /** Carte di un'espansione con immagine e prezzo più basso (in totale e con CardTrader Zero). */
@@ -306,7 +335,8 @@ export class Scanner extends DurableObject {
     const hit = this.cardCache.get(expansionId);
     if (hit && Date.now() - hit.ts < 30_000) return hit.data;
 
-    const bpKey = `bp:${expansionId}`;
+    const singleIds = await this.singleCategoryIds();
+    const bpKey = `bp2:${expansionId}`;
     let blueprints;
     const savedBp = await this.get(bpKey, null);
     if (savedBp && Date.now() - savedBp.ts < 24 * 3600_000) {
@@ -314,7 +344,7 @@ export class Scanner extends DurableObject {
     } else {
       let raw = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
       if (!Array.isArray(raw)) raw = (raw && (raw.blueprints || raw.array || raw.data)) || [];
-      blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url }));
+      blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url, category_id: b.category_id }));
       await this.ctx.storage.put(bpKey, { ts: Date.now(), list: blueprints });
     }
     const products = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
@@ -324,7 +354,10 @@ export class Scanner extends DurableObject {
       const low = list[0];
       const lowZero = list.find(isZero);
       const num = prop(list, /^collector_number$/i);
+      // Carta singola: dalla categoria se nota, altrimenti dal numero di collezione o dal nome.
+      const single = singleIds ? singleIds.includes(bp.category_id) : !!num || !SEALED_NAME.test(bp.name || '');
       return {
+        single,
         id: bp.id,
         name: bp.name,
         version: bp.version || null,

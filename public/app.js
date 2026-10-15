@@ -263,7 +263,21 @@
   function renderCards() {
     const q = $('cardSearch').value.trim().toLowerCase();
     const zeroMode = $('cardPriceMode').value === 'zero';
-    const list = cards.filter((c) => !q || c.name.toLowerCase().includes(q) || (c.number || '').toLowerCase() === q);
+    const singlesOnly = $('cardKind').value === 'single';
+    const list = cards.filter((c) => (!singlesOnly || c.single !== false) && (!q || c.name.toLowerCase().includes(q) || (c.number || '').toLowerCase() === q));
+    const sort = $('cardSort').value;
+    const price = (c) => (zeroMode ? c.lowestZero : c.lowest);
+    if (sort === 'price-asc' || sort === 'price-desc') {
+      list.sort((a, b) => {
+        const pa = price(a), pb = price(b);
+        if (pa == null && pb == null) return 0;
+        if (pa == null) return 1; // senza annunci sempre in fondo
+        if (pb == null) return -1;
+        return sort === 'price-asc' ? pa - pb : pb - pa;
+      });
+    } else if (sort === 'name') {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
     $('cardGrid').replaceChildren(
       ...list.map((c) =>
         el('button', { class: 'tile', type: 'button', onclick: () => openCard(c) },
@@ -276,11 +290,11 @@
       ),
     );
     const msg = $('cardsMsg');
-    msg.hidden = list.length > 0 && !!currentExp;
+    msg.hidden = !currentExp;
     msg.textContent = !currentExp
       ? 'Scegli un’espansione per vedere le carte.'
       : list.length
-        ? ''
+        ? `${list.length} ${list.length === 1 ? 'carta' : 'carte'}`
         : cards.length
           ? `Nessuna carta corrisponde a “${q}” (${cards.length} carte in questa espansione). Nelle espansioni giapponesi i nomi possono essere in giapponese: prova con il numero della carta.`
           : 'CardTrader non ha restituito carte per questa espansione.';
@@ -307,6 +321,8 @@
   $('cardExp').addEventListener('change', loadCards);
   $('cardSearch').addEventListener('input', renderCards);
   $('cardPriceMode').addEventListener('change', renderCards);
+  $('cardKind').addEventListener('change', renderCards);
+  $('cardSort').addEventListener('change', renderCards);
 
   async function openCard(c) {
     current = c;
