@@ -53,3 +53,7 @@ npm test
 - Il formato del link alla carta (`https://www.cardtrader.com/cards/<blueprint_id>`) è dedotto, non documentato: se non si apre correttamente, va corretto in `src/scanner.js`.
 - Nei prodotti Pokémon i nomi dei campi di lingua e condizione in `properties_hash` potrebbero differire da Magic. Il filtro lingua usa il parametro `language` dell'API, quindi non dipende da quei nomi.
 - Limiti API: 200 richieste ogni 10 secondi in totale e 10 al secondo sul marketplace. Lo scan usa circa 4 richieste al secondo al massimo e riusa la stessa risposta per le regole sulla stessa espansione.
+
+## Stato
+
+Se l'app mostra "APP_KEY non configurata", apri `/api/health`: elenca quali Secret il Worker riesce a leggere.
