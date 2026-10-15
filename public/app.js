@@ -186,9 +186,7 @@
   async function refresh() {
     try {
       state = await api('/api/state');
-      if (!$('minCondition').options.length) {
-        for (const c of state.conditions) $('minCondition').append(el('option', { value: c, text: c }));
-        $('minCondition').value = 'Slightly Played';
+      if (!$('alertCond').options.length) {
         for (const c of state.conditions) $('alertCond').append(el('option', { value: c, text: c }));
         $('alertCond').value = 'Slightly Played';
       }
@@ -197,14 +195,6 @@
   }
 
   // ---------- regole ----------
-  function fillExpansions() {
-    const q = $('expFilter').value.trim().toLowerCase();
-    const sel = $('expSelect');
-    const prev = sel.value;
-    const items = expansions.filter((e) => !q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q));
-    sel.replaceChildren(...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})` })));
-    if (items.some((e) => String(e.id) === prev)) sel.value = prev;
-  }
   function fillCardExpansions() {
     const q = $('cardExpFilter').value.trim().toLowerCase();
     const sel = $('cardExp');
@@ -214,8 +204,6 @@
     if (items.some((e) => String(e.id) === prev)) sel.value = prev;
   }
   $('cardExpFilter').addEventListener('input', fillCardExpansions);
-  $('expFilter').addEventListener('input', fillExpansions);
-  $('minDiscount').addEventListener('input', () => ($('discLabel').textContent = `${$('minDiscount').value}%`));
 
   async function saveRule(r) {
     const err = $('ruleError');
@@ -231,23 +219,6 @@
     }
   }
 
-  $('ruleForm').addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    const id = $('expSelect').value;
-    const exp = expansions.find((e) => String(e.id) === id);
-    if (!exp) return;
-    const ok = await saveRule({
-      expansionId: exp.id,
-      expansionName: exp.name,
-      nameContains: $('nameContains').value,
-      minCondition: $('minCondition').value,
-      language: $('language').value,
-      minDiscount: Number($('minDiscount').value),
-      minPrice: Number($('minPrice').value),
-      zero: $('ruleZero').value,
-    });
-    if (ok) $('nameContains').value = '';
-  });
 
   // ---------- carte ----------
   let cards = [];
@@ -441,9 +412,9 @@
     $('login').hidden = true;
     $('app').hidden = false;
     await refresh();
-    api('/api/expansions').then((l) => { expansions = l; fillExpansions(); fillCardExpansions(); }).catch((e) => {
-      $('ruleError').textContent = `Elenco espansioni non disponibile: ${e.message}`;
-      $('ruleError').hidden = false;
+    api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); }).catch((e) => {
+      $('cardsMsg').textContent = `Elenco espansioni non disponibile: ${e.message}`;
+      $('cardsMsg').hidden = false;
     });
     clearInterval(timer);
     timer = setInterval(refresh, 5000);

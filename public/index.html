@@ -84,57 +84,12 @@
     </section>
 
     <section id="tab-rules" class="tab" hidden>
-      <form id="ruleForm" class="card">
-        <h2>Nuova regola</h2>
-        <label for="expFilter">Espansione</label>
-        <input id="expFilter" type="search" placeholder="Cerca (es. 151, Obsidian, Paldea)" autocomplete="off">
-        <select id="expSelect" size="1" required></select>
+      <p class="muted">Per creare un alert apri la scheda <b>Carte</b>, scegli la carta e imposta il prezzo o lo sconto.</p>
+      <p id="ruleError" class="error" hidden></p>
 
-        <label for="nameContains">Nome carta (facoltativo)</label>
-        <input id="nameContains" type="text" placeholder="es. Charizard" maxlength="60">
-
-        <div class="row">
-          <div>
-            <label for="minCondition">Condizione minima</label>
-            <select id="minCondition"></select>
-          </div>
-          <div>
-            <label for="language">Lingua</label>
-            <select id="language">
-              <option value="">Tutte</option>
-              <option value="en">Inglese</option>
-              <option value="it">Italiano</option>
-              <option value="ja">Giapponese</option>
-              <option value="fr">Francese</option>
-              <option value="de">Tedesco</option>
-              <option value="es">Spagnolo</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row">
-          <div>
-            <label for="minDiscount">Sconto minimo: <b id="discLabel">30%</b></label>
-            <input id="minDiscount" type="range" min="10" max="80" step="5" value="30">
-          </div>
-          <div>
-            <label for="minPrice">Prezzo minimo (€)</label>
-            <input id="minPrice" type="number" min="0" step="0.5" value="5" inputmode="decimal">
-          </div>
-        </div>
-        <label for="ruleZero">CardTrader Zero</label>
-        <select id="ruleZero">
-          <option value="">Tutti i venditori</option>
-          <option value="only">Solo venditori Zero</option>
-          <option value="exclude">Escludi i venditori Zero</option>
-        </select>
-        <p id="ruleError" class="error" hidden></p>
-        <button class="btn primary" type="submit">Aggiungi regola</button>
-      </form>
-
-      <h2 class="section">Le tue regole</h2>
+      <h2 class="section">I tuoi alert</h2>
       <div id="ruleList" class="list"></div>
-      <p id="ruleEmpty" class="empty" hidden>Nessuna regola. Aggiungine una sopra per avviare lo scan.</p>
+      <p id="ruleEmpty" class="empty" hidden>Nessun alert. Creane uno dalla scheda Carte per avviare lo scan.</p>
     </section>
 
     <section id="tab-settings" class="tab" hidden>
