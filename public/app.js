@@ -62,6 +62,20 @@
     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
   }
 
+  // ---------- link esterni ----------
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const safariOn = () => { try { return localStorage.getItem('snipe.safari') !== '0'; } catch { return true; } };
+  // Su iPhone un link esterno nella webapp si apre in una finestra interna: con lo schema x-safari- si apre Safari.
+  document.addEventListener('click', (ev) => {
+    const a = ev.target.closest && ev.target.closest('a[target="_blank"]');
+    if (!a || !isIOS || !safariOn()) return;
+    let u;
+    try { u = new URL(a.href); } catch { return; }
+    if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
+    ev.preventDefault();
+    location.href = `x-safari-${u.href}`;
+  });
+
   // ---------- login ----------
   function showLogin(msg) {
     clearInterval(timer);
@@ -249,6 +263,8 @@
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
+    $('extPanel').hidden = !isIOS;
+    if (free('setSafari')) $('setSafari').checked = safariOn();
   }
 
   async function saveSettings(patch) {
@@ -266,6 +282,9 @@
   $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
+  $('setSafari').addEventListener('change', () => {
+    try { localStorage.setItem('snipe.safari', $('setSafari').checked ? '1' : '0'); } catch {}
+  });
   $('setSound').addEventListener('change', () => {
     try { localStorage.setItem('snipe.sound', $('setSound').checked ? '1' : '0'); } catch {}
   });
@@ -766,17 +785,15 @@
     if (!c.cm) { box.hidden = true; box.replaceChildren(); $('amodeCmLabel').hidden = true; return; }
     const d = cmDelta(c);
     box.hidden = false;
-    box.replaceChildren(
-      el('div', null, 'Cardmarket · tutte le lingue'),
-      el('div', { class: 'cmrow' },
-        el('div', null, el('span', { text: 'tendenza ' }), money(Math.round(c.cm.trend * 100), c.currency)),
-        c.cm.avg30 != null ? el('div', null, el('span', { text: 'media 30 giorni ' }), money(Math.round(c.cm.avg30 * 100), c.currency)) : null,
-        c.cm.low != null ? el('div', null, el('span', { text: 'più basso ' }), money(Math.round(c.cm.low * 100), c.currency)) : null,
-      ),
+    const cell = (label, cents) => (cents == null ? null : el('div', { class: 'cmcell' }, el('span', { text: label }), el('b', { text: money(Math.round(cents * 100), c.currency) })));
+    const parts = [
+      el('div', { class: 'cmtitle', text: 'Cardmarket · tutte le lingue' }),
+      el('div', { class: 'cmrow' }, ...[cell('tendenza', c.cm.trend), cell('media 30 giorni', c.cm.avg30), cell('più basso', c.cm.low)].filter(Boolean)),
       d == null ? null : el('div', { class: 'delta ' + (d >= 0.05 ? 'good' : d <= -0.05 ? 'bad' : ''), text: d >= 0 ? `Su CardTrader costa il ${Math.round(d * 100)}% in meno della tendenza` : `Su CardTrader costa il ${Math.round(-d * 100)}% in più della tendenza` }),
       $('cardLang').value ? el('div', { class: 'cmwarn', text: 'Il listino Cardmarket non distingue le lingue: con un filtro lingua il confronto è solo indicativo.' }) : null,
       el('a', { href: cmSearchUrl(c), target: '_blank', rel: 'noopener noreferrer', text: 'Cerca su Cardmarket ↗' }),
-    );
+    ];
+    box.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
     $('amodeCmLabel').hidden = !c.cmId;
     updateCmHint();
   }

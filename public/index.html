@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#9b1c31">
+<meta name="color-scheme" content="light dark">
 <title>Snipe</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png">
@@ -197,6 +198,12 @@
         <label class="switch"><input id="setSound" type="checkbox"><span>Suono e vibrazione con l'app aperta</span></label>
       </div>
 
+      <div class="panel" id="extPanel" hidden>
+        <h2>Link esterni</h2>
+        <label class="switch"><input id="setSafari" type="checkbox"><span>Apri CardTrader e Cardmarket in Safari</span></label>
+        <p class="muted small">Sull'iPhone i link si aprirebbero dentro l'app. Con questa opzione si apre Safari. Se toccando un link non succede niente, spegni l'opzione.</p>
+      </div>
+
       <div class="panel">
         <h2>Backup degli alert</h2>
         <p class="muted small">Salva i tuoi alert in un file, per ritrovarli se cambi telefono o ricrei il progetto. L'importazione aggiunge gli alert senza cancellare quelli che hai.</p>
@@ -310,15 +317,15 @@
       <img id="dlgImg" alt="" width="120" height="168">
       <div class="dlg-info">
         <div id="dlgMeta" class="muted"></div>
-        <div id="dlgLangNote" class="chips"></div>
-        <div id="dlgCm" class="cmbox" hidden></div>
-        <a id="dlgLink" class="btn primary" href="#" target="_blank" rel="noopener noreferrer">Apri su CardTrader ↗</a>
         <div class="dlg-prices">
           <div><div class="k">Più basso</div><div id="dlgLow" class="price">—</div></div>
           <div><div class="k">Con Zero</div><div id="dlgLowZero" class="price">—</div></div>
         </div>
+        <div id="dlgLangNote" class="chips"></div>
       </div>
     </div>
+    <div id="dlgCm" class="cmbox" hidden></div>
+    <a id="dlgLink" class="btn primary wide" href="#" target="_blank" rel="noopener noreferrer">Apri su CardTrader ↗</a>
 
     <h2 class="section">Annunci più economici</h2>
     <div id="dlgListings" class="list"></div>
