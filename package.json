@@ -9,7 +9,8 @@
     "deploy": "wrangler deploy",
     "test": "node --test test/*.test.mjs",
     "vapid": "node scripts/gen-vapid.mjs",
-    "icons": "node scripts/gen-icons.mjs"
+    "icons": "node scripts/gen-icons.mjs",
+    "build": "node scripts/gen-icons.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
