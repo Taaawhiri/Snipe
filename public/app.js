@@ -277,7 +277,13 @@
     );
     const msg = $('cardsMsg');
     msg.hidden = list.length > 0 && !!currentExp;
-    msg.textContent = !currentExp ? 'Scegli un’espansione per vedere le carte.' : list.length ? '' : 'Nessuna carta trovata.';
+    msg.textContent = !currentExp
+      ? 'Scegli un’espansione per vedere le carte.'
+      : list.length
+        ? ''
+        : cards.length
+          ? `Nessuna carta corrisponde a “${q}” (${cards.length} carte in questa espansione). Nelle espansioni giapponesi i nomi possono essere in giapponese: prova con il numero della carta.`
+          : 'CardTrader non ha restituito carte per questa espansione.';
   }
 
   async function loadCards() {

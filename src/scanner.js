@@ -4,7 +4,11 @@ import { sendPush } from './push.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
-const REQUEST_GAP_MS = 250; // ~4 richieste/s, sotto il limite di 10/s sul marketplace
+// Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
+// 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
+const MARKETPLACE_GAP_MS = 1200;
+const OTHER_GAP_MS = 400;
+const MIN_BACKOFF_MS = 30_000;
 const MAX_RULES = 30;
 const MAX_ALERTS = 200;
 const MAX_SEEN = 20_000;
@@ -27,18 +31,47 @@ const prop = (list, re) => {
 
 export class Scanner extends DurableObject {
   cardCache = new Map();
+  queue = Promise.resolve();
+  lastCall = 0;
+  blockedUntil = 0;
 
   async get(key, fallback) {
     const v = await this.ctx.storage.get(key);
     return v === undefined ? fallback : v;
   }
 
+  /** Mette in fila le chiamate a CardTrader e rispetta la pausa dopo un 429. */
+  async throttle(path) {
+    const prev = this.queue;
+    let release;
+    this.queue = new Promise((r) => (release = r));
+    await prev;
+    try {
+      const now = Date.now();
+      if (this.blockedUntil > now) {
+        const err = new Error(`CardTrader sta limitando le richieste: riprovo tra ${Math.ceil((this.blockedUntil - now) / 1000)}s`);
+        err.rateLimited = true;
+        throw err;
+      }
+      const gap = path.startsWith('/marketplace') ? MARKETPLACE_GAP_MS : OTHER_GAP_MS;
+      const wait = this.lastCall + gap - now;
+      if (wait > 0) await sleep(wait);
+      this.lastCall = Date.now();
+    } finally {
+      release();
+    }
+  }
+
   async ct(path) {
+    await this.throttle(path);
     const res = await fetch((this.env.CARDTRADER_API || API) + path, {
       headers: { Authorization: `Bearer ${this.env.CARDTRADER_TOKEN}`, Accept: 'application/json' },
     });
     if (res.status === 429) {
-      const err = new Error('CardTrader: troppe richieste (429)');
+      const retry = parseInt(res.headers.get('retry-after'), 10);
+      const pause = Math.max(MIN_BACKOFF_MS, Number.isFinite(retry) ? retry * 1000 : 0);
+      this.blockedUntil = Date.now() + pause;
+      const err = new Error(`CardTrader ha risposto 429 (troppe richieste): pausa di ${Math.round(pause / 1000)}s`);
       err.rateLimited = true;
       throw err;
     }
@@ -235,8 +268,16 @@ export class Scanner extends DurableObject {
     const hit = this.cardCache.get(expansionId);
     if (hit && Date.now() - hit.ts < 30_000) return hit.data;
 
-    const blueprints = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
-    await sleep(REQUEST_GAP_MS);
+    const bpKey = `bp:${expansionId}`;
+    let blueprints;
+    const savedBp = await this.get(bpKey, null);
+    if (savedBp && Date.now() - savedBp.ts < 24 * 3600_000) {
+      blueprints = savedBp.list;
+    } else {
+      const raw = await this.ct(`/blueprints/export?expansion_id=${expansionId}`);
+      blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url }));
+      await this.ctx.storage.put(bpKey, { ts: Date.now(), list: blueprints });
+    }
     const products = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
 
     const cards = blueprints.map((bp) => {
@@ -285,13 +326,12 @@ export class Scanner extends DurableObject {
       status.lastError = null;
     } catch (e) {
       status.lastError = String(e.message || e);
-      if (e.rateLimited) await sleep(20_000);
     }
     status.lastScan = Date.now();
     await this.ctx.storage.put('status', status);
 
     const active = (await this.get('rules', [])).some((r) => r.enabled);
-    if (active) await this.ctx.storage.setAlarm(Date.now() + SCAN_EVERY_MS);
+    if (active) await this.ctx.storage.setAlarm(Math.max(Date.now() + SCAN_EVERY_MS, this.blockedUntil));
   }
 
   async scanOnce(status) {
@@ -306,7 +346,6 @@ export class Scanner extends DurableObject {
     for (const rule of rules) {
       const key = `${rule.expansionId}|${rule.language}`;
       if (!cache.has(key)) {
-        if (requests > 0) await sleep(REQUEST_GAP_MS);
         const qs = `expansion_id=${rule.expansionId}${rule.language ? `&language=${rule.language}` : ''}`;
         cache.set(key, await this.ct(`/marketplace/products?${qs}`));
         requests++;
