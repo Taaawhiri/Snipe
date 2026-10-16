@@ -435,3 +435,19 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .usage-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: 13.5px; }
 .usage-top span { color: var(--muted); font-weight: 700; }
 .bar.hot > i { background: var(--bad); }
+
+/* ---------- pagina di accesso ---------- */
+.login { align-items: flex-start; padding: 28px 0 40px; }
+.landing { width: min(560px, 100%); display: flex; flex-direction: column; gap: 18px; }
+.landing .login-card { width: 100%; }
+.hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 8px 0 4px; }
+.hero .reticle svg { width: 64px; height: 64px; }
+.hero .logo { font-size: 40px; color: var(--red); text-shadow: none; }
+@media (prefers-color-scheme: dark) { .hero .logo { color: #fff; } }
+.hero .tagline { margin: 0; font-size: 17px; font-weight: 700; color: var(--muted); max-width: 400px; }
+.features { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 10px; }
+.features li { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-soft); }
+.features b { font-family: var(--display); font-weight: 600; font-size: 16px; }
+.features span { font-size: 14px; color: var(--muted); font-weight: 600; line-height: 1.4; }
+.login-plans .plan-table { margin-top: 0; }
+.login-card .steps { font-size: 14px; }

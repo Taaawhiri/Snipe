@@ -96,6 +96,7 @@
 
   // ---------- login ----------
   function showLogin(msg) {
+    if (!$('loginPlans').childElementCount) $('loginPlans').replaceChildren(...planTable('free'));
     clearInterval(timer);
     $('app').hidden = true;
     $('login').hidden = false;
@@ -292,6 +293,17 @@
     sniper: { label: 'Sniper', price: '9,99 €/mese', maxRules: 100, maxSetRules: 100000, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true },
   };
 
+  /** Righe della tabella di confronto dei piani (usata in Impostazioni e nella pagina di accesso). */
+  function planTable(curId) {
+    const ids = Object.keys(PLAN_INFO);
+    const cls = (id) => (id === curId ? 'cur' : '');
+    return [
+      el('div', { class: 'pt-row pt-head' }, el('span'), ...ids.map((id) => el('b', { class: cls(id), text: PLAN_INFO[id].label }))),
+      el('div', { class: 'pt-row' }, el('span', { text: 'Prezzo' }), ...ids.map((id) => el('span', { class: cls(id), text: PLAN_INFO[id].price }))),
+      ...PLAN_ROWS.map(([label, f]) => el('div', { class: 'pt-row' }, el('span', { text: label }), ...ids.map((id) => el('span', { class: cls(id), text: String(f({ ...PLAN_INFO[id], unlimited: 100000 })) })))),
+    ];
+  }
+
   function renderPlan() {
     const raw = state.account && state.account.plan;
     if (!raw) return;
@@ -310,12 +322,7 @@
       kvRow('Storico prezzi', `${p.historyDays} giorni`),
       ...(out ? [kvRow('Alert fermi', `${out} oltre il limite del piano`, 'bad')] : []),
     );
-    const ids = Object.keys(PLAN_INFO);
-    $('planTable').replaceChildren(
-      el('div', { class: 'pt-row pt-head' }, el('span'), ...ids.map((id) => el('b', { class: id === p.id ? 'cur' : '', text: PLAN_INFO[id].label }))),
-      el('div', { class: 'pt-row' }, el('span', { text: 'Prezzo' }), ...ids.map((id) => el('span', { class: id === p.id ? 'cur' : '', text: PLAN_INFO[id].price }))),
-      ...PLAN_ROWS.map(([label, f]) => el('div', { class: 'pt-row' }, el('span', { text: label }), ...ids.map((id) => el('span', { class: id === p.id ? 'cur' : '', text: String(f({ ...PLAN_INFO[id], unlimited: 100000 })) })))),
-    );
+    $('planTable').replaceChildren(...planTable(p.id));
     // Frequenze più veloci di quella del piano: visibili ma non selezionabili.
     for (const o of $('setScan').options) o.disabled = Number(o.value) < p.scanSec;
   }
@@ -352,7 +359,7 @@
           el('span', { text: `${pct}% dei 100.000 del piano gratuito Cloudflare` }),
         ),
         el('div', { class: 'bar' + (pct >= 80 ? ' hot' : '') }, el('i', { style: `width:${Math.min(100, pct)}%` })),
-        el('span', { class: 'small', text: `Oggi finora: ${today.toLocaleString('it-IT')} giri di scan (si azzera a mezzanotte UTC, cioè alle ${new Date(Date.UTC(2000, 0, 1)).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} ora italiana).` }),
+        el('span', { class: 'small', text: `Oggi finora: ${today.toLocaleString('it-IT')} giri di scan (si azzera a mezzanotte UTC, cioè alle ${utcMidnightLocal()} ora italiana).` }),
       ),
     );
     $('adminList').replaceChildren(
@@ -399,6 +406,13 @@
       alert(e.message);
     }
     loadAdmin();
+  }
+
+  /** Ora italiana della prossima mezzanotte UTC (01:00 d'inverno, 02:00 con l'ora legale). */
+  function utcMidnightLocal() {
+    const n = new Date();
+    const next = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1);
+    return new Date(next).toLocaleTimeString('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' });
   }
 
   const dateIt = (ts) => (ts ? new Date(ts).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
