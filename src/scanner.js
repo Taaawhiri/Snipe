@@ -116,12 +116,16 @@ export class Scanner extends DurableObject {
     });
     if (res.status === 429) {
       const retry = parseInt(res.headers.get('retry-after'), 10);
-      const pause = Math.max(MIN_BACKOFF_MS, Number.isFinite(retry) ? retry * 1000 : 0);
+      // 429 di fila: la pausa raddoppia (30s, 1, 2, 4 min, poi massimo 5) finché CardTrader non risponde di nuovo.
+      this.strikes = (this.strikes || 0) + 1;
+      const backoff = Math.min(MIN_BACKOFF_MS * 2 ** (this.strikes - 1), 5 * 60_000);
+      const pause = Math.max(backoff, Number.isFinite(retry) ? retry * 1000 : 0);
       this.blockedUntil = Date.now() + pause;
       const err = new Error(`CardTrader ha risposto 429 (troppe richieste): pausa di ${Math.round(pause / 1000)}s`);
       err.rateLimited = true;
       throw err;
     }
+    this.strikes = 0;
     if (!res.ok) throw new Error(`CardTrader ${path.split('?')[0]} → HTTP ${res.status}`);
     return res.json();
   }
