@@ -463,3 +463,17 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
   .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .features li:last-child { grid-column: 1 / -1; }
 }
+/* desktop: la colonna destra deve stare tutta nello schermo, senza scorrere */
+@media (min-width: 900px) {
+  .login { padding: 32px 0; min-height: 100dvh; }
+  .land-right { gap: 12px; }
+  .features { gap: 8px; }
+  .features li { padding: 9px 12px; gap: 1px; border-radius: 14px; }
+  .features b { font-size: 14.5px; }
+  .features span { font-size: 12.5px; line-height: 1.35; }
+  .login-plans { padding: 12px 14px; gap: 6px; }
+  .login-plans h2 { font-size: 16px; }
+  .login-plans .pt-row { padding: 4px 4px; font-size: 12.5px; }
+  .login-plans .pt-head b { font-size: 13px; }
+  .login-plans .muted.small { font-size: 12px; margin: 0; }
+}
