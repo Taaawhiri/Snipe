@@ -353,6 +353,18 @@ export class Scanner extends DurableObject {
     return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, refreshing };
   }
 
+  async reportError(where, err) {
+    try {
+      const acc = await this.get('account', null);
+      const message = String((err && (err.stack || err.message)) || err).split('\n').slice(0, 3).join(' · ');
+      const reg = this.env.REGISTRY.get(this.env.REGISTRY.idFromName('registry'));
+      const r = await reg.fetch('https://reg/error', { method: 'POST', body: JSON.stringify({ where, message, user: acc ? acc.userId : null }) }).then((x) => x.json());
+      if (r.notify) await this.catalog().fetch('https://do.internal/api/_ownerNotice', { method: 'POST', body: JSON.stringify({ text: `${where}: ${message.slice(0, 160)}` }) });
+    } catch {
+      // il registro errori non deve mai bloccare lo scan
+    }
+  }
+
   /** Una volta al giorno segnala al catalogo le espansioni dei propri alert e desideri (interesse di fondo). */
   async reportInterest() {
     const today = new Date().toISOString().slice(0, 10);
@@ -575,7 +587,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/latest' && method === 'GET') {
       const alerts = await this.get('alerts', []);
       // L'ultima cosa da notificare: un avviso, un problema dello scan o il riepilogo del mattino.
-      const items = [alerts[0], await this.get('notice', null), await this.get('summaryNotice', null)].filter(Boolean);
+      const items = [alerts[0], await this.get('notice', null), await this.get('summaryNotice', null), await this.get('ownerNotice', null)].filter(Boolean);
       return json(items.sort((x, y) => y.ts - x.ts)[0] || null);
     }
 
@@ -657,6 +669,36 @@ export class Scanner extends DurableObject {
       await this.ctx.storage.put('settings', next);
       if (!next.paused) await this.ensureAlarm();
       return json(next);
+    }
+
+    if (path === '/api/export/full' && method === 'GET') {
+      // Tutti i dati dell'utente (diritto alla portabilità). Il token CardTrader non viene mai incluso.
+      const keys = ['rules', 'wish', 'coll', 'collPrices', 'collHist', 'alerts', 'bought', 'sellers'];
+      const out = { app: 'snipe', version: 2, exportedAt: new Date().toISOString(), settings: await this.settings() };
+      for (const k of keys) out[k] = await this.get(k, k === 'sellers' ? { fav: [], block: [] } : k === 'collPrices' ? {} : []);
+      const acc = await this.get('account', null);
+      out.account = acc ? { userId: acc.userId, name: acc.name, since: acc.since } : null;
+      return json(out);
+    }
+
+    if (path === '/api/_ownerNotice' && method === 'POST') {
+      // Errore del servizio da segnalare al proprietario (solo il server dati 'main').
+      const b = await req.json();
+      await this.ctx.storage.put('ownerNotice', { id: `err:${Date.now()}`, ts: Date.now(), kind: 'system', name: 'errore del servizio', text: String(b.text || '').slice(0, 300) });
+      await this.notify(true);
+      return json({ ok: true });
+    }
+
+    if (path === '/api/_wipe' && method === 'POST') {
+      // Cancellazione account: elimina tutti i dati di questo server dati.
+      await this.ctx.storage.deleteAlarm();
+      await this.ctx.storage.deleteAll();
+      this.tokenCache = undefined;
+      this.planCache = null;
+      this.statusMem = null;
+      this.bpCache.clear();
+      this.productCache.clear();
+      return json({ ok: true });
     }
 
     if (path === '/api/export' && method === 'GET') {
@@ -1490,6 +1532,8 @@ export class Scanner extends DurableObject {
       status.lastError = null;
     } catch (e) {
       status.lastError = String(e.message || e);
+      // Errori nostri (non di CardTrader né dei limiti): li segnaliamo al proprietario.
+      if (!e.rateLimited && !e.budget && !/^CardTrader|Token CardTrader/.test(status.lastError)) await this.reportError('Scan', e);
     }
     status.lastScan = Date.now();
     try {

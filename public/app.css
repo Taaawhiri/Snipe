@@ -708,3 +708,8 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .meter.high > i { background: var(--yellow); }
 .meter.full > i { background: #ff5a6e; }
 #collList.loading { opacity: 0.45; pointer-events: none; transition: opacity 0.2s; }
+.admin-errors { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.admin-errors h3 { margin: 0; font: 600 16px var(--display); }
+.err-row { padding: 10px 12px; border-radius: 12px; background: rgba(255, 90, 110, 0.08); border: 1px solid rgba(255, 90, 110, 0.35); display: flex; flex-direction: column; gap: 4px; }
+.err-top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.err-msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: transparent; padding: 0; color: #ffc2cb; }

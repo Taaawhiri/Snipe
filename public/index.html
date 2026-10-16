@@ -323,6 +323,13 @@
           <input id="importFile" type="file" accept="application/json,.json" hidden>
         </div>
         <p id="backupMsg" class="muted small" hidden></p>
+        <hr class="sep">
+        <h2>I tuoi dati</h2>
+        <p class="muted small">Scarica tutto ciò che Snipe conserva per te: alert, collezione, lista dei desideri, avvisi, venditori e impostazioni. Il token CardTrader non viene mai incluso.</p>
+        <div class="row-btn">
+          <button class="btn" id="exportAll" type="button">Scarica tutti i dati (JSON)</button>
+          <button class="btn" id="exportColl" type="button">Collezione per Excel (CSV)</button>
+        </div>
       </div>
 
       <div id="adminPanel" class="panel" hidden>
@@ -332,6 +339,7 @@
         </div>
         <div id="adminSummary" class="muted small"></div>
         <div id="adminStats" class="admin-stats"></div>
+        <div id="adminErrors" class="admin-errors"></div>
         <p id="adminError" class="error" hidden></p>
         <div id="adminList" class="list"></div>
       </div>
@@ -341,6 +349,7 @@
         <div class="row-btn">
           <button class="btn" id="clearAlerts" type="button">Cancella lo storico avvisi</button>
           <button class="btn" id="logout" type="button">Esci</button>
+          <button class="btn danger" id="deleteAccount" type="button">Elimina account</button>
         </div>
         <div class="field name-field">
           <label for="setName">Nome da mostrare</label>

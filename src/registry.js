@@ -75,6 +75,45 @@ export class Registry extends DurableObject {
       return json({ id, ...users[id] });
     }
 
+    if (url.pathname === '/remove' && req.method === 'POST') {
+      const { id } = await req.json();
+      const users = await this.get('users', {});
+      delete users[id];
+      const aliases = await this.get('aliases', {});
+      for (const [k, v] of Object.entries(aliases)) if (v === id) delete aliases[k];
+      await this.ctx.storage.put({ users, aliases });
+      return json({ ok: true });
+    }
+
+    // Errori del servizio, per il proprietario: ultimi 50, con conteggio per tipo.
+    if (url.pathname === '/error' && req.method === 'POST') {
+      const e = await req.json();
+      const errors = await this.get('errors', []);
+      const key = String(e.where || '') + '|' + String(e.message || '').slice(0, 80);
+      const prev = errors.find((x) => x.key === key);
+      let notify = false;
+      if (prev) {
+        prev.count++;
+        prev.last = Date.now();
+        prev.user = e.user || prev.user;
+        // Stesso errore: una notifica al massimo ogni 6 ore.
+        if (Date.now() - (prev.notified || 0) > 6 * 3600_000) { prev.notified = Date.now(); notify = true; }
+      } else {
+        errors.unshift({ key, where: String(e.where || '').slice(0, 60), message: String(e.message || '').slice(0, 300), user: e.user || null, first: Date.now(), last: Date.now(), count: 1, notified: Date.now() });
+        notify = true;
+      }
+      errors.sort((a, b) => b.last - a.last);
+      await this.ctx.storage.put('errors', errors.slice(0, 50));
+      return json({ notify });
+    }
+
+    if (url.pathname === '/errors') return json(await this.get('errors', []));
+
+    if (url.pathname === '/errors/clear' && req.method === 'POST') {
+      await this.ctx.storage.put('errors', []);
+      return json({ ok: true });
+    }
+
     if (url.pathname === '/user') {
       const users = await this.get('users', {});
       let id = url.searchParams.get('id');

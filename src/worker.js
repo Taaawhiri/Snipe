@@ -83,6 +83,32 @@ async function login(req, env) {
   return json({ ok: true, name: displayName(user), plan: user.plan }, 200, { 'set-cookie': sessionCookie(session) });
 }
 
+/**
+ * Errore del servizio: lo registra e, la prima volta (poi al massimo ogni 6 ore per tipo), lo notifica
+ * al proprietario sul telefono. Non deve mai far fallire la richiesta che lo ha scoperto.
+ */
+export async function reportError(env, where, err, userId = null) {
+  try {
+    const message = String((err && (err.stack || err.message)) || err).split('\n').slice(0, 3).join(' · ');
+    const r = await registry(env).fetch('https://reg/error', { method: 'POST', body: JSON.stringify({ where, message, user: userId }) }).then((x) => x.json());
+    if (r.notify) {
+      await scanner(env, 'main').fetch('https://do.internal/api/_ownerNotice', { method: 'POST', body: JSON.stringify({ text: `${where}: ${message.slice(0, 160)}` }) });
+    }
+  } catch {
+    // niente: il registro errori non deve mai bloccare il servizio
+  }
+}
+
+/** Cancellazione dell'account: tutti i dati del server dati, la voce nel registro e la sessione. */
+async function deleteAccount(req, env, user) {
+  const b = await req.json().catch(() => ({}));
+  if (b.confirm !== 'ELIMINA') return json({ error: 'Conferma mancante.' }, 400);
+  if (user.doName === 'main') return json({ error: "L'account del proprietario contiene anche il catalogo condiviso e non si può eliminare da qui." }, 400);
+  await scanner(env, user.doName).fetch('https://do.internal/api/_wipe', { method: 'POST' });
+  await registry(env).fetch('https://reg/remove', { method: 'POST', body: JSON.stringify({ id: user.id }) });
+  return json({ ok: true }, 200, { 'set-cookie': clearCookie() });
+}
+
 /** Pagina admin: solo per il piano Proprietario. */
 async function admin(req, env, url, me) {
   if (me.plan !== 'owner') return json({ error: 'Solo il proprietario può gestire gli utenti.' }, 403);
@@ -96,6 +122,12 @@ async function admin(req, env, url, me) {
     );
     out.sort((a, b) => (b.lastLogin || 0) - (a.lastLogin || 0));
     return json({ users: out, plans: Object.entries(PLANS).map(([id, p]) => ({ id, label: p.label })) });
+  }
+  if (url.pathname === '/api/admin/errors' && req.method === 'GET') {
+    return json(await registry(env).fetch('https://reg/errors').then((r) => r.json()));
+  }
+  if (url.pathname === '/api/admin/errors/clear' && req.method === 'POST') {
+    return json(await registry(env).fetch('https://reg/errors/clear', { method: 'POST' }).then((r) => r.json()));
   }
   if (url.pathname === '/api/admin/user' && req.method === 'POST') {
     const b = await req.json().catch(() => ({}));
@@ -154,7 +186,25 @@ async function scanCard(req, env, user) {
 }
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
+    try {
+      const res = await handle(req, env);
+      // Errore inatteso del server dati (500): lo segnaliamo al proprietario.
+      if (res.status === 500) ctx.waitUntil(reportError(env, `API ${new URL(req.url).pathname}`, await res.clone().text()));
+      return res;
+    } catch (e) {
+      ctx.waitUntil(reportError(env, `Worker ${new URL(req.url).pathname}`, e));
+      return json({ error: 'Errore inatteso: è stato segnalato, riprova tra poco.' }, 500);
+    }
+  },
+
+  async scheduled(event, env, ctx) {
+    return scheduled(event, env, ctx);
+  },
+};
+
+async function handle(req, env) {
+  {
     const url = new URL(req.url);
     // I file statici li serve Cloudflare direttamente: qui arrivano solo le API.
     if (!url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
@@ -176,6 +226,7 @@ export default {
 
     if (url.pathname.startsWith('/api/admin/')) return admin(req, env, url, user);
     if (url.pathname === '/api/scan' && req.method === 'POST') return scanCard(req, env, user);
+    if (url.pathname === '/api/account/delete' && req.method === 'POST') return deleteAccount(req, env, user);
     if (url.pathname === '/api/profile' && req.method === 'POST') {
       const b = await req.json().catch(() => ({}));
       const name = String(b.displayName || '').trim().slice(0, 40);
@@ -198,9 +249,10 @@ export default {
       return forward(env, 'main', req, headers);
     }
     return forward(env, user.doName, req, headers);
-  },
+  }
+}
 
-  async scheduled(_event, env, ctx) {
+async function scheduled(_event, env, ctx) {
     // Ogni minuto rimette in moto lo scan di ogni utente, se per qualsiasi motivo si fosse fermato.
     ctx.waitUntil(
       (async () => {
@@ -210,5 +262,4 @@ export default {
         await Promise.all(list.map((u) => scanner(env, u.doName).fetch('https://do.internal/api/_tick', { method: 'POST', body: JSON.stringify({ plan: u.blocked ? '' : u.plan, blocked: !!u.blocked, doName: u.doName }) }).catch(() => null)));
       })(),
     );
-  },
-};
+  }

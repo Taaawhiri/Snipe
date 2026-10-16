@@ -920,6 +920,7 @@
       ),
     );
     $('adminStats').replaceChildren(...adminStats(users));
+    api('/api/admin/errors').then(renderAdminErrors).catch(() => null);
     $('adminList').replaceChildren(
       ...users.map((u) => {
         const st = u.stats || {};
@@ -983,6 +984,21 @@
       ),
       el('div', { class: 'small muted signups-legend' }, el('span', { text: `iscritti al giorno · 30 giorni fa` }), el('span', { text: 'oggi' })),
     ];
+  }
+
+  function renderAdminErrors(errors) {
+    $('adminErrors').replaceChildren(
+      el('div', { class: 'admin-head' },
+        el('h3', { text: errors.length ? `Errori del servizio (${errors.length})` : 'Errori del servizio' }),
+        errors.length ? el('button', { class: 'btn mini', type: 'button', text: 'Svuota', onclick: async () => { await api('/api/admin/errors/clear', { method: 'POST' }); renderAdminErrors([]); } }) : null,
+      ),
+      ...(errors.length
+        ? errors.slice(0, 15).map((e) => el('div', { class: 'err-row' },
+            el('div', { class: 'err-top' }, el('b', { text: e.where }), el('span', { class: 'small muted', text: `${e.count > 1 ? `${e.count} volte · ` : ''}ultima ${ago(e.last)}` })),
+            el('code', { class: 'err-msg', text: e.message }),
+          ))
+        : [el('p', { class: 'small muted', text: 'Nessun errore registrato. Se ne succede uno ricevi una notifica (al massimo ogni 6 ore per tipo).' })]),
+    );
   }
 
   async function adminUpdate(u, patch) {
@@ -1323,6 +1339,59 @@
       msg.textContent = `${data.rules.length} alert esportati.`;
     } catch (e) { msg.textContent = `Esportazione non riuscita: ${e.message}`; }
   });
+  function download(name, text, type) {
+    const blob = new Blob([text], { type });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  $('exportAll').addEventListener('click', async () => {
+    const msg = $('backupMsg');
+    msg.hidden = false;
+    try {
+      const data = await api('/api/export/full');
+      download(`snipe-dati-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
+      msg.textContent = `Scaricati: ${data.rules.length} alert, ${data.coll.length} carte in collezione, ${data.wish.length} desideri, ${data.alerts.length} avvisi.`;
+    } catch (e) { msg.textContent = `Esportazione non riuscita: ${e.message}`; }
+  });
+
+  $('exportColl').addEventListener('click', async () => {
+    const msg = $('backupMsg');
+    msg.hidden = false;
+    try {
+      const d = await api('/api/collection');
+      // Separatore ";" e virgola decimale: si apre direttamente con Excel in italiano.
+      const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const eur = (c) => (c == null ? '' : (c / 100).toFixed(2).replace('.', ','));
+      const rows = [['Carta', 'Espansione', 'Lingua', 'Condizione', 'Copie', 'Pagata (€ l\'una)', 'Valore attuale (€ l\'una)', 'Valore totale (€)', 'Guadagno (€)', 'Cardmarket (€)', 'ID CardTrader']];
+      for (const it of d.items) {
+        const val = it.price ? it.price.cents : null;
+        rows.push([it.name, it.expName, (it.lang || '').toUpperCase(), it.cond, it.qty, eur(it.paidCents), eur(val), eur(val == null ? null : val * it.qty), eur(val != null && it.paidCents ? (val - it.paidCents) * it.qty : null), eur(it.cmCents), it.bp]);
+      }
+      download(`snipe-collezione-${today()}.csv`, '\ufeff' + rows.map((r) => r.map(q).join(';')).join('\r\n'), 'text/csv;charset=utf-8');
+      msg.textContent = `${d.items.length} carte esportate in CSV.`;
+    } catch (e) { msg.textContent = `Esportazione non riuscita: ${e.message}`; }
+  });
+
+  $('deleteAccount').addEventListener('click', async () => {
+    const ok = window.prompt('Eliminare definitivamente il tuo account Snipe? Alert, collezione, lista dei desideri, avvisi e impostazioni verranno cancellati e non si potranno recuperare. Il tuo account CardTrader non viene toccato.\n\nScarica prima i tuoi dati se vuoi conservarli. Per confermare scrivi ELIMINA.');
+    if (ok == null) return;
+    if (ok.trim().toUpperCase() !== 'ELIMINA') { alert('Account non eliminato: conferma non corretta.'); return; }
+    try {
+      await api('/api/account/delete', { method: 'POST', body: JSON.stringify({ confirm: 'ELIMINA' }) });
+      alert('Account eliminato. Grazie per aver usato Snipe.');
+      showLogin('');
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+
   $('importRules').addEventListener('click', () => $('importFile').click());
   $('importFile').addEventListener('change', async () => {
     const msg = $('backupMsg');
