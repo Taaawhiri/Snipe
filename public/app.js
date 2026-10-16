@@ -1775,6 +1775,16 @@
   }
 
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
+  $('setNameSave').addEventListener('click', async () => {
+    try {
+      await api('/api/profile', { method: 'POST', body: JSON.stringify({ displayName: $('setName').value }) });
+      await refresh();
+      $('setName').value = '';
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+
   // Lingua dell'app (i18n.js traduce l'interfaccia; cambiare lingua ricarica la pagina).
   if (window.snipeLang) {
     $('setLang').value = window.snipeLang.get();

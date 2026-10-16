@@ -20,6 +20,14 @@ async function secret(env) {
   return cachedSecret;
 }
 
+/**
+ * Chi è l'utente: l'ID utente CardTrader (user_id). "id" di /info è invece l'"app" creata insieme al token
+ * e "name" il suo nome automatico (es. "Mario App 20260715103609"): li usiamo solo come ripiego.
+ */
+function identityOf(info) {
+  return String(info.user_id != null ? info.user_id : info.id);
+}
+
 let cachedOwner = null;
 async function ownerId(env) {
   const t = String(env.CARDTRADER_TOKEN || '').trim();
@@ -29,8 +37,13 @@ async function ownerId(env) {
   if (!res || !res.ok) return null;
   const info = await res.json().catch(() => null);
   if (!info || info.id == null) return null;
-  cachedOwner = { t, id: String(info.id) };
+  cachedOwner = { t, id: identityOf(info) };
   return cachedOwner.id;
+}
+
+/** Nome mostrato: quello scelto dall'utente, altrimenti "Utente CardTrader <id>" (mai il nome automatico dell'app). */
+function displayName(u) {
+  return (u && u.displayName) || `Utente CardTrader ${u ? u.id : ''}`;
 }
 
 const json = (d, status = 200, headers = {}) => Response.json(d, { status, headers });
@@ -50,18 +63,23 @@ async function login(req, env) {
   if (!info || info.id == null) return json({ error: 'Risposta inattesa da CardTrader.' }, 502);
 
   // Proprietario = stesso utente CardTrader del Secret, anche se il token è stato rigenerato o copiato diverso.
-  const owner = (await ownerId(env)) === String(info.id);
+  const id = identityOf(info);
+  const owner = (await ownerId(env)) === id;
   const user = await registry(env)
-    .fetch('https://reg/login', { method: 'POST', body: JSON.stringify({ userId: info.id, name: info.name, owner, defaultPlan: DEFAULT_PLAN }) })
+    .fetch('https://reg/login', {
+      method: 'POST',
+      // legacyId: gli account creati prima erano registrati con l'ID dell'app; il registro li sposta sull'ID utente.
+      body: JSON.stringify({ userId: id, legacyId: info.user_id != null ? String(info.id) : null, appName: info.name, owner, defaultPlan: DEFAULT_PLAN }),
+    })
     .then((r) => r.json());
   if (user.blocked) return json({ error: 'Questo account è stato sospeso.' }, 403);
   // Il token resta solo nel server dati dell'utente: non torna mai al telefono.
   await scanner(env, user.doName).fetch('https://do.internal/api/_account', {
     method: 'POST',
-    body: JSON.stringify({ token, userId: user.id, name: user.name, plan: user.plan, doName: user.doName }),
+    body: JSON.stringify({ token, userId: user.id, name: displayName(user), plan: user.plan, doName: user.doName }),
   });
   const session = await makeSession(await secret(env), user.id);
-  return json({ ok: true, name: user.name, plan: user.plan }, 200, { 'set-cookie': sessionCookie(session) });
+  return json({ ok: true, name: displayName(user), plan: user.plan }, 200, { 'set-cookie': sessionCookie(session) });
 }
 
 /** Pagina admin: solo per il piano Proprietario. */
@@ -72,7 +90,7 @@ async function admin(req, env, url, me) {
     const out = await Promise.all(
       users.map(async (u) => {
         const stats = await scanner(env, u.doName).fetch('https://do.internal/api/_stats').then((r) => r.json()).catch(() => null);
-        return { ...u, me: u.id === me.id, stats };
+        return { ...u, name: displayName(u), me: u.id === me.id, stats };
       }),
     );
     out.sort((a, b) => (b.lastLogin || 0) - (a.lastLogin || 0));
@@ -132,6 +150,12 @@ export default {
     if (user.blocked) return json({ error: 'Questo account è stato sospeso.' }, 401, { 'set-cookie': clearCookie() });
 
     if (url.pathname.startsWith('/api/admin/')) return admin(req, env, url, user);
+    if (url.pathname === '/api/profile' && req.method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      const name = String(b.displayName || '').trim().slice(0, 40);
+      const u = await registry(env).fetch('https://reg/update', { method: 'POST', body: JSON.stringify({ id: user.id, patch: { displayName: name } }) }).then((r) => r.json());
+      return json({ ok: true, name: displayName(u) });
+    }
 
     // Il server dati riceve chi è l'utente e il suo piano; le intestazioni del client con lo stesso nome vengono sostituite.
     const headers = new Headers(req.headers);
@@ -139,7 +163,7 @@ export default {
     headers.set('x-plan', user.plan);
     headers.set('x-do', user.doName);
     headers.set('x-build', BUILD);
-    headers.set('x-user-name', encodeURIComponent(user.name || ''));
+    headers.set('x-user-name', encodeURIComponent(displayName(user)));
     // Ricerca per nome e rinnovo dell'indice usano il catalogo condiviso (server dati 'main').
     if (url.pathname === '/api/search') return forward(env, 'main', req, headers);
     if (url.pathname === '/api/deals') return forward(env, 'main', req, headers);

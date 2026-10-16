@@ -533,7 +533,7 @@ export class Scanner extends DurableObject {
         status,
         pushDevices: subs.length,
         outOfPlan: ((inPlan) => rules.filter((r) => r.enabled && !inPlan.has(r.id)).map((r) => r.id))(rulesInPlan(rules, await this.plan())),
-        account: { name: ((await this.get('account', null)) || {}).name || decodeURIComponent(req.headers.get('x-user-name') || ''), plan: await this.plan() },
+        account: { name: decodeURIComponent(req.headers.get('x-user-name') || '') || ((await this.get('account', null)) || {}).name || '', plan: await this.plan() },
         bought: await this.get('bought', []),
         sellers: await this.get('sellers', { fav: [], block: [] }),
         settings: await this.settings(),

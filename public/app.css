@@ -606,3 +606,4 @@ svg.spark .cm { stroke: var(--blue); stroke-dasharray: 5 4; stroke-width: 2; }
 .act-btn.del .ico { color: var(--bad); }
 .act-btn.del:hover { background: rgba(255, 122, 110, 0.14); }
 @media (max-width: 360px) { .act-btn span { display: none; } }
+.inline-save { display: flex; gap: 8px; } .inline-save input { flex: 1; min-width: 0; } .name-field { max-width: 420px; }

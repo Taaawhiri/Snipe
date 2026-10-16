@@ -47,14 +47,23 @@ export class Registry extends DurableObject {
     }
 
     if (url.pathname === '/login' && req.method === 'POST') {
-      const { userId, name, owner, defaultPlan } = await req.json();
+      const { userId, legacyId, appName, owner, defaultPlan } = await req.json();
       const users = await this.get('users', {});
       const id = String(userId);
+      // Account registrato con l'ID dell'app (versioni precedenti): lo spostiamo sull'ID utente, con un alias
+      // perché le sessioni già aperte continuino a funzionare.
+      if (legacyId && legacyId !== id && users[legacyId] && !users[id]) {
+        users[id] = users[legacyId];
+        delete users[legacyId];
+        const aliases = await this.get('aliases', {});
+        aliases[legacyId] = id;
+        await this.ctx.storage.put('aliases', aliases);
+      }
       const prev = users[id];
       const mainTaken = Object.entries(users).some(([uid, u]) => uid !== id && u.doName === 'main');
       users[id] = {
         ...(prev || {}), // conserva sospensione e note impostate dalla pagina admin
-        name: String(name || '').slice(0, 80),
+        appName: String(appName || '').slice(0, 80),
         created: prev ? prev.created : Date.now(),
         lastLogin: Date.now(),
         plan: owner ? 'owner' : prev ? prev.plan : defaultPlan,
@@ -68,8 +77,10 @@ export class Registry extends DurableObject {
 
     if (url.pathname === '/user') {
       const users = await this.get('users', {});
-      const u = users[url.searchParams.get('id')];
-      return u ? json({ id: url.searchParams.get('id'), ...u }) : json({ error: 'not found' }, 404);
+      let id = url.searchParams.get('id');
+      if (!users[id]) id = (await this.get('aliases', {}))[id] || id;
+      const u = users[id];
+      return u ? json({ id, ...u }) : json({ error: 'not found' }, 404);
     }
 
     if (url.pathname === '/users') {

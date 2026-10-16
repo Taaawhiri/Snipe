@@ -217,6 +217,8 @@
     'Aggiungi alla collezione': 'Add to collection', 'Una copia in più': 'One more copy', 'Una copia in meno': 'One less copy', '≈ altra lingua': '≈ other language',
     'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto': 'No listings in your language and condition: lowest overall price',
     'Carta mancante': 'Card missing',
+    'Nome da mostrare': 'Display name', 'Salva': 'Save', 'Es. il tuo nome o nickname': 'e.g. your name or nickname',
+    'CardTrader non comunica il tuo nome utente alle app: scegli tu come comparire in Snipe.': "CardTrader doesn't share your username with apps: choose how you appear in Snipe.",
     '☆ Desideri': '☆ Wishlist', '★ Nei desideri': '★ In wishlist', "＋ Ce l'ho": '＋ I own it', 'Prezzo pagato per copia': 'Price paid per copy', 'facoltativo': 'optional', 'Togli': 'Remove',
     'Bloccate': 'Blocked', 'Attive': 'On', 'Non attive': 'Off', 'Non disponibili': 'Unavailable', 'Disattivate': 'Off', 'Non supportate': 'Not supported', 'Da attivare': 'To enable',
   };
@@ -240,6 +242,7 @@
     [/^(\d+) carte$/, '$1 cards'], [/^(\d+) carta$/, '$1 card'], [/^(\d+) giorni$/, '$1 days'],
     [/^ogni (\d+) min$/, 'every $1 min'], [/^ogni (\d+) s$/, 'every $1 s'], [/^ogni (\d+) minuti$/, 'every $1 minutes'], [/^fino a ogni (\d+) secondi$/, 'as often as every $1 seconds'],
     [/^(\d+) su (\d+)$/, '$1 of $2'], [/^(\d+) \(non inclusi\)$/, '$1 (not included)'], [/^(\d+) oltre il limite del piano$/, '$1 over the plan limit'],
+    [/^Utente CardTrader (\d+)$/, 'CardTrader user $1'],
     [/^(.+) · piano (.+)$/, (m, n, p) => `${n} · ${D[p] || p} plan`],
     [/^(\d+) (utente|utenti) · (\d+) con alert attivi · (.+)$/, (m, a, u, b, c) => `${a} ${u === 'utente' ? 'user' : 'users'} · ${b} with active alerts · ${c.replace(/Gratuito|Proprietario/g, (w) => D[w])}`],
     [/^Consumo stimato: ~(.+) richieste al giorno$/, 'Estimated usage: ~$1 requests per day'],
