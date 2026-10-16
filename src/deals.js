@@ -87,7 +87,7 @@ export function rejectReasons(p, rule) {
   const r = condRank(cond);
   if (min >= 0 && r >= 0 && r < min) out.push(`condizione ${cond} sotto il minimo`);
   const lang = listingLang(p);
-  if (rule.language && lang && normLang(lang) !== normLang(rule.language)) out.push(`lingua ${lang} diversa`);
+  if (rule.language && lang && !String(rule.language).split(',').some((l) => normLang(lang) === normLang(l))) out.push(`lingua ${lang} diversa`);
   return out;
 }
 

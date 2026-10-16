@@ -30,3 +30,10 @@ test('link di acquisto con utente', () => {
   const u = checkoutUrl('https://snipe.lemonsqueezy.com/checkout/buy/abc', 9042);
   assert.ok(u.includes('checkout%5Bcustom%5D%5Buser_id%5D=9042'));
 });
+
+import { rejectReasons } from '../src/deals.js';
+test('regola con più lingue: accetta una qualsiasi', () => {
+  const p = { quantity: 1, price: { cents: 500 }, properties_hash: { condition: 'Near Mint', pokemon_language: 'en' } };
+  assert.equal(rejectReasons(p, { language: 'it,en' }).filter((x) => x.startsWith('lingua')).length, 0);
+  assert.equal(rejectReasons(p, { language: 'ja,fr' }).filter((x) => x.startsWith('lingua')).length, 1);
+});

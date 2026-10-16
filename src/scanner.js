@@ -557,6 +557,9 @@ export class Scanner extends DurableObject {
           : null,
         today: status.day === new Date().toISOString().slice(0, 10) ? { alarms: status.dayAlarms || 0, writes: status.dayWrites || 0 } : { alarms: 0, writes: 0 },
         lastError: status.lastError || null,
+        n429: this.recent429.filter((x) => Date.now() - x.ts < 3600_000).length,
+        gapMs: this.mktGap,
+        lastMarketOk: status.lastMarketOk || null,
         scans: status.scans || 0,
         requests: status.requests || 0,
       });
@@ -587,7 +590,9 @@ export class Scanner extends DurableObject {
     if (path === '/api/latest' && method === 'GET') {
       const alerts = await this.get('alerts', []);
       // L'ultima cosa da notificare: un avviso, un problema dello scan o il riepilogo del mattino.
-      const items = [alerts[0], await this.get('notice', null), await this.get('summaryNotice', null), await this.get('ownerNotice', null)].filter(Boolean);
+      const batch = await this.get('lastBatch', null);
+      const group = batch && Date.now() - batch.ts < 120_000 && alerts[0] && alerts[0].ts <= batch.ts ? { kind: 'group', id: `group-${batch.ts}`, ts: batch.ts + 1, n: batch.n, top: batch.top } : null;
+      const items = [group || alerts[0], await this.get('notice', null), await this.get('summaryNotice', null), await this.get('ownerNotice', null)].filter(Boolean);
       return json(items.sort((x, y) => y.ts - x.ts)[0] || null);
     }
 
@@ -1122,7 +1127,7 @@ export class Scanner extends DurableObject {
       maxPriceCents: !cm && !drop && !stock && Number.isFinite(maxPrice) && maxPrice > 0 ? Math.round(clamp(maxPrice, 0.01, 100000, 1) * 100) : null,
       // Alert "almeno X% sotto la tendenza Cardmarket": la soglia in euro si calcola a ogni controllo.
       cmDiscount: cm ? clamp(cmDiscount, 5, 90, 20) : null,
-      cmId: cm ? cmId : null,
+      cmId: Number.isInteger(cmId) && cmId > 0 ? cmId : null,
       // Alert "calo di prezzo": scatta se il prezzo più basso scende di dropPct% rispetto a 7 giorni prima.
       dropPct: drop ? clamp(dropPct, 5, 80, 15) : null,
       // Alert "torna disponibile": scatta quando la carta passa da nessun annuncio adatto ad almeno uno.
@@ -1130,7 +1135,7 @@ export class Scanner extends DurableObject {
       zero: b.zero === 'only' || b.zero === 'exclude' ? b.zero : '',
       minDiscount: clamp(Number(b.minDiscount), 5, 90, 30),
       minPriceCents: Math.round(clamp(Number(b.minPrice), 0, 100000, 5) * 100),
-      language: /^[a-z]{2}$/.test(language) ? language : '',
+      language: /^[a-z]{2}(,[a-z]{2}){0,4}$/.test(language) ? language : '',
       minCondition: CONDITIONS.includes(b.minCondition) ? b.minCondition : 'Slightly Played',
       priority: b.priority === true,
       enabled: b.enabled !== false,
@@ -1774,7 +1779,13 @@ export class Scanner extends DurableObject {
         seen[sid] = Date.now();
         if (firstRun) continue; // alla prima scansione registriamo solo ciò che c'è già
         const p = d.product;
+        let cmCents = cmRef ? Math.round(cmRef * 100) : null;
+        if (!cmCents && rule.cmId) {
+          const e = (await this.cmLookup([rule.cmId]).catch(() => new Map())).get(rule.cmId);
+          if (e && e.trend) cmCents = Math.round(e.trend * 100);
+        }
         fresh.push({
+          cmCents,
           id: sid,
           ts: Date.now(),
           ruleId: rule.id,
@@ -1816,6 +1827,13 @@ export class Scanner extends DurableObject {
       if ((await this.plan()).shipping) await this.addShipping(fresh);
       const alerts = await this.get('alerts', []);
       await this.ctx.storage.put('alerts', [...fresh.sort((a, b) => b.discount - a.discount), ...alerts].slice(0, MAX_ALERTS));
+      // Più avvisi nello stesso giro: una notifica sola con l'elenco dei migliori.
+      if (fresh.length > 1) {
+        await this.ctx.storage.put('lastBatch', {
+          ts: Date.now(), n: fresh.length,
+          top: fresh.slice(0, 3).map((a) => ({ name: a.name, cents: a.cents, currency: a.currency, discount: a.discount, refKind: a.refKind })),
+        });
+      }
       await this.notify();
     }
   }

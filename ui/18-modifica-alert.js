@@ -85,6 +85,7 @@
       language: $('edLang').value,
       minDiscount: pct ? Number($('edPct').value) : editing.minDiscount,
     };
+    if (editing.cmId) body.cmId = editing.cmId;
     if (emode === 'cm') {
       body.cmDiscount = Number($('edCmPct').value);
       body.cmId = editing.cmId;

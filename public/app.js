@@ -951,6 +951,15 @@
         el('span', { class: 'small', text: `Oggi finora: ${today.toLocaleString('it-IT')} giri di scan (si azzera a mezzanotte UTC, cioè alle ${utcMidnightLocal()} ora italiana).` }),
       ),
     );
+    // Stato del servizio: scan fermi (alert attivi ma nessun giro da oltre 15 minuti) e 429 dell'ultima ora.
+    const stalled = users.filter((u) => !u.blocked && u.stats && u.stats.scanSec && (!u.stats.lastScan || Date.now() - u.stats.lastScan > 15 * 60_000));
+    const r429 = users.reduce((t, u) => t + ((u.stats && u.stats.n429) || 0), 0);
+    const slow = users.filter((u) => u.stats && u.stats.gapMs > 6000).length;
+    $('adminSummary').append(el('div', { class: 'chips', style: 'margin-top:8px' },
+      chip(stalled.length ? `${stalled.length} ${stalled.length === 1 ? 'scan fermo' : 'scan fermi'}: ${stalled.slice(0, 3).map((u) => u.name).join(', ')}` : 'Tutti gli scan in corso', stalled.length ? 'warn' : 'on'),
+      chip(`${r429} limiti CardTrader (429) nell’ultima ora`, r429 > 5 ? 'warn' : ''),
+      slow ? chip(`${slow} con ritmo rallentato`, 'warn') : null,
+    ));
     $('adminStats').replaceChildren(...adminStats(users));
     api('/api/admin/errors').then(renderAdminErrors).catch(() => null);
     $('adminList').replaceChildren(
@@ -975,6 +984,8 @@
             chip(`${st.devices ?? 0} ${st.devices === 1 ? 'dispositivo' : 'dispositivi'}`, 'zero'),
             chip(st.scanSec ? `~${perDay(u).toLocaleString('it-IT')} richieste/giorno` : 'nessuno scan', st.scanSec && perDay(u) > 5000 ? 'warn' : ''),
             st.lastScan ? chip(`scan ${ago(st.lastScan)}`, 'cond') : chip('mai scansionato'),
+            st.n429 ? chip(`${st.n429} × 429 in 1 h`, 'warn') : null,
+            st.gapMs ? chip(`ritmo ${(st.gapMs / 1000).toFixed(1).replace('.', ',')} s`) : null,
             u.blocked ? chip('Sospeso', 'warn') : null,
           ),
           st.lastError ? el('p', { class: 'error small', text: st.lastError }) : null,
@@ -1165,6 +1176,7 @@
               a.refKind === 'stock' ? el('span', { class: 'chip zero', text: 'Di nuovo disponibile' })
               : el('span', { class: 'ref' }, money(a.refCents, a.currency), a.refKind === 'cardmarket' ? el('span', { class: 'cmtag', text: 'Cardmarket' }) : a.refKind === 'drop' ? el('span', { class: 'cmtag', text: '7 giorni fa' }) : null),
             ),
+            a.test || !a.cmCents || a.refKind === 'cardmarket' ? null : el('div', { class: 'ship', text: `Cardmarket tendenza ${money(a.cmCents, a.currency)}` }),
             a.test ? null : el('div', { class: 'ship', text: a.zero
               ? 'Spedizione con CardTrader Zero: una sola per tutto l’ordine'
               : a.ship
@@ -1575,6 +1587,7 @@
       language: $('edLang').value,
       minDiscount: pct ? Number($('edPct').value) : editing.minDiscount,
     };
+    if (editing.cmId) body.cmId = editing.cmId;
     if (emode === 'cm') {
       body.cmDiscount = Number($('edCmPct').value);
       body.cmId = editing.cmId;
@@ -2062,6 +2075,7 @@
       language: $('alertLang').value,
       minPrice: 0,
     };
+    if (current.cmId) body.cmId = current.cmId;
     if (mode === 'cm') {
       if (!current.cmId) { $('alertError').textContent = 'Per questa carta non c’è un riferimento Cardmarket.'; $('alertError').hidden = false; return; }
       body.cmDiscount = Number($('alertCmPct').value);

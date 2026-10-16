@@ -436,6 +436,7 @@
       language: $('alertLang').value,
       minPrice: 0,
     };
+    if (current.cmId) body.cmId = current.cmId;
     if (mode === 'cm') {
       if (!current.cmId) { $('alertError').textContent = 'Per questa carta non c’è un riferimento Cardmarket.'; $('alertError').hidden = false; return; }
       body.cmDiscount = Number($('alertCmPct').value);

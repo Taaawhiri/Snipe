@@ -45,6 +45,7 @@
               a.refKind === 'stock' ? el('span', { class: 'chip zero', text: 'Di nuovo disponibile' })
               : el('span', { class: 'ref' }, money(a.refCents, a.currency), a.refKind === 'cardmarket' ? el('span', { class: 'cmtag', text: 'Cardmarket' }) : a.refKind === 'drop' ? el('span', { class: 'cmtag', text: '7 giorni fa' }) : null),
             ),
+            a.test || !a.cmCents || a.refKind === 'cardmarket' ? null : el('div', { class: 'ship', text: `Cardmarket tendenza ${money(a.cmCents, a.currency)}` }),
             a.test ? null : el('div', { class: 'ship', text: a.zero
               ? 'Spedizione con CardTrader Zero: una sola per tutto l’ordine'
               : a.ship
