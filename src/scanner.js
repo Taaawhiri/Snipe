@@ -230,6 +230,32 @@ export class Scanner extends DurableObject {
       return json({ ok: true });
     }
 
+    if (path === '/api/_stats') {
+      const [rules, alerts, status, subs, wish, bought] = await Promise.all(['rules', 'alerts', 'status', 'subs', 'wish', 'bought'].map((k) => this.get(k, k === 'status' ? {} : [])));
+      return json({
+        rules: rules.length,
+        activeRules: rules.filter((r) => r.enabled).length,
+        alerts: alerts.length,
+        wish: wish.length,
+        bought: bought.length,
+        devices: subs.length,
+        lastScan: status.lastScan || null,
+        lastError: status.lastError || null,
+        scans: status.scans || 0,
+        requests: status.requests || 0,
+      });
+    }
+
+    if (path === '/api/_admin' && method === 'POST') {
+      const b = await req.json();
+      await this.ctx.storage.put('plan', String(b.plan || ''));
+      this.planCache = null;
+      await this.ctx.storage.put('suspended', !!b.blocked);
+      if (b.blocked) await this.ctx.storage.deleteAlarm();
+      else await this.ensureAlarm();
+      return json({ ok: true });
+    }
+
     // Il Worker indica il piano a ogni richiesta: lo teniamo anche per gli scan in background.
     const planHeader = req.headers.get('x-plan');
     if (planHeader && planHeader !== (await this.get('plan', null))) {
@@ -959,6 +985,7 @@ export class Scanner extends DurableObject {
   // ---------- Scan ----------
 
   async ensureAlarm() {
+    if (await this.get('suspended', false)) return;
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
     const paused = (await this.settings()).paused;
     if ((paused || !rules.length) && !(await this.indexPending()) && !(await this.cmDue())) return;
@@ -967,6 +994,7 @@ export class Scanner extends DurableObject {
   }
 
   async alarm() {
+    if (await this.get('suspended', false)) return; // account sospeso dalla pagina admin
     const status = await this.get('status', {});
     try {
       await this.scanOnce(status);
@@ -1106,6 +1134,7 @@ export class Scanner extends DurableObject {
   }
 
   async scanOnce(status) {
+    if (await this.get('suspended', false)) return;
     if (!(await this.token())) throw new Error('Token CardTrader mancante: esci e rientra');
     if ((await this.settings()).paused) return;
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);

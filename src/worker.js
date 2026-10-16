@@ -1,5 +1,5 @@
 import { BUILD } from './build.js';
-import { DEFAULT_PLAN } from './plans.js';
+import { DEFAULT_PLAN, PLANS } from './plans.js';
 import { COOKIE, clearCookie, getCookie, makeSession, readSession, sessionCookie } from './session.js';
 export { Scanner } from './scanner.js';
 export { Registry } from './registry.js';
@@ -51,6 +51,7 @@ async function login(req, env) {
   const user = await registry(env)
     .fetch('https://reg/login', { method: 'POST', body: JSON.stringify({ userId: info.id, name: info.name, owner, defaultPlan: DEFAULT_PLAN }) })
     .then((r) => r.json());
+  if (user.blocked) return json({ error: 'Questo account è stato sospeso.' }, 403);
   // Il token resta solo nel server dati dell'utente: non torna mai al telefono.
   await scanner(env, user.doName).fetch('https://do.internal/api/_account', {
     method: 'POST',
@@ -58,6 +59,40 @@ async function login(req, env) {
   });
   const session = await makeSession(await secret(env), user.id);
   return json({ ok: true, name: user.name, plan: user.plan }, 200, { 'set-cookie': sessionCookie(session) });
+}
+
+/** Pagina admin: solo per il piano Proprietario. */
+async function admin(req, env, url, me) {
+  if (me.plan !== 'owner') return json({ error: 'Solo il proprietario può gestire gli utenti.' }, 403);
+  if (url.pathname === '/api/admin/users' && req.method === 'GET') {
+    const users = await registry(env).fetch('https://reg/users').then((r) => r.json());
+    const out = await Promise.all(
+      users.map(async (u) => {
+        const stats = await scanner(env, u.doName).fetch('https://do.internal/api/_stats').then((r) => r.json()).catch(() => null);
+        return { ...u, me: u.id === me.id, stats };
+      }),
+    );
+    out.sort((a, b) => (b.lastLogin || 0) - (a.lastLogin || 0));
+    return json({ users: out, plans: Object.entries(PLANS).map(([id, p]) => ({ id, label: p.label })) });
+  }
+  if (url.pathname === '/api/admin/user' && req.method === 'POST') {
+    const b = await req.json().catch(() => ({}));
+    if (String(b.id) === me.id) return json({ error: 'Non puoi modificare il tuo account da qui.' }, 400);
+    const patch = {};
+    if (b.plan !== undefined) {
+      if (!PLANS[b.plan]) return json({ error: 'Piano sconosciuto' }, 400);
+      patch.plan = b.plan;
+    }
+    if (b.blocked !== undefined) patch.blocked = !!b.blocked;
+    if (b.note !== undefined) patch.note = String(b.note).slice(0, 200);
+    const res = await registry(env).fetch('https://reg/update', { method: 'POST', body: JSON.stringify({ id: String(b.id), patch }) });
+    const u = await res.json();
+    if (!res.ok) return json(u, res.status);
+    // Il server dati dell'utente aggiorna subito piano e, se sospeso, ferma lo scan.
+    await scanner(env, u.doName).fetch('https://do.internal/api/_admin', { method: 'POST', body: JSON.stringify({ plan: u.plan, blocked: !!u.blocked }) }).catch(() => null);
+    return json(u);
+  }
+  return json({ error: 'not found' }, 404);
 }
 
 export default {
@@ -79,6 +114,9 @@ export default {
     if (!userId) return json({ error: 'Accesso richiesto' }, 401);
     const user = await registry(env).fetch(`https://reg/user?id=${userId}`).then((r) => (r.ok ? r.json() : null));
     if (!user) return json({ error: 'Accesso richiesto' }, 401, { 'set-cookie': clearCookie() });
+    if (user.blocked) return json({ error: 'Questo account è stato sospeso.' }, 401, { 'set-cookie': clearCookie() });
+
+    if (url.pathname.startsWith('/api/admin/')) return admin(req, env, url, user);
 
     // Il server dati riceve chi è l'utente e il suo piano; le intestazioni del client con lo stesso nome vengono sostituite.
     const headers = new Headers(req.headers);

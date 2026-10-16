@@ -128,6 +128,7 @@
   function goTab(name) {
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
     for (const t of ['alerts', 'cards', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
+    if (name === 'settings' && isOwner()) loadAdmin();
     window.scrollTo({ top: 0 });
   }
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.tab)));
@@ -253,6 +254,74 @@
     );
   }
 
+  // ---------- admin ----------
+  const isOwner = () => !!(state && state.account && state.account.plan && state.account.plan.id === 'owner');
+  let adminLoaded = 0;
+
+  async function loadAdmin() {
+    if (!isOwner()) return;
+    adminLoaded = Date.now();
+    $('adminError').hidden = true;
+    let data;
+    try {
+      data = await api('/api/admin/users');
+    } catch (e) {
+      $('adminError').textContent = e.message;
+      $('adminError').hidden = false;
+      return;
+    }
+    const users = data.users;
+    const active = users.filter((u) => u.stats && u.stats.activeRules > 0 && !u.blocked).length;
+    const byPlan = data.plans.map((p) => `${users.filter((u) => u.plan === p.id).length} ${p.label}`).join(' · ');
+    $('adminSummary').textContent = `${users.length} ${users.length === 1 ? 'utente' : 'utenti'} · ${active} con alert attivi · ${byPlan}`;
+    $('adminList').replaceChildren(
+      ...users.map((u) => {
+        const st = u.stats || {};
+        const planSel = el('select', { class: 'plan-sel', 'aria-label': `Piano di ${u.name}` }, ...data.plans.map((p) => el('option', { value: p.id, text: p.label })));
+        planSel.value = u.plan;
+        planSel.disabled = u.me;
+        planSel.addEventListener('change', () => adminUpdate(u, { plan: planSel.value }));
+        return el('div', { class: 'admin-user' + (u.blocked ? ' off' : '') },
+          el('div', { class: 'au-top' },
+            el('div', null,
+              el('div', { class: 't', text: `${u.name || 'Senza nome'}${u.me ? ' (tu)' : ''}` }),
+              el('div', { class: 'e', text: `ID CardTrader ${u.id} · iscritto ${dateIt(u.created)} · ultimo accesso ${u.lastLogin ? ago(u.lastLogin) : '—'}` }),
+            ),
+            planSel,
+          ),
+          el('div', { class: 'chips' },
+            chip(`${st.activeRules ?? '?'} / ${st.rules ?? '?'} alert attivi`, 'on'),
+            chip(`${st.alerts ?? 0} avvisi`),
+            chip(`${st.wish ?? 0} desideri`),
+            chip(`${st.devices ?? 0} ${st.devices === 1 ? 'dispositivo' : 'dispositivi'}`, 'zero'),
+            st.lastScan ? chip(`scan ${ago(st.lastScan)}`, 'cond') : chip('mai scansionato'),
+            u.blocked ? chip('Sospeso', 'warn') : null,
+          ),
+          st.lastError ? el('p', { class: 'error small', text: st.lastError }) : null,
+          u.me ? null : el('div', { class: 'row-btn' },
+            el('button', { class: 'btn mini' + (u.blocked ? '' : ' danger'), type: 'button', text: u.blocked ? 'Riattiva account' : 'Sospendi account',
+              onclick: () => {
+                if (!u.blocked && !window.confirm(`Sospendere ${u.name}? Non potrà più accedere e i suoi alert si fermano.`)) return;
+                adminUpdate(u, { blocked: !u.blocked });
+              } }),
+          ),
+        );
+      }),
+    );
+  }
+
+  async function adminUpdate(u, patch) {
+    try {
+      await api('/api/admin/user', { method: 'POST', body: JSON.stringify({ id: u.id, ...patch }) });
+    } catch (e) {
+      alert(e.message);
+    }
+    loadAdmin();
+  }
+
+  const dateIt = (ts) => (ts ? new Date(ts).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  $('adminReload').addEventListener('click', loadAdmin);
+
   // ---------- render ----------
   function render() {
     if (!state) return;
@@ -325,6 +394,8 @@
     $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con Snipe · ${money(saved)} risparmiati rispetto al riferimento`;
 
     renderWish();
+    $('adminPanel').hidden = !isOwner();
+    if (isOwner() && !$('tab-settings').hidden && Date.now() - adminLoaded > 60_000) loadAdmin();
 
     // alert nuovo mentre la pagina è aperta
     const top = state.alerts[0] && state.alerts[0].id;

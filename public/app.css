@@ -410,3 +410,14 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .histlegend .lg.hm::before { background: var(--red); }
 .histlegend .lg.hz::before { background: var(--blue); }
 .chip.good { color: var(--green); background: var(--green-soft); border-color: transparent; }
+
+/* ---------- utenti (admin) ---------- */
+.admin-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.admin-user { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.admin-user.off { opacity: 0.65; }
+.admin-user .au-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.admin-user .t { font-family: var(--display); font-weight: 600; font-size: 16px; overflow-wrap: anywhere; }
+.admin-user .e { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.admin-user .plan-sel { width: auto; min-height: 38px; flex: none; font-size: 14px; }
+.admin-user .row-btn { justify-content: flex-end; }
+.btn.mini.danger { color: var(--bad); }

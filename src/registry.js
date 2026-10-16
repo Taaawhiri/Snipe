@@ -33,6 +33,7 @@ export class Registry extends DurableObject {
       const prev = users[id];
       const mainTaken = Object.entries(users).some(([uid, u]) => uid !== id && u.doName === 'main');
       users[id] = {
+        ...(prev || {}), // conserva sospensione e note impostate dalla pagina admin
         name: String(name || '').slice(0, 80),
         created: prev ? prev.created : Date.now(),
         lastLogin: Date.now(),
@@ -54,6 +55,15 @@ export class Registry extends DurableObject {
     if (url.pathname === '/users') {
       const users = await this.get('users', {});
       return json(Object.entries(users).map(([id, u]) => ({ id, ...u })));
+    }
+
+    if (url.pathname === '/update' && req.method === 'POST') {
+      const { id, patch } = await req.json();
+      const users = await this.get('users', {});
+      if (!users[id]) return json({ error: 'Utente non trovato' }, 404);
+      users[id] = { ...users[id], ...patch };
+      await this.ctx.storage.put('users', users);
+      return json({ id, ...users[id] });
     }
 
     if (url.pathname === '/plan' && req.method === 'POST') {
