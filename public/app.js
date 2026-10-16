@@ -355,7 +355,8 @@
             if (it.qty + d <= 0 && !window.confirm(`Togliere ${it.name} dalla collezione?`)) return;
             saveOwn({ ...it, qty: it.qty + d });
           } });
-        return el('div', { class: 'ci' },
+        const g = it.price && it.paidCents ? (it.price.cents - it.paidCents) * it.qty : null;
+        return el('div', { class: 'ci' + (g == null ? '' : g > 0 ? ' gain' : g < 0 ? ' loss' : '') },
           thumb(it.image),
           el('div', { class: 'ci-main' },
             el('button', { class: 't linklike', type: 'button', text: it.name, onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }),
@@ -366,12 +367,26 @@
           el('div', { class: 'r' },
             el('b', { text: it.price ? money(it.price.cents * it.qty) : '…' }),
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
-            it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: (it.change7 >= 0 ? 'up' : 'dn') + ' small', text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}%` }) : null,
+            gainPill(it),
+            it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
             it.cmCents ? el('span', { class: 's', text: `CM ${money(it.cmCents)}` }) : null,
           ),
         );
       }),
+    );
+  }
+
+  /** Guadagno o perdita rispetto al prezzo pagato: importo e percentuale in una pillola colorata. */
+  function gainPill(it) {
+    if (!it.price || !it.paidCents) return null;
+    const diff = (it.price.cents - it.paidCents) * it.qty;
+    const pct = (it.price.cents / it.paidCents - 1) * 100;
+    const cls = diff > 0 ? 'up' : diff < 0 ? 'dn' : 'eq';
+    const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+    return el('span', { class: `gain-pill ${cls}`, title: `Pagata ${money(it.paidCents * it.qty)}` },
+      el('b', { text: `${sign}${money(Math.abs(diff))}` }),
+      el('span', { text: `${sign}${Math.abs(pct).toFixed(0)}%` }),
     );
   }
 

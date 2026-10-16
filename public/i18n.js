@@ -253,6 +253,7 @@
     [/^Utente CardTrader (\d+)$/, 'CardTrader user $1'],
     [/^(.+) · (\d+)\/(\d+) scansioni questo mese$/, (m, e, a, b) => `${D[e] || e} · ${a}/${b} scans this month`],
     [/^N\. (.+)$/, 'No. $1'],
+    [/^(.) (\d+)% 7g$/, '$1 $2% 7d'], [/^Pagata (.+)$/, 'Paid $1'],
     [/^Hai usato le (\d+) scansioni del mese incluse nel piano (.+)\.$/, (m, n, p) => `You have used the ${n} scans per month included in the ${D[p] || p} plan.`],
     [/^Riconoscimento non riuscito: (.+)$/, 'Recognition failed: $1'],
     [/^In pausa · riprende tra (.+)$/, 'Paused · resumes in $1'],
