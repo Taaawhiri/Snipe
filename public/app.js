@@ -271,8 +271,10 @@
   };
 
   function renderPlan() {
-    const p = state.account && state.account.plan;
-    if (!p) return;
+    const raw = state.account && state.account.plan;
+    if (!raw) return;
+    // Se il server dati non è ancora aggiornato mancano dei campi: valgono quelli del piano più vicino.
+    const p = { unlimited: 100000, ...(PLAN_INFO[raw.id] || PLAN_INFO.sniper), ...raw };
     $('planBadge').textContent = p.label;
     const cards = state.rules.filter((r) => r.blueprintId).length;
     const sets = state.rules.length - cards;
@@ -1337,9 +1339,11 @@
       $('cardsMsg').hidden = false;
     });
     clearInterval(timer);
-    timer = setInterval(refresh, 5000);
+    // Ogni 15 secondi, e solo con l'app in primo piano: ogni aggiornamento è una richiesta al server.
+    timer = setInterval(() => { if (!document.hidden) refresh(); }, 15000);
   }
 
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   start(); // senza sessione valida la prima richiesta risponde 401 e compare l'accesso
 })();

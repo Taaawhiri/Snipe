@@ -18,6 +18,7 @@ const MARKETPLACE_GAP_MS = 1200;
 const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
 const MARKET_PER_SCAN = 2;
+const CATALOG = 'main';
 const STUCK_MS = 15 * 60_000;
 const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
 const MKT_RESERVE = 3; // gettoni che lo scan lascia sempre all'utente
@@ -54,6 +55,7 @@ export class Scanner extends DurableObject {
   histAt = new Map(); // carta -> ultima scrittura dello storico (al massimo ogni 30 minuti)
   bpCache = new Map(); // carta -> { ts, data }: tutti gli annunci di una carta (la lettura per espansione ne dà solo i più economici)
   cmCache = new Map();
+  cmRemote = new Map(); // prezzi Cardmarket chiesti al catalogo condiviso
   cmFailedAt = 0;
   queue = Promise.resolve();
   lastCall = 0;
@@ -78,6 +80,23 @@ export class Scanner extends DurableObject {
   async plan() {
     if (!this.planCache) this.planCache = planOf(await this.get('plan', null));
     return this.planCache;
+  }
+
+  /**
+   * Stato dello scan, tenuto in memoria e salvato al massimo una volta al minuto (o quando cambia un errore):
+   * le scritture sono la risorsa più scarsa del piano gratuito di Cloudflare.
+   */
+  async status() {
+    if (!this.statusMem) this.statusMem = await this.get('status', {});
+    return this.statusMem;
+  }
+
+  async saveStatus(status, force = false) {
+    const sig = [status.lastError, status.cmError, status.indexError, status.stuckNotified].join('|');
+    if (!force && sig === this.statusSig && Date.now() - (this.statusSavedAt || 0) < 60_000) return;
+    this.statusSig = sig;
+    this.statusSavedAt = Date.now();
+    await this.ctx.storage.put('status', status);
   }
 
   async settings() {
@@ -146,14 +165,32 @@ export class Scanner extends DurableObject {
     }
   }
 
-  async systemInfo(status) {
+  /** Il catalogo condiviso (indice dei nomi e listino Cardmarket) vive nel server dati 'main'. */
+  async isCatalog() {
+    return (await this.get('doName', CATALOG)) === CATALOG;
+  }
+
+  catalog() {
+    return this.env.SCANNER.get(this.env.SCANNER.idFromName(CATALOG));
+  }
+
+  async catalogInfo(status) {
     const m = await this.get('ixmeta', null);
     return {
-      build: BUILD,
       index: m ? { done: m.done.length, total: m.total || null, complete: !!m.complete, withCards: m.have.length } : null,
       indexError: (status && status.indexError) || null,
       cm: await this.get('cmmeta', null),
       cmError: (status && status.cmError) || null,
+    };
+  }
+
+  async systemInfo(status) {
+    const cat = (await this.isCatalog())
+      ? await this.catalogInfo(status)
+      : await this.catalog().fetch('https://do.internal/api/_catinfo').then((r) => r.json()).catch(() => ({}));
+    return {
+      build: BUILD,
+      ...cat,
       limitUntil: this.blockedUntil > Date.now() ? this.blockedUntil : null,
       market: { gapMs: this.mktGap, tokens: Math.floor(this.tokens), recent429: this.recent429 },
     };
@@ -223,6 +260,7 @@ export class Scanner extends DurableObject {
       const prev = await this.get('account', null);
       await this.ctx.storage.put('account', { token: String(b.token || ''), userId: String(b.userId || ''), name: String(b.name || ''), since: (prev && prev.since) || Date.now() });
       await this.ctx.storage.put('plan', String(b.plan || ''));
+      if (b.doName) await this.ctx.storage.put('doName', String(b.doName));
       this.tokenCache = undefined;
       this.planCache = null;
       if (prev && prev.token !== b.token) this.blockedUntil = 0;
@@ -230,8 +268,15 @@ export class Scanner extends DurableObject {
       return json({ ok: true });
     }
 
+    if (path === '/api/_catinfo') return json(await this.catalogInfo(await this.status()));
+
+    if (path === '/api/_cm' && method === 'POST') {
+      const ids = ((await req.json()).ids || []).slice(0, 5000);
+      return json([...(await this.cmLookup(ids))]);
+    }
+
     if (path === '/api/_stats') {
-      const [rules, alerts, status, subs, wish, bought] = await Promise.all(['rules', 'alerts', 'status', 'subs', 'wish', 'bought'].map((k) => this.get(k, k === 'status' ? {} : [])));
+      const [rules, alerts, status, subs, wish, bought] = await Promise.all(['rules', 'alerts', 'status', 'subs', 'wish', 'bought'].map((k) => (k === 'status' ? this.status() : this.get(k, []))));
       return json({
         rules: rules.length,
         activeRules: rules.filter((r) => r.enabled).length,
@@ -257,7 +302,12 @@ export class Scanner extends DurableObject {
     }
 
     // Il Worker indica il piano a ogni richiesta: lo teniamo anche per gli scan in background.
-    const planHeader = req.headers.get('x-plan');
+    // x-do = server dati dell'utente che fa la richiesta. La ricerca passa dal catalogo ('main'):
+    // lì il piano di chi cerca non deve sostituire quello del proprietario.
+    const xdo = req.headers.get('x-do');
+    if (xdo && path !== '/api/search' && path !== '/api/index/refresh' && !(await this.ctx.storage.get('doName'))) await this.ctx.storage.put('doName', xdo);
+    const mine = !xdo || xdo === (await this.get('doName', CATALOG));
+    const planHeader = mine ? req.headers.get('x-plan') : null;
     if (planHeader && planHeader !== (await this.get('plan', null))) {
       await this.ctx.storage.put('plan', planHeader);
       this.planCache = null;
@@ -272,7 +322,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/_version') {
       const m = await this.get('ixmeta', null);
-      const st = await this.get('status', {});
+      const st = await this.status();
       return json({
         build: BUILD,
         indice: m
@@ -286,6 +336,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/_tick' && method === 'POST') {
       const b = await req.json().catch(() => ({}));
+      if (b.doName && b.doName !== (await this.get('doName', null))) await this.ctx.storage.put('doName', b.doName);
       if (b.plan && b.plan !== (await this.get('plan', null))) {
         await this.ctx.storage.put('plan', b.plan);
         this.planCache = null;
@@ -298,7 +349,7 @@ export class Scanner extends DurableObject {
       const [rules, alerts, status, subs] = await Promise.all([
         this.get('rules', []),
         this.get('alerts', []),
-        this.get('status', {}),
+        this.status(),
         this.get('subs', []),
       ]);
       return json({
@@ -855,6 +906,7 @@ export class Scanner extends DurableObject {
 
   /** Il listino va scaricato se manca o ha più di 20 ore; dopo un errore si aspettano 30 minuti. */
   async cmDue() {
+    if (!(await this.isCatalog())) return false; // il listino lo scarica solo il catalogo condiviso
     const m = await this.get('cmmeta', null);
     const stale = !m || Date.now() - m.ts > 20 * 3600_000;
     return stale && !(this.cmFailedAt && Date.now() - this.cmFailedAt < 30 * 60_000);
@@ -881,6 +933,26 @@ export class Scanner extends DurableObject {
 
   /** Prezzi Cardmarket (tendenza, media 30 giorni, minimo) per un elenco di prodotti. Map id -> prezzi. */
   async cmLookup(ids) {
+    if (!(await this.isCatalog())) {
+      // Chiede al catalogo condiviso, con una piccola cache locale di 10 minuti per prodotto.
+      const out = new Map();
+      const now = Date.now();
+      const need = [];
+      for (const id of ids) {
+        const c = this.cmRemote.get(id);
+        if (c && now - c.ts < 10 * 60_000) { if (c.e) out.set(id, c.e); } else if (id) need.push(id);
+      }
+      if (need.length) {
+        const got = await this.catalog().fetch('https://do.internal/api/_cm', { method: 'POST', body: JSON.stringify({ ids: need }) }).then((r) => r.json()).catch(() => []);
+        const map = new Map(got);
+        for (const id of need) {
+          const e = map.get(id) || null;
+          this.cmRemote.set(id, { ts: now, e });
+          if (e) out.set(id, e);
+        }
+      }
+      return out;
+    }
     const out = new Map();
     const need = new Set();
     const fresh = (c) => c && Date.now() - c.ts < 10 * 60_000;
@@ -904,6 +976,7 @@ export class Scanner extends DurableObject {
   }
 
   async indexPending() {
+    if (!(await this.isCatalog())) return false;
     const m = await this.get('ixmeta', null);
     return !!m && !m.complete;
   }
@@ -1008,7 +1081,7 @@ export class Scanner extends DurableObject {
 
   async alarm() {
     if (await this.get('suspended', false)) return; // account sospeso dalla pagina admin
-    const status = await this.get('status', {});
+    const status = await this.status();
     try {
       await this.scanOnce(status);
       status.lastError = null;
@@ -1029,7 +1102,7 @@ export class Scanner extends DurableObject {
       status.indexError = String(e.message || e);
     }
     await this.checkStuck(status);
-    await this.ctx.storage.put('status', status);
+    await this.saveStatus(status);
 
     const settings = await this.settings();
     const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
@@ -1158,6 +1231,8 @@ export class Scanner extends DurableObject {
     const rules = all.filter((r) => inPlan.has(r.id)).map((r) => (plan.priority ? r : { ...r, priority: false }));
     const baselined = new Set(await this.get('baselined', []));
     const seen = await this.get('seen', {});
+    const seenBefore = Object.keys(seen).length;
+    const baselinedBefore = baselined.size;
     const fresh = [];
     const requests = await this.refreshSources(rules);
 
@@ -1215,10 +1290,10 @@ export class Scanner extends DurableObject {
     let entries = Object.entries(seen).filter(([, t]) => t > cutoff);
     if (entries.length > MAX_SEEN) entries = entries.sort((a, b) => b[1] - a[1]).slice(0, MAX_SEEN);
 
-    await this.ctx.storage.put({
-      seen: Object.fromEntries(entries),
-      baselined: [...baselined],
-    });
+    // Si salva solo se è cambiato qualcosa: la maggior parte dei giri non trova annunci nuovi.
+    if (Object.keys(seen).length !== seenBefore || entries.length !== seenBefore || baselined.size !== baselinedBefore) {
+      await this.ctx.storage.put({ seen: Object.fromEntries(entries), baselined: [...baselined] });
+    }
 
     status.requests = (status.requests || 0) + requests;
     status.scans = (status.scans || 0) + 1;

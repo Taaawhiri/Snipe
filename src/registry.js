@@ -33,6 +33,19 @@ export class Registry extends DurableObject {
 
     if (url.pathname === '/secret') return json({ secret: await this.secret() });
 
+    // Limite ai tentativi di accesso: 10 ogni 15 minuti per indirizzo IP (in memoria: basta contro i tentativi a raffica).
+    if (url.pathname === '/attempt' && req.method === 'POST') {
+      const { ip } = await req.json();
+      const now = Date.now();
+      this.attempts = this.attempts || new Map();
+      const list = (this.attempts.get(ip) || []).filter((t) => now - t < 15 * 60_000);
+      if (list.length >= 10) return json({ ok: false, retryIn: Math.ceil((list[0] + 15 * 60_000 - now) / 60_000) });
+      list.push(now);
+      this.attempts.set(ip, list);
+      if (this.attempts.size > 5000) this.attempts.clear();
+      return json({ ok: true });
+    }
+
     if (url.pathname === '/login' && req.method === 'POST') {
       const { userId, name, owner, defaultPlan } = await req.json();
       const users = await this.get('users', {});

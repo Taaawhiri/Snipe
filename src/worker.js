@@ -37,6 +37,9 @@ const json = (d, status = 200, headers = {}) => Response.json(d, { status, heade
 
 /** Login: il token CardTrader identifica l'utente (GET /info). */
 async function login(req, env) {
+  const ip = req.headers.get('cf-connecting-ip') || 'locale';
+  const gate = await registry(env).fetch('https://reg/attempt', { method: 'POST', body: JSON.stringify({ ip }) }).then((r) => r.json());
+  if (!gate.ok) return json({ error: `Troppi tentativi di accesso: riprova tra ${gate.retryIn} minuti.` }, 429);
   const body = await req.json().catch(() => ({}));
   const token = String(body.token || '').trim();
   if (token.length < 20) return json({ error: 'Incolla il token API di CardTrader.' }, 400);
@@ -55,7 +58,7 @@ async function login(req, env) {
   // Il token resta solo nel server dati dell'utente: non torna mai al telefono.
   await scanner(env, user.doName).fetch('https://do.internal/api/_account', {
     method: 'POST',
-    body: JSON.stringify({ token, userId: user.id, name: user.name, plan: user.plan }),
+    body: JSON.stringify({ token, userId: user.id, name: user.name, plan: user.plan, doName: user.doName }),
   });
   const session = await makeSession(await secret(env), user.id);
   return json({ ok: true, name: user.name, plan: user.plan }, 200, { 'set-cookie': sessionCookie(session) });
@@ -122,7 +125,14 @@ export default {
     const headers = new Headers(req.headers);
     headers.set('x-user', user.id);
     headers.set('x-plan', user.plan);
+    headers.set('x-do', user.doName);
     headers.set('x-user-name', encodeURIComponent(user.name || ''));
+    // Ricerca per nome e rinnovo dell'indice usano il catalogo condiviso (server dati 'main').
+    if (url.pathname === '/api/search') return scanner(env, 'main').fetch(new Request(req, { headers }));
+    if (url.pathname === '/api/index/refresh') {
+      if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può rinnovare l’indice.' }, 403);
+      return scanner(env, 'main').fetch(new Request(req, { headers }));
+    }
     return scanner(env, user.doName).fetch(new Request(req, { headers }));
   },
 
@@ -133,7 +143,7 @@ export default {
         const users = await registry(env).fetch('https://reg/users').then((r) => r.json()).catch(() => []);
         const list = users.length ? users : [{ doName: 'main', plan: '' }];
         // Con il tick arriva anche il piano aggiornato, così gli scan in background lo rispettano.
-        await Promise.all(list.map((u) => scanner(env, u.doName).fetch('https://do.internal/api/_tick', { method: 'POST', body: JSON.stringify({ plan: u.blocked ? '' : u.plan, blocked: !!u.blocked }) }).catch(() => null)));
+        await Promise.all(list.map((u) => scanner(env, u.doName).fetch('https://do.internal/api/_tick', { method: 'POST', body: JSON.stringify({ plan: u.blocked ? '' : u.plan, blocked: !!u.blocked, doName: u.doName }) }).catch(() => null)));
       })(),
     );
   },
