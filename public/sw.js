@@ -12,14 +12,22 @@ self.addEventListener('push', (event) => {
       } catch {}
       const money = (c, cur) =>
         new Intl.NumberFormat('it-IT', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
+      if (a && a.kind === 'system') {
+        await self.registration.showNotification(`Snipe: ${a.name}`, { body: a.text, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'snipe-system', data: { url: '/' } });
+        return;
+      }
       const title = a ? (a.test ? 'Snipe: notifica di prova' : `−${Math.round(a.discount * 100)}% ${a.name}`) : 'Snipe';
-      const body = a && !a.test ? `${money(a.cents, a.currency)} (rif. ${money(a.refCents, a.currency)}) · ${a.expansion || ''}` : 'Le notifiche funzionano.';
+      const ship = a && !a.test ? (a.zero ? ' · Zero' : a.ship ? ` · ${money(a.cents + a.ship.cents, a.currency)} con spedizione` : '') : '';
+      const extra = a && !a.test ? [a.condition, a.language && a.language.toUpperCase()].filter(Boolean).join(' · ') : '';
+      const body = a && !a.test ? `${money(a.cents, a.currency)} (rif. ${money(a.refCents, a.currency)})${ship}\n${[extra, a.expansion].filter(Boolean).join(' · ')}` : 'Le notifiche funzionano.';
       await self.registration.showNotification(title, {
         body,
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
         tag: a ? a.id : 'snipe',
+        image: a && a.cardImage ? a.cardImage : undefined,
         data: { url: a && a.url ? a.url : '/' },
+        actions: a && a.url && !a.test ? [{ action: 'open', title: 'Apri su CardTrader' }, { action: 'app', title: 'Apri Snipe' }] : [],
         requireInteraction: true,
       });
     })(),
@@ -28,6 +36,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  // Dalla notifica il link si apre nel browser, fuori dalla webapp. "Apri Snipe" apre l'app.
+  const url = event.action === 'app' ? '/' : (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(self.clients.openWindow(url));
 });

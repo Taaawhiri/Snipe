@@ -48,6 +48,14 @@
         <div><b id="statScans">0</b><span>scansioni</span></div>
       </div>
       <p id="statusError" class="banner" hidden></p>
+      <div class="filterbar">
+        <div class="seg seg-sm" role="radiogroup" aria-label="Filtra avvisi">
+          <label><input type="radio" name="afilter" value="new" checked> Da vedere</label>
+          <label><input type="radio" name="afilter" value="all"> Tutti</label>
+          <label><input type="radio" name="afilter" value="bought"> Comprati</label>
+        </div>
+        <p id="savings" class="muted small" hidden></p>
+      </div>
       <div id="alertList" class="list cols"></div>
       <div id="alertEmpty" class="empty-state" hidden>
         <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg>
@@ -63,6 +71,7 @@
           <label for="cardExpFilter">Espansione</label>
           <input id="cardExpFilter" type="search" placeholder="Cerca (es. 151, Obsidian, Paldea)" autocomplete="off">
           <select id="cardExp" size="1"></select>
+          <button id="setAlertBtn" class="btn" type="button" hidden>Alert su tutto il set</button>
         </div>
         <div class="row">
           <div class="field">
@@ -128,7 +137,7 @@
     <section id="tab-rules" class="tab" hidden>
       <div class="intro">
         <h1>I tuoi alert</h1>
-        <p class="muted">Per crearne uno apri <b>Carte</b>, scegli la carta e imposta prezzo o sconto.</p>
+        <p class="muted">Per crearne uno apri <b>Carte</b>, scegli la carta e imposta prezzo o sconto, oppure scegli un set e tocca <b>Alert su tutto il set</b>.</p>
       </div>
       <p id="ruleError" class="banner" hidden></p>
       <div id="ruleList" class="list cols"></div>
@@ -138,6 +147,11 @@
         <p>Creane uno dalla scheda Carte per avviare lo scan.</p>
         <button class="btn primary" type="button" data-go="cards">Vai alle carte</button>
       </div>
+      <div class="intro">
+        <h1>Lista dei desideri</h1>
+        <p class="muted">Carte che segui senza alert: il prezzo si aggiorna ogni 15 minuti circa. Aggiungile dal dettaglio di una carta.</p>
+      </div>
+      <div id="wishList" class="list cols"></div>
     </section>
 
     <section id="tab-settings" class="tab" hidden>
@@ -317,6 +331,8 @@
       </div>
     </div>
     <div id="dlgCm" class="cmbox" hidden></div>
+    <div id="dlgHist" class="hist" hidden></div>
+    <button id="dlgWish" class="btn wide" type="button">☆ Aggiungi alla lista dei desideri</button>
     <a id="dlgLink" class="btn primary wide" href="#" target="_blank" rel="noopener noreferrer">Apri su CardTrader ↗</a>
 
     <h2 class="section">Annunci più economici</h2>

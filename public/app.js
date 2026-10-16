@@ -134,6 +134,121 @@
     return window.confirm(`Eliminare l'alert "${r.cardName || r.expansionName}"? Anche i suoi avvisi verranno cancellati.`);
   }
 
+  async function markAlert(a, mark) {
+    try {
+      await api('/api/alerts/mark', { method: 'POST', body: JSON.stringify({ id: a.id, mark }) });
+      a.mark = mark;
+      refresh();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+  document.querySelectorAll('input[name="afilter"]').forEach((r) => r.addEventListener('change', render));
+
+  function renderWish() {
+    const wl = $('wishList');
+    const wish = state.wish || [];
+    wl.replaceChildren(
+      ...(wish.length
+        ? wish.map((w) => {
+            const last = w.last;
+            const trend = last && w.prev && w.prev !== last ? last.min - w.prev.min : null;
+            return el('div', { class: 'rule wish' },
+              thumb(w.image),
+              el('div', { class: 'info' },
+                el('div', null,
+                  el('div', { class: 't', text: w.name }),
+                  el('div', { class: 'e', text: w.expName || '' }),
+                ),
+                el('div', { class: 'chips' },
+                  chip(last ? `Da ${money(last.min)}` : 'Prezzo in arrivo…', 'on'),
+                  last && last.zero != null ? chip(`Zero ${money(last.zero)}`, 'zero') : null,
+                  trend ? chip(`${trend < 0 ? '▼' : '▲'} ${money(Math.abs(trend))} in 7 giorni`, trend < 0 ? 'good' : 'warn') : null,
+                ),
+              ),
+              el('div', { class: 'acts' },
+                el('button', { class: 'btn', type: 'button', text: 'Apri', onclick: () => openCard({ id: w.id, name: w.name, image: w.image, expansionId: w.expansionId, expName: w.expName, currency: 'EUR', fromWish: true }) }),
+                el('button', { class: 'btn danger', type: 'button', text: 'Togli', onclick: () => toggleWish({ id: w.id }, true) }),
+              ),
+            );
+          })
+        : [el('p', { class: 'muted', text: 'La lista è vuota.' })]),
+    );
+  }
+
+  async function toggleWish(c, remove) {
+    try {
+      state.wish = await api('/api/wish', { method: 'POST', body: JSON.stringify({ id: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId || (dlgExp && dlgExp.id), expName: c.expName || (dlgExp && dlgExp.name), remove }) });
+      renderWish();
+      updateWishBtn();
+      refresh();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function updateWishBtn() {
+    if (!current) return;
+    const inWish = (state.wish || []).some((w) => w.id === current.id);
+    $('dlgWish').textContent = inWish ? '★ Nella lista dei desideri (tocca per togliere)' : '☆ Aggiungi alla lista dei desideri';
+  }
+  $('dlgWish').addEventListener('click', () => current && toggleWish(current, (state.wish || []).some((w) => w.id === current.id)));
+
+  /** Grafico dei prezzi giornalieri: linea piena = più basso, tratteggiata = con Zero. */
+  async function renderHistory(c) {
+    const box = $('dlgHist');
+    box.hidden = true;
+    let h;
+    try {
+      h = await api(`/api/history?blueprint_id=${c.id}`);
+    } catch {
+      return;
+    }
+    if (current !== c) return;
+    if (!h.length) return;
+    box.hidden = false;
+    const W = 320, H = 110, P = 6;
+    const vals = h.flatMap((p) => [p.min, p.zero]).filter((v) => v != null);
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const x = (i) => (h.length === 1 ? W / 2 : P + (i * (W - 2 * P)) / (h.length - 1));
+    const y = (v) => (hi === lo ? H / 2 : H - P - ((v - lo) * (H - 2 * P)) / (hi - lo));
+    const line = (k) => h.map((p, i) => (p[k] == null ? null : `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`)).filter(Boolean).join(' ');
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('class', 'histsvg');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Andamento del prezzo più basso');
+    for (const [k, cls] of [['zero', 'hz'], ['min', 'hm']]) {
+      const pl = document.createElementNS(ns, 'polyline');
+      pl.setAttribute('points', line(k));
+      pl.setAttribute('class', cls);
+      svg.append(pl);
+      const last = [...h].reverse().find((p) => p[k] != null);
+      if (last) {
+        const dot = document.createElementNS(ns, 'circle');
+        dot.setAttribute('cx', x(h.lastIndexOf(last)));
+        dot.setAttribute('cy', y(last[k]));
+        dot.setAttribute('r', 3.5);
+        dot.setAttribute('class', cls);
+        svg.append(dot);
+      }
+    }
+    const first = h[0], last = h[h.length - 1];
+    box.replaceChildren(
+      el('div', { class: 'histhead' },
+        el('span', { class: 'cmtitle', text: `Prezzo più basso · ${h.length === 1 ? 'da oggi' : `ultimi ${h.length} giorni`}` }),
+        el('span', { class: 'small muted', text: `min ${money(lo)} · max ${money(hi)}` }),
+      ),
+      svg,
+      el('div', { class: 'histlegend small' },
+        el('span', { class: 'lg hm', text: `Più basso ${money(last.min)}` }),
+        last.zero != null ? el('span', { class: 'lg hz', text: `Con Zero ${money(last.zero)}` }) : null,
+        h.length > 1 ? el('span', { class: 'muted', text: `dal ${first.d.slice(8, 10)}/${first.d.slice(5, 7)}` }) : null,
+      ),
+    );
+  }
+
   // ---------- render ----------
   function render() {
     if (!state) return;
@@ -156,13 +271,15 @@
 
     // elenco alert
     const list = $('alertList');
+    const afilter = (document.querySelector('input[name="afilter"]:checked') || {}).value || 'new';
+    const shown = state.alerts.filter((a) => afilter === 'all' || (afilter === 'bought' ? a.mark === 'bought' : !a.mark));
     list.replaceChildren(
-      ...state.alerts.map((a) => {
+      ...shown.map((a) => {
         const lv = a.discount >= 0.5 ? 'lv3' : a.discount >= 0.3 ? 'lv2' : 'lv1';
         const who = a.seller && `${a.seller}${a.country ? ' (' + a.country + ')' : ''}`;
-        return el(
+        const card = el(
           'a',
-          { class: 'alert' + (lv === 'lv3' ? ' hot' : ''), href: a.url || '#', target: '_blank', rel: 'noopener noreferrer' },
+          { class: 'alert' + (lv === 'lv3' ? ' hot' : '') + (a.mark ? ' marked' : ''), href: a.url || '#', target: '_blank', rel: 'noopener noreferrer' },
           thumb(a.cardImage),
           el('div', { class: 'main' },
             el('div', { class: 'name', text: a.name || '' }),
@@ -189,9 +306,21 @@
             a.test ? null : el('span', { class: 'go', text: 'CardTrader ↗' }),
           ),
         );
+        if (a.test) return card;
+        const markBtn = (m, label) => el('button', { class: 'btn mini' + (a.mark === m ? ' on' : ''), type: 'button', text: label,
+          onclick: () => markAlert(a, a.mark === m ? null : m) });
+        return el('div', { class: 'alertwrap' }, card,
+          el('div', { class: 'alert-acts' }, markBtn('seen', a.mark === 'seen' ? '✓ Visto' : 'Segna visto'), markBtn('bought', a.mark === 'bought' ? '✓ Comprato' : 'Comprato')));
       }),
     );
     $('alertEmpty').hidden = state.alerts.length > 0;
+    if (state.alerts.length && !shown.length) list.replaceChildren(el('p', { class: 'muted', text: afilter === 'bought' ? 'Nessun avviso segnato come comprato.' : 'Hai già visto tutti gli avvisi.' }));
+    const bought = state.bought || [];
+    const saved = bought.reduce((t, b) => t + Math.max(0, (b.refCents || 0) - b.cents), 0);
+    $('savings').hidden = !bought.length;
+    $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con Snipe · ${money(saved)} risparmiati rispetto al riferimento`;
+
+    renderWish();
 
     // alert nuovo mentre la pagina è aperta
     const top = state.alerts[0] && state.alerts[0].id;
@@ -221,6 +350,8 @@
             ),
           ),
           el('div', { class: 'acts' },
+            el('button', { class: 'btn star' + (r.priority ? ' on' : ''), type: 'button', title: 'Controlla più spesso', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', text: r.priority ? '★' : '☆',
+              onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, priority: !r.priority }) }),
             el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
             el('button', { class: 'btn', type: 'button', text: 'Modifica', onclick: () => openEdit(r) }),
             el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Riattiva',
@@ -411,6 +542,26 @@
     $('edCm').hidden = mode !== 'cm';
   }
 
+  // Alert su un intero set: stesso modulo della modifica, con valori di partenza prudenti.
+  $('setAlertBtn').addEventListener('click', () => {
+    if (!currentExp) return;
+    const condNames = ['Poor', 'Heavily Played', 'Played', 'Moderately Played', 'Slightly Played', 'Near Mint', 'Mint'];
+    const rank = $('cardCond').value;
+    openEdit({
+      expansionId: currentExp.id,
+      expansionName: currentExp.name,
+      minDiscount: 40,
+      minPriceCents: 1000,
+      minCondition: rank !== '' ? condNames[Number(rank)] : 'Near Mint',
+      language: toRuleLang($('cardLang').value),
+      zero: '',
+      enabled: true,
+      isNew: true,
+    });
+    $('edTitle').textContent = `Nuovo alert: ${currentExp.name}`;
+    $('edSub').textContent = 'Scatta per qualunque carta del set che rispetta i filtri.';
+  });
+
   function openEdit(r) {
     editing = r;
     const legacy = !r.blueprintId;
@@ -453,7 +604,8 @@
       blueprintId: editing.blueprintId,
       cardName: editing.cardName,
       cardImage: editing.cardImage,
-      enabled: editing.enabled,
+      enabled: editing.enabled !== false,
+      priority: !!editing.priority,
       nameContains: editing.blueprintId ? editing.nameContains : $('edName').value,
       minPrice: editing.blueprintId ? 0 : Number($('edMinPrice').value),
       zero: $('edZero').value,
@@ -760,6 +912,7 @@
     $('cardSearch').placeholder = searchMode ? 'Nome del Pokémon (es. Pikachu)' : 'es. Charizard';
     if (searchMode) {
       currentExp = null;
+      $('setAlertBtn').hidden = true;
       cards = [];
       searchSets = [];
       searchTotal = 0;
@@ -770,6 +923,7 @@
       return;
     }
     currentExp = id ? expansions.find((e) => String(e.id) === id) : null;
+    $('setAlertBtn').hidden = !currentExp;
     cards = [];
     renderCards();
     if (!currentExp) return;
@@ -839,7 +993,9 @@
     dlgExp = c.expansionId ? { id: c.expansionId, name: c.expName } : currentExp;
     $('dlgName').textContent = c.name + (c.version ? ` (${c.version})` : '');
     $('dlgImg').src = c.image || '';
-    renderCmBox(c);
+    if (c.cm) renderCmBox(c); else { $('dlgCm').hidden = true; $('amodeCmLabel').hidden = true; }
+    renderHistory(c);
+    updateWishBtn();
     $('dlgLink').href = cardUrl(c.id);
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);

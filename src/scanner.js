@@ -2,6 +2,8 @@ import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
 import { cheapestShipping } from './shipping.js';
+import { addPoint } from './history.js';
+import { pickDue, pickData } from './sources.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
@@ -15,6 +17,7 @@ const MARKETPLACE_GAP_MS = 1200;
 const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
 const MARKET_PER_SCAN = 2;
+const STUCK_MS = 15 * 60_000;
 const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
 const MKT_RESERVE = 3; // gettoni che lo scan lascia sempre all'utente
 const MKT_GAP_START = 3000; // un gettone ogni 3 s = 20 letture al minuto
@@ -48,6 +51,7 @@ const prop = (list, re) => {
 export class Scanner extends DurableObject {
   cardCache = new Map();
   productCache = new Map(); // espansione -> { ts, data }: annunci letti da CardTrader, condivisi da scan e pagine
+  histAt = new Map(); // carta -> ultima scrittura dello storico (al massimo ogni 30 minuti)
   bpCache = new Map(); // carta -> { ts, data }: tutti gli annunci di una carta (la lettura per espansione ne dà solo i più economici)
   cmCache = new Map();
   cmFailedAt = 0;
@@ -183,6 +187,7 @@ export class Scanner extends DurableObject {
       throw err;
     }
     this.strikes = 0;
+    if (path.startsWith('/marketplace')) this.lastMarketOk = Date.now();
     if (path.startsWith('/marketplace') && ++this.okStreak >= 40 && this.mktGap > MKT_GAP_MIN) {
       this.mktGap = Math.max(MKT_GAP_MIN, this.mktGap - 500);
       this.okStreak = 0;
@@ -201,7 +206,9 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/latest' && method === 'GET') {
       const alerts = await this.get('alerts', []);
-      return json(alerts[0] || null);
+      const notice = await this.get('notice', null);
+      const a = alerts[0] || null;
+      return json(notice && (!a || notice.ts > a.ts) ? notice : a);
     }
 
     if (path === '/api/_version') {
@@ -235,10 +242,15 @@ export class Scanner extends DurableObject {
         alerts: alerts.slice(0, 60),
         status,
         pushDevices: subs.length,
+        bought: await this.get('bought', []),
         settings: await this.settings(),
         system: await this.systemInfo(status),
         vapidPublic: (await this.vapid()).publicKey,
         conditions: CONDITIONS,
+        wish: await Promise.all((await this.get('wish', [])).map(async (w) => {
+          const h = await this.get(`h:${w.id}`, []);
+          return { ...w, last: h[h.length - 1] || null, prev: h[h.length - 8] || h[0] || null };
+        })),
       });
     }
 
@@ -404,6 +416,35 @@ export class Scanner extends DurableObject {
       return json(out);
     }
 
+    if (path === '/api/history' && method === 'GET') {
+      const id = parseInt(url.searchParams.get('blueprint_id'), 10);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
+      return json(await this.get(`h:${id}`, []));
+    }
+
+    if (path === '/api/wish' && method === 'GET') {
+      return json(await this.get('wish', []));
+    }
+
+    if (path === '/api/wish' && method === 'POST') {
+      const b = await req.json();
+      const id = parseInt(b && b.id, 10);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'id mancante' }, 400);
+      let wish = (await this.get('wish', [])).filter((w) => w.id !== id);
+      if (b.remove !== true) {
+        wish = [{
+          id,
+          name: String(b.name || '').slice(0, 120),
+          image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : null,
+          expansionId: parseInt(b.expansionId, 10) || null,
+          expName: String(b.expName || '').slice(0, 80),
+          ts: Date.now(),
+        }, ...wish].slice(0, 200);
+      }
+      await this.ctx.storage.put('wish', wish);
+      return json(wish);
+    }
+
     if (path === '/api/listings' && method === 'GET') {
       const id = parseInt(url.searchParams.get('blueprint_id'), 10);
       const expId = parseInt(url.searchParams.get('expansion_id'), 10);
@@ -512,6 +553,27 @@ export class Scanner extends DurableObject {
       return json({ sent: await this.notify(true) });
     }
 
+    if (path === '/api/alerts/mark' && method === 'POST') {
+      const b = await req.json();
+      const mark = b && (b.mark === 'seen' || b.mark === 'bought') ? b.mark : null;
+      const alerts = await this.get('alerts', []);
+      const a = alerts.find((x) => x.id === (b && b.id));
+      if (!a) return json({ error: 'Avviso non trovato' }, 404);
+      a.mark = mark;
+      await this.ctx.storage.put('alerts', alerts);
+      if (mark === 'bought') {
+        const log = await this.get('bought', []);
+        if (!log.some((x) => x.id === a.id)) {
+          log.unshift({ id: a.id, ts: Date.now(), name: a.name, cents: a.cents, refCents: a.refCents, ship: a.ship ? a.ship.cents : 0 });
+          await this.ctx.storage.put('bought', log.slice(0, 500));
+        }
+      } else {
+        const log = (await this.get('bought', [])).filter((x) => x.id !== a.id);
+        await this.ctx.storage.put('bought', log);
+      }
+      return json(a);
+    }
+
     if (path === '/api/alerts' && method === 'DELETE') {
       await this.ctx.storage.put('alerts', []);
       return json({ ok: true });
@@ -556,6 +618,7 @@ export class Scanner extends DurableObject {
       minPriceCents: Math.round(clamp(Number(b.minPrice), 0, 100000, 5) * 100),
       language: /^[a-z]{2}$/.test(language) ? language : '',
       minCondition: CONDITIONS.includes(b.minCondition) ? b.minCondition : 'Slightly Played',
+      priority: b.priority === true,
       enabled: b.enabled !== false,
     };
   }
@@ -612,6 +675,11 @@ export class Scanner extends DurableObject {
     try {
       const data = await this.ct(`/marketplace/products?expansion_id=${expansionId}`, background);
       this.productCache.set(expansionId, { ts: Date.now(), data });
+      // Lo storico delle carte seguite si aggiorna anche dalla lettura per espansione.
+      for (const bp of await this.trackedCards()) {
+        const list = data[bp] || data[String(bp)];
+        if (list) await this.recordHistory(bp, list);
+      }
       return data;
     } catch (e) {
       if (hit) return hit.data;
@@ -626,6 +694,7 @@ export class Scanner extends DurableObject {
     try {
       const data = await this.ct(`/marketplace/products?blueprint_id=${blueprintId}`, background);
       this.bpCache.set(blueprintId, { ts: Date.now(), data });
+      await this.recordHistory(blueprintId, data[blueprintId] || data[String(blueprintId)]);
       return data;
     } catch (e) {
       if (hit) return hit.data;
@@ -881,6 +950,7 @@ export class Scanner extends DurableObject {
     } catch (e) {
       status.indexError = String(e.message || e);
     }
+    await this.checkStuck(status);
     await this.ctx.storage.put('status', status);
 
     const settings = await this.settings();
@@ -899,15 +969,24 @@ export class Scanner extends DurableObject {
    */
   async refreshSources(rules) {
     const sources = new Map();
+    const add = (k, src) => {
+      const prev = sources.get(k);
+      sources.set(k, { ...src, prio: Math.max(src.prio, prev ? prev.prio : 0) });
+    };
     for (const r of rules) {
-      sources.set(`e:${r.expansionId}`, { kind: 'e', id: r.expansionId });
-      if (r.blueprintId) sources.set(`b:${r.blueprintId}`, { kind: 'b', id: r.blueprintId });
+      add(`e:${r.expansionId}`, { kind: 'e', id: r.expansionId, prio: r.priority ? 3 : 1 });
+      if (r.blueprintId) add(`b:${r.blueprintId}`, { kind: 'b', id: r.blueprintId, prio: r.priority ? 3 : 1 });
+    }
+    // Lista dei desideri: le carte si aggiornano, ma senza fretta (al massimo ogni 15 minuti).
+    for (const w of await this.get('wish', [])) {
+      if (!sources.has(`b:${w.id}`)) sources.set(`b:${w.id}`, { kind: 'b', id: w.id, prio: 1, minAge: 15 * 60_000 });
     }
     const age = (src) => {
       const hit = (src.kind === 'b' ? this.bpCache : this.productCache).get(src.id);
       return hit ? hit.ts : 0;
     };
-    const due = [...sources.values()].sort((a, b) => age(a) - age(b)).slice(0, MARKET_PER_SCAN);
+    // Gli alert con la stella contano come se i loro dati fossero tre volte più vecchi: si aggiornano più spesso.
+    const due = pickDue([...sources.values()], age, Date.now(), MARKET_PER_SCAN);
     let n = 0;
     let error = null;
     for (const src of due) {
@@ -925,12 +1004,28 @@ export class Scanner extends DurableObject {
     return n;
   }
 
+  /** Carte di cui teniamo lo storico in ogni caso: quelle con un alert e quelle nella lista dei desideri. */
+  async trackedCards() {
+    const ids = new Set();
+    for (const r of await this.get('rules', [])) if (r.blueprintId) ids.add(r.blueprintId);
+    for (const w of await this.get('wish', [])) ids.add(w.id);
+    return [...ids];
+  }
+
+  async recordHistory(blueprintId, products) {
+    if (!Array.isArray(products) || !products.length) return;
+    const last = this.histAt.get(blueprintId) || 0;
+    if (Date.now() - last < 30 * 60_000) return;
+    this.histAt.set(blueprintId, Date.now());
+    const key = `h:${blueprintId}`;
+    await this.ctx.storage.put(key, addPoint(await this.get(key, []), products));
+  }
+
   /** Annunci più recenti disponibili per una regola: quelli della carta o quelli dell'espansione. */
   dataForRule(rule) {
     const exp = this.productCache.get(rule.expansionId);
     const bp = rule.blueprintId && this.bpCache.get(rule.blueprintId);
-    if (bp && (!exp || bp.ts >= exp.ts || Date.now() - bp.ts < 3 * 60_000)) return bp.data;
-    return exp ? exp.data : null;
+    return pickData(exp, bp, Date.now());
   }
 
   /** Spedizione stimata del venditore (cache di un giorno). Gli annunci Zero passano dal magazzino CardTrader. */
@@ -953,6 +1048,23 @@ export class Scanner extends DurableObject {
       } catch {
         // senza stima l'alert parte comunque
       }
+    }
+  }
+
+  /** Se per 15 minuti CardTrader non dà annunci nuovi mentre ci sono alert attivi, avvisa una volta. */
+  async checkStuck(status) {
+    if (this.lastMarketOk) status.lastMarketOk = this.lastMarketOk;
+    const active = !(await this.settings()).paused && (await this.get('rules', [])).some((r) => r.enabled);
+    const since = status.lastMarketOk || status.stuckWatchFrom || (status.stuckWatchFrom = Date.now());
+    const stuck = active && Date.now() - since > STUCK_MS;
+    if (stuck && !status.stuckNotified) {
+      status.stuckNotified = true;
+      const why = status.lastError ? ` Ultimo errore: ${status.lastError}` : '';
+      await this.ctx.storage.put('notice', { id: `notice:${Date.now()}`, ts: Date.now(), kind: 'system', name: 'Scan fermo', text: `Da ${Math.round((Date.now() - since) / 60_000)} minuti CardTrader non risponde: gli alert non vengono controllati.${why}` });
+      await this.notify();
+    } else if (!stuck && status.stuckNotified) {
+      status.stuckNotified = false;
+      await this.ctx.storage.delete('notice');
     }
   }
 
