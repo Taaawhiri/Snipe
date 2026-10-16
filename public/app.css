@@ -314,3 +314,6 @@ input[type='time'] { min-width: 0; }
 .cmbox .cmcell b { font: 600 18px var(--display); }
 html { min-height: 100%; background: var(--bg); }
 body { min-height: 100dvh; }
+
+select.open { background-image: none; padding: 6px; height: auto; }
+select.open option { padding: 8px 10px; border-radius: 8px; }

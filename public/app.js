@@ -367,7 +367,13 @@
       ...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})` })),
     );
     if (prev === 'all' || items.some((e) => String(e.id) === prev)) sel.value = prev;
+    // mentre scrivi l'elenco resta aperto e mostra le espansioni che corrispondono
+    sel.size = q ? Math.min(items.length + 2, 8) : 1;
+    sel.classList.toggle('open', !!q);
   }
+  $('cardExp').addEventListener('change', () => {
+    if ($('cardExp').size > 1) { $('cardExpFilter').value = ''; $('cardExp').size = 1; $('cardExp').classList.remove('open'); }
+  });
   $('cardExpFilter').addEventListener('input', fillCardExpansions);
 
   async function saveRule(r) {
