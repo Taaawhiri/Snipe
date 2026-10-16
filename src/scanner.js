@@ -312,8 +312,14 @@ export class Scanner extends DurableObject {
     const zeroOnly = !!(await this.settings()).collZero;
     const typical = !!(await this.settings()).collTypical;
     const coll = await this.get('coll', []);
-    // Prezzi salvati prima dell'opzione Zero: si ricalcolano con gli annunci già in memoria.
-    if ((zeroOnly || typical) && Object.values(await this.get('collPrices', {})).some((p) => p && p.cents != null && !('typCents' in p))) await this.collectionPrices(true);
+    // Prezzi salvati prima delle opzioni Zero/tipico: rileggiamo subito gli annunci di quelle carte
+    // (al massimo 10 per apertura, il resto al giro orario) e ricalcoliamo.
+    if (zeroOnly || typical) {
+      const old = await this.get('collPrices', {});
+      const stale = coll.filter((c) => !old[c.key] || !('typCents' in old[c.key])).slice(0, 10);
+      for (const c of stale) await this.productsForCard(c.bp, 60 * 60_000).catch(() => null);
+      if (stale.length) await this.collectionPrices(true);
+    }
     const prices = await this.get('collPrices', {});
     const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
     const plan = await this.plan();
