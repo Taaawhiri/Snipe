@@ -130,6 +130,7 @@
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
     for (const t of ['alerts', 'cards', 'deals', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
     if (name === 'deals') loadDeals();
+    if (name === 'alerts' && !$('collView').hidden) loadCollection();
     if (name === 'settings' && isOwner()) loadAdmin();
     window.scrollTo({ top: 0 });
   }
@@ -278,6 +279,148 @@
     );
   }
 
+  // ---------- collezione ----------
+  let coll = null;
+  let hviewChosen = false;
+
+  async function loadCollection() {
+    try {
+      coll = await api('/api/collection');
+      renderCollection();
+    } catch (e) {
+      $('collHero').replaceChildren(el('p', { class: 'error', text: e.message }));
+    }
+  }
+
+  function spark(points, keys) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 300 70');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('class', 'spark');
+    const vals = points.flatMap((p) => keys.map(([k]) => p[k])).filter((v) => v > 0);
+    if (points.length < 2 || !vals.length) return svg;
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const x = (i) => (i * 300) / (points.length - 1);
+    const y = (v) => (hi === lo ? 35 : 64 - ((v - lo) * 58) / (hi - lo));
+    for (const [k, cls] of keys) {
+      const pts = points.map((p, i) => (p[k] > 0 ? `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}` : null)).filter(Boolean);
+      if (pts.length < 2) continue;
+      const pl = document.createElementNS(ns, 'polyline');
+      pl.setAttribute('points', pts.join(' '));
+      pl.setAttribute('class', cls);
+      svg.append(pl);
+    }
+    return svg;
+  }
+
+  function renderCollection() {
+    if (!coll) return;
+    const { items, summary: sm, history } = coll;
+    const hist = history || [];
+    const old = hist.length > 1 ? hist[Math.max(0, hist.length - 31)] : null;
+    const ch = old && old.value ? sm.value / old.value - 1 : null;
+    const pct = (v) => `${v >= 0 ? '▲ +' : '▼ '}${(v * 100).toFixed(1).replace('.', ',')}%`;
+    const gain = sm.paidPriced ? sm.value - sm.paidPriced : null;
+    $('collHero').replaceChildren(...[
+      el('div', { class: 'cv-k', text: 'Valore attuale (prezzo più basso CardTrader)' }),
+      el('div', { class: 'cv-row' },
+        el('span', { class: 'cv-v', text: money(sm.value) }),
+        ch != null ? el('span', { class: ch >= 0 ? 'up' : 'dn', text: `${pct(ch)} in ${Math.min(30, hist.length - 1)} giorni` }) : null,
+      ),
+      hist.length > 1 ? spark(hist, [['cm', 'cm'], ['value', 'ct']]) : el('p', { class: 'small muted', text: items.length ? 'Il grafico del valore compare dal secondo giorno.' : 'La collezione è vuota: aggiungi la prima carta.' }),
+      sm.cm ? el('div', { class: 'small muted legend' }, el('span', { class: 'lg-ct', text: 'CardTrader' }), el('span', { class: 'lg-cm', text: `Cardmarket (tendenza ${money(sm.cm)})` })) : null,
+      el('div', { class: 'cv-stats' },
+        el('div', null, el('b', { text: String(sm.qty) }), el('span', { text: `carte (${sm.distinct} diverse)` })),
+        el('div', null, el('b', { text: sm.paid ? money(sm.paid) : '—' }), el('span', { text: 'spesi' })),
+        el('div', null, el('b', { class: gain == null ? '' : gain >= 0 ? 'up' : 'dn', text: gain == null ? '—' : `${gain >= 0 ? '+' : ''}${money(gain)}` }), el('span', { text: 'guadagno teorico' })),
+      ),
+      sm.missing ? el('p', { class: 'small muted', text: `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} ancora senza prezzo: arriva entro un'ora.` }) : null,
+      coll.limit < coll.unlimited ? el('p', { class: 'small muted', text: `${items.length} su ${coll.limit} carte diverse incluse nel tuo piano.` }) : null,
+    ].filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
+    const sort = (document.querySelector('input[name="csort"]:checked') || {}).value || 'value';
+    const val = (it) => (it.price ? it.price.cents * it.qty : -1);
+    const g = (it) => (it.price && it.paidCents ? (it.price.cents - it.paidCents) * it.qty : -Infinity);
+    const list = [...items].sort((a, b) =>
+      sort === 'gain' ? g(b) - g(a)
+      : sort === 'set' ? (a.expName || '').localeCompare(b.expName || '') || val(b) - val(a)
+      : sort === 'change' ? (b.change7 ?? -9) - (a.change7 ?? -9)
+      : val(b) - val(a));
+    $('collList').replaceChildren(
+      ...list.map((it) => {
+        const step = (d) => el('button', { type: 'button', 'aria-label': d > 0 ? 'Una copia in più' : 'Una copia in meno', text: d > 0 ? '+' : '−',
+          onclick: () => {
+            if (it.qty + d <= 0 && !window.confirm(`Togliere ${it.name} dalla collezione?`)) return;
+            saveOwn({ ...it, qty: it.qty + d });
+          } });
+        return el('div', { class: 'ci' },
+          thumb(it.image),
+          el('div', { class: 'ci-main' },
+            el('button', { class: 't linklike', type: 'button', text: it.name, onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }),
+            el('div', { class: 's', text: [it.expName, it.cond && condShort(it.cond), it.lang && it.lang.toUpperCase()].filter(Boolean).join(' · ') }),
+            el('div', { class: 'qty' }, step(-1), el('b', { text: String(it.qty) }), step(1),
+              it.paidCents ? el('span', { class: 's', text: it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
+          ),
+          el('div', { class: 'r' },
+            el('b', { text: it.price ? money(it.price.cents * it.qty) : '…' }),
+            it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
+            it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: (it.change7 >= 0 ? 'up' : 'dn') + ' small', text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}%` }) : null,
+            it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
+            it.cmCents ? el('span', { class: 's', text: `CM ${money(it.cmCents)}` }) : null,
+          ),
+        );
+      }),
+    );
+  }
+
+  const condShort = (c) => ({ Mint: 'M', 'Near Mint': 'NM', 'Slightly Played': 'SP', 'Moderately Played': 'MP', Played: 'PL', 'Heavily Played': 'HP', Poor: 'PO' })[c] || c;
+
+  async function saveOwn(b) {
+    coll = await api('/api/collection', { method: 'POST', body: JSON.stringify(b) });
+    renderCollection();
+    renderOwnBox();
+  }
+
+  function setHview(v) {
+    document.querySelector(`input[name="hview"][value="${v}"]`).checked = true;
+    $('collView').hidden = v !== 'coll';
+    $('alertsView').hidden = v !== 'alerts';
+    if (v === 'coll') loadCollection();
+  }
+  document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
+  document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
+
+  /** "Ce l'ho" nel dettaglio carta: copie già in collezione e modulo per aggiungerne. */
+  function renderOwnBox() {
+    if (!current) return;
+    const mine = ((coll && coll.items) || []).filter((it) => it.bp === current.id);
+    const n = mine.reduce((t, it) => t + it.qty, 0);
+    $('ownTitle').textContent = n ? `Ce l'ho · ${n} ${n === 1 ? 'copia' : 'copie'}` : "Ce l'ho";
+    $('ownList').replaceChildren(...mine.map((it) => el('div', { class: 'own-row' },
+      el('span', { text: `${it.qty}× ${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents ? ` · pagata ${money(it.paidCents)}` : ''}` }),
+      el('button', { class: 'btn mini danger', type: 'button', text: 'Togli', onclick: () => saveOwn({ ...it, qty: 0 }) }),
+    )));
+  }
+
+  $('ownAdd').addEventListener('click', async () => {
+    if (!current) return;
+    $('ownError').hidden = true;
+    const paid = Number($('ownPaid').value);
+    try {
+      await saveOwn({
+        bp: current.id, name: current.name + (current.version ? ` (${current.version})` : ''), image: current.image,
+        expansionId: current.expansionId || (dlgExp && dlgExp.id), expName: current.expName || (dlgExp && dlgExp.name), cmId: current.cmId,
+        lang: $('ownLang').value, cond: $('ownCond').value, qty: Number($('ownQty').value) || 1, add: true,
+        paidCents: paid > 0 ? Math.round(paid * 100) : null,
+      });
+      $('ownPaid').value = '';
+      $('ownQty').value = '1';
+    } catch (e) {
+      $('ownError').textContent = e.message;
+      $('ownError').hidden = false;
+    }
+  });
+
   // ---------- affari del giorno ----------
   let dealsAt = 0;
   async function loadDeals() {
@@ -390,15 +533,16 @@
     ['Alert su una carta', (p) => p.maxRules],
     ['Alert su tutto un set', (p) => (p.maxSetRules >= p.unlimited ? 'illimitati' : p.maxSetRules || '—')],
     ['Lista dei desideri', (p) => (p.maxWish >= p.unlimited ? 'illimitata' : `${p.maxWish} carte`)],
+    ['Collezione', (p) => (p.maxColl >= p.unlimited ? 'illimitata' : `${p.maxColl} carte`)],
     ['Velocità degli alert', (p) => (p.scanSec >= 60 ? `ogni ${p.scanSec / 60} min` : `ogni ${p.scanSec} s`)],
     ['Storico prezzi', (p) => `${p.historyDays} giorni`],
     ['Spedizione nell’avviso', (p) => (p.shipping ? '✓' : '—')],
     ['Stella priorità', (p) => (p.priority ? '✓' : '—')],
   ];
   const PLAN_INFO = {
-    free: { label: 'Gratuito', price: '0 €', maxRules: 3, maxSetRules: 0, maxWish: 10, scanSec: 300, historyDays: 7, shipping: false, priority: false },
-    pro: { label: 'Pro', price: '4,99 €/mese', maxRules: 30, maxSetRules: 1, maxWish: 200, scanSec: 30, historyDays: 120, shipping: true, priority: true },
-    sniper: { label: 'Sniper', price: '9,99 €/mese', maxRules: 100, maxSetRules: 100000, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true },
+    free: { label: 'Gratuito', price: '0 €', maxColl: 20, maxRules: 3, maxSetRules: 0, maxWish: 10, scanSec: 300, historyDays: 7, shipping: false, priority: false },
+    pro: { label: 'Pro', price: '4,99 €/mese', maxColl: 500, maxRules: 30, maxSetRules: 1, maxWish: 200, scanSec: 30, historyDays: 120, shipping: true, priority: true },
+    sniper: { label: 'Sniper', price: '9,99 €/mese', maxColl: 100000, maxRules: 100, maxSetRules: 100000, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true },
   };
 
   /** Righe della tabella di confronto dei piani (usata in Impostazioni e nella pagina di accesso). */
@@ -426,6 +570,7 @@
       kvRow('Alert su una carta', lim(cards, p.maxRules), cards > p.maxRules ? 'bad' : ''),
       kvRow('Alert su un set', p.maxSetRules ? lim(sets, p.maxSetRules) : sets ? `${sets} (non inclusi)` : 'non inclusi', sets > p.maxSetRules ? 'bad' : ''),
       kvRow('Lista dei desideri', lim((state.wish || []).length, p.maxWish)),
+      kvRow('Collezione', coll ? `${lim(coll.items.length, p.maxColl)} carte diverse` : lim('—', p.maxColl)),
       kvRow('Velocità degli alert', p.scanSec >= 60 ? `ogni ${p.scanSec / 60} minuti` : `fino a ogni ${p.scanSec} secondi`),
       kvRow('Storico prezzi', `${p.historyDays} giorni`),
       ...(out ? [kvRow('Alert fermi', `${out} oltre il limite del piano`, 'bad')] : []),
@@ -626,6 +771,11 @@
     const saved = bought.reduce((t, b) => t + Math.max(0, (b.refCents || 0) - b.cents), 0);
     $('savings').hidden = !bought.length;
     $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con Snipe · ${money(saved)} risparmiati rispetto al riferimento`;
+
+    const unseen = state.alerts.filter((a) => !a.test && !a.mark).length;
+    $('alertsLabel').textContent = unseen ? `Avvisi (${unseen})` : 'Avvisi';
+    $('alertDot').hidden = !unseen;
+    if (!hviewChosen) { hviewChosen = true; setHview(unseen ? 'alerts' : 'coll'); }
 
     renderWish();
     renderPlan();
@@ -1327,6 +1477,11 @@
     if (c.cm) renderCmBox(c); else { $('dlgCm').hidden = true; $('amodeCmLabel').hidden = true; }
     renderHistory(c);
     updateWishBtn();
+    $('ownBox').open = false;
+    $('ownError').hidden = true;
+    const lf = $('cardLang').value;
+    if (lf && [...$('ownLang').options].some((o) => o.value === lf)) $('ownLang').value = lf;
+    if (!coll) api('/api/collection').then((d) => { coll = d; renderOwnBox(); }).catch(() => null); else renderOwnBox();
     $('dlgLink').href = cardUrl(c.id);
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');
     const v = view(c);

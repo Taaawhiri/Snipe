@@ -205,6 +205,18 @@
     'Regola non valida': 'Invalid rule',
     'Nessuna regola attiva ': 'No active rules',
     'Le notifiche funzionano.': 'Notifications work.',
+    // collezione
+    'Collezione': 'Collection', 'Avvisi': 'Alerts', 'Vista': 'View', 'Valore': 'Value', 'Guadagno': 'Gain', 'Per set': 'By set', 'Variazione': 'Change',
+    'Ordina la collezione': 'Sort the collection', 'Valore attuale (prezzo più basso CardTrader)': 'Current value (lowest CardTrader price)',
+    'Il grafico del valore compare dal secondo giorno.': 'The value chart appears from the second day.',
+    'La collezione è vuota: aggiungi la prima carta.': 'Your collection is empty: add your first card.',
+    'spesi': 'spent', 'guadagno teorico': 'theoretical gain', 'CardTrader': 'CardTrader',
+    "Aggiungi le carte dal loro dettaglio con": "Add cards from their details with", "Ce l'ho": 'I own it', ', oppure in automatico segnando un avviso come': ', or automatically by marking an alert as',
+    '. Il valore usa il prezzo più basso su CardTrader nella lingua e condizione della tua copia, aggiornato ogni ora.': '. The value uses the lowest CardTrader price in the language and condition of your copy, updated hourly.',
+    '+ Aggiungi dalla scheda Carte': '+ Add from the Cards tab', 'Copie': 'Copies', "Pagata (€ l'una, facoltativo)": 'Paid (€ each, optional)', 'Condizione': 'Condition',
+    'Aggiungi alla collezione': 'Add to collection', 'Una copia in più': 'One more copy', 'Una copia in meno': 'One less copy', '≈ altra lingua': '≈ other language',
+    'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto': 'No listings in your language and condition: lowest overall price',
+    'Carta mancante': 'Card missing',
     'Bloccate': 'Blocked', 'Attive': 'On', 'Non attive': 'Off', 'Non disponibili': 'Unavailable', 'Disattivate': 'Off', 'Non supportate': 'Not supported', 'Da attivare': 'To enable',
   };
 
@@ -260,6 +272,17 @@
     [/^(\d+) annunci in vendita, i (\d+) più economici qui sotto\. ?(.*)$/, '$1 listings for sale, the $2 cheapest below. $3'],
     [/^Scatta sotto (.+) \(tendenza (.+), tutte le lingue e condizioni insieme\)\. .*$/, 'Triggers below $1 (trend $2, all languages and conditions together). If you follow a specific language or condition, "Discount %" compares only listings with the same filters.'],
     [/^min (.+) · max (.+)$/, 'min $1 · max $2'],
+    [/^Avvisi \((\d+)\)$/, 'Alerts ($1)'], [/^carte \((\d+) diverse\)$/, 'cards ($1 unique)'],
+    [/^(.) ([+−-]?[\d,]+)% in (\d+) giorni$/, '$1 $2% in $3 days'],
+    [/^Cardmarket \(tendenza (.+)\)$/, 'Cardmarket (trend $1)'],
+    [/^(\d+) (copia|copie) ancora senza prezzo: arriva entro un'ora\.$/, (m, n) => `${n} ${n === '1' ? 'copy' : 'copies'} still without a price: it arrives within an hour.`],
+    [/^(\d+) su (\d+) carte diverse incluse nel tuo piano\.$/, '$1 of $2 unique cards included in your plan.'],
+    [/^(.+) su (.+) carte diverse$/, '$1 of $2 unique cards'], [/^(\d+) carte diverse$/, '$1 unique cards'],
+    [/^pagata (.+)$/, 'paid $1'], [/^pagate (.+) l'una$/, 'paid $1 each'], [/^(.+) l'una$/, '$1 each'],
+    [/^Ce l'ho · (\d+) (copia|copie)$/, (m, n) => `I own it · ${n} ${n === '1' ? 'copy' : 'copies'}`],
+    [/^Togliere (.+) dalla collezione\?$/, 'Remove $1 from the collection?'],
+    [/^Il piano (.+) include (\d+) carte diverse nella collezione\.$/, (m, p, n) => `The ${D[p] || p} plan includes ${n} unique cards in the collection.`],
+    [/^(\d+)× (.+)$/, (m, n, r) => `${n}× ${r.replace('pagata', 'paid')}`],
     [/^carico i prezzi (.+)$/, 'loading prices $1'],
   ];
 

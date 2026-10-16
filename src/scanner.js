@@ -6,6 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
 import { dealsFromProducts } from './daydeals.js';
+import { collKey, priceFor, summarize } from './collection.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
@@ -189,6 +190,97 @@ export class Scanner extends DurableObject {
     this.ctx.waitUntil(
       this.catalog().fetch('https://do.internal/api/_pop', { method: 'POST', body: JSON.stringify({ id, weight }) }).catch(() => null),
     );
+  }
+
+  // ---------- Collezione ----------
+
+  async collectionUpsert(b) {
+    const bp = parseInt(b && b.bp, 10);
+    if (!Number.isInteger(bp) || bp <= 0) return { error: 'Carta mancante' };
+    const lang = normLang(b.lang) || '';
+    const cond = CONDITIONS.includes(b.cond) ? b.cond : '';
+    const key = collKey(bp, lang, cond);
+    const coll = await this.get('coll', []);
+    const i = coll.findIndex((c) => c.key === key);
+    const prev = i >= 0 ? coll[i] : null;
+    let qty = Math.max(0, Math.min(999, parseInt(b.qty, 10) || 0));
+    if (b.add && prev) qty += prev.qty;
+    if (!qty) {
+      if (i >= 0) coll.splice(i, 1);
+    } else {
+      if (!prev) {
+        const plan = await this.plan();
+        if (coll.length >= plan.maxColl) return { error: `Il piano ${plan.label} include ${plan.maxColl} carte diverse nella collezione.`, upgrade: true, status: 403 };
+      }
+      const paid = Number.isFinite(Number(b.paidCents)) && Number(b.paidCents) > 0 ? Math.round(Number(b.paidCents)) : null;
+      // Prezzo pagato: media ponderata quando si aggiungono copie con un prezzo nuovo.
+      const paidCents = paid == null ? (prev ? prev.paidCents : null)
+        : b.add && prev && prev.paidCents ? Math.round((prev.paidCents * prev.qty + paid * (qty - prev.qty)) / qty) : paid;
+      const item = {
+        key, bp, lang, cond, qty, paidCents,
+        name: String(b.name || (prev && prev.name) || '').slice(0, 120),
+        image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : prev ? prev.image : null,
+        expansionId: parseInt(b.expansionId, 10) || (prev && prev.expansionId) || null,
+        expName: String(b.expName || (prev && prev.expName) || '').slice(0, 80),
+        cmId: parseInt(b.cmId, 10) || (prev && prev.cmId) || null,
+        ts: prev ? prev.ts : Date.now(),
+      };
+      if (i >= 0) coll[i] = item; else coll.unshift(item);
+      if (!prev) this.bumpExpansion(item.expansionId, 2);
+    }
+    await this.ctx.storage.put('coll', coll);
+    await this.collectionPrices(true);
+    await this.ensureAlarm();
+    return { ok: true };
+  }
+
+  /** Aggiorna i prezzi della collezione con gli annunci già letti e salva un punto al giorno del valore. */
+  async collectionPrices(force = false) {
+    const coll = await this.get('coll', []);
+    if (!coll.length) return;
+    const prices = await this.get('collPrices', {});
+    let changed = false;
+    for (const c of coll) {
+      const hit = this.bpCache.get(c.bp);
+      if (!hit) continue;
+      const old = prices[c.key];
+      if (!force && old && old.ts >= hit.ts) continue;
+      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond);
+      prices[c.key] = pr ? { ...pr, ts: hit.ts } : { cents: null, ts: hit.ts };
+      changed = true;
+    }
+    if (!changed) return;
+    await this.ctx.storage.put('collPrices', prices);
+    const items = coll.map((c) => ({ ...c, price: prices[c.key] && prices[c.key].cents != null ? prices[c.key] : null }));
+    const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
+    for (const it of items) { const e = it.cmId && cm.get(it.cmId); it.cmCents = e && e.trend ? Math.round(e.trend * 100) : null; }
+    const sum = summarize(items);
+    const hist = await this.get('collHist', []);
+    const d = new Date().toISOString().slice(0, 10);
+    const point = { d, value: sum.value, cm: sum.cm, qty: sum.qty };
+    if (hist.length && hist[hist.length - 1].d === d) hist[hist.length - 1] = point; else hist.push(point);
+    await this.ctx.storage.put('collHist', hist.slice(-400));
+  }
+
+  async collectionView() {
+    const coll = await this.get('coll', []);
+    const prices = await this.get('collPrices', {});
+    const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
+    const plan = await this.plan();
+    const items = coll.map((c) => {
+      const p = prices[c.key];
+      const e = c.cmId && cm.get(c.cmId);
+      return { ...c, price: p && p.cents != null ? p : null, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
+    });
+    // Variazione a 7 giorni dallo storico prezzi della carta (prezzo più basso in assoluto).
+    for (const it of items) {
+      const h = await this.get(`h:${it.bp}`, []);
+      const old = h.length > 1 ? h[Math.max(0, h.length - 8)] : null;
+      const last = h[h.length - 1];
+      it.change7 = old && last && old.min ? last.min / old.min - 1 : null;
+    }
+    const hist = (await this.get('collHist', [])).slice(-plan.historyDays);
+    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited };
   }
 
   /** Una volta al giorno segnala al catalogo le espansioni dei propri alert e desideri (interesse di fondo). */
@@ -659,6 +751,18 @@ export class Scanner extends DurableObject {
       return json({ rows, sources: this.bpCache.size + this.productCache.size });
     }
 
+    if (path === '/api/collection' && method === 'GET') {
+      return json(await this.collectionView());
+    }
+
+    if (path === '/api/collection' && method === 'POST') {
+      // { bp, name, image, expansionId, expName, cmId, lang, cond, qty (0 = togli), paidCents, add (true = somma alla quantità) }
+      const b = await req.json();
+      const res = await this.collectionUpsert(b);
+      if (res.error) return json({ error: res.error, upgrade: res.upgrade }, res.status || 400);
+      return json(await this.collectionView());
+    }
+
     if (path === '/api/wish' && method === 'GET') {
       return json(await this.get('wish', []));
     }
@@ -818,6 +922,14 @@ export class Scanner extends DurableObject {
         if (!log.some((x) => x.id === a.id)) {
           log.unshift({ id: a.id, ts: Date.now(), name: a.name, cents: a.cents, refCents: a.refCents, ship: a.ship ? a.ship.cents : 0 });
           await this.ctx.storage.put('bought', log.slice(0, 500));
+          // Quello che compri entra nella collezione, con il prezzo pagato (spedizione compresa).
+          const bp = a.bp || parseInt(String(a.url || '').split('/').pop(), 10);
+          if (bp) {
+            await this.collectionUpsert({
+              bp, name: a.name, image: a.cardImage, expansionId: a.expansionId, expName: a.expansion,
+              lang: a.language, cond: a.condition, qty: 1, add: true, paidCents: a.cents + (a.ship ? a.ship.cents : 0),
+            }).catch(() => null);
+          }
         }
       } else {
         const log = (await this.get('bought', [])).filter((x) => x.id !== a.id);
@@ -1257,7 +1369,8 @@ export class Scanner extends DurableObject {
     if (await this.get('suspended', false)) return;
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
     const paused = (await this.settings()).paused;
-    if ((paused || !rules.length) && !(await this.indexPending()) && !(await this.cmDue()) && !(await this.dealsDue())) return;
+    const hasColl = (await this.get('coll', [])).length > 0;
+    if ((paused || !rules.length) && !hasColl && !(await this.indexPending()) && !(await this.cmDue()) && !(await this.dealsDue())) return;
     const current = await this.ctx.storage.getAlarm();
     if (current === null) await this.ctx.storage.setAlarm(Date.now() + 1000);
   }
@@ -1299,10 +1412,11 @@ export class Scanner extends DurableObject {
     const settings = await this.settings();
     const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
     const busy = (await this.indexPending()) || (await this.cmDue());
-    if (scanning || busy || (await this.isCatalog())) {
+    const hasColl = (await this.get('coll', [])).length > 0;
+    if (scanning || busy || hasColl || (await this.isCatalog())) {
       // La frequenza scelta in Impostazioni, ma mai più veloce di quella del piano.
       // Il catalogo senza altro da fare si sveglia solo per gli affari del giorno (ogni 10 minuti).
-      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : 10 * 60_000;
+      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : hasColl ? 5 * 60_000 : 10 * 60_000;
       await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
     }
   }
@@ -1326,6 +1440,10 @@ export class Scanner extends DurableObject {
     // Lista dei desideri: le carte si aggiornano, ma senza fretta (al massimo ogni 15 minuti).
     for (const w of await this.get('wish', [])) {
       if (!sources.has(`b:${w.id}`)) sources.set(`b:${w.id}`, { kind: 'b', id: w.id, prio: 1, minAge: 15 * 60_000 });
+    }
+    // Collezione: ogni carta si rilegge al massimo una volta all'ora.
+    for (const c of await this.get('coll', [])) {
+      if (!sources.has(`b:${c.bp}`)) sources.set(`b:${c.bp}`, { kind: 'b', id: c.bp, prio: 1, minAge: 60 * 60_000 });
     }
     const age = (src) => {
       const hit = (src.kind === 'b' ? this.bpCache : this.productCache).get(src.id);
@@ -1460,6 +1578,7 @@ export class Scanner extends DurableObject {
     const baselinedBefore = baselined.size;
     const fresh = [];
     const requests = await this.refreshSources(rules);
+    await this.collectionPrices();
     const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
 
     for (const rule of rules) {
@@ -1525,6 +1644,8 @@ export class Scanner extends DurableObject {
           zero: isZero(p),
           cardImage: rule.cardImage || null,
           url: `https://www.cardtrader.com/cards/${p.blueprint_id}`,
+          bp: p.blueprint_id,
+          expansionId: rule.expansionId,
         });
       }
       baselined.add(rule.id);
