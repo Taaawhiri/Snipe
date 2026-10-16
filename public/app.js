@@ -551,7 +551,7 @@
     return new Date(next).toLocaleTimeString('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' });
   }
 
-  const dateIt = (ts) => (ts ? new Date(ts).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  const dateIt = (ts) => (ts ? new Date(ts).toLocaleDateString(document.documentElement.lang === 'en' ? 'en-GB' : 'it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
   $('adminReload').addEventListener('click', loadAdmin);
 
   // ---------- render ----------
@@ -1562,6 +1562,15 @@
   }
 
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
+  // Lingua dell'app (i18n.js traduce l'interfaccia; cambiare lingua ricarica la pagina).
+  if (window.snipeLang) {
+    $('setLang').value = window.snipeLang.get();
+    $('setLang').addEventListener('change', () => window.snipeLang.set($('setLang').value));
+    document.querySelectorAll('.lang-switch [data-lang]').forEach((b) => {
+      b.classList.toggle('on', b.dataset.lang === window.snipeLang.get());
+      b.addEventListener('click', () => window.snipeLang.set(b.dataset.lang));
+    });
+  }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   start(); // senza sessione valida la prima richiesta risponde 401 e compare l'accesso
 })();

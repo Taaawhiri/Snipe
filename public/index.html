@@ -27,6 +27,7 @@
       <div class="reticle"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg></div>
       <div class="logo">Snipe</div>
       </div>
+      <div class="lang-switch"><button type="button" data-lang="it">IT</button><button type="button" data-lang="en">EN</button></div>
       <p class="tagline">Gli affari sulle carte Pokémon di CardTrader, appena compaiono.</p>
     </header>
 
@@ -309,6 +310,10 @@
           <button class="btn" id="clearAlerts" type="button">Cancella lo storico avvisi</button>
           <button class="btn" id="logout" type="button">Esci</button>
         </div>
+        <div class="field lang-field">
+          <label for="setLang">Lingua dell’app</label>
+          <select id="setLang"><option value="it">Italiano</option><option value="en">English</option></select>
+        </div>
         <p class="muted small legal-links"><a href="/termini.html">Termini di servizio</a> · <a href="/privacy.html">Privacy</a></p>
       </div>
     </section>
@@ -497,6 +502,7 @@
     </form>
   </div>
 </dialog>
+<script src="/i18n.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

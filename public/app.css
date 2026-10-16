@@ -515,3 +515,8 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .signups i.on { background: var(--yellow); }
 .signups-legend { display: flex; justify-content: space-between; }
 .legal-links a { color: var(--blue); font-weight: 700; }
+.lang-switch { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); align-self: center; }
+.lang-switch button { border: 0; background: transparent; color: var(--muted); font: 700 12px var(--sans); padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+.lang-switch button.on { background: var(--red); color: #fff; }
+@media (min-width: 900px) { .lang-switch { align-self: flex-start; } }
+.lang-field { max-width: 260px; }

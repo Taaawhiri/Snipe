@@ -34,6 +34,10 @@ Gli alert su una carta valutano subito anche gli annunci già in vendita, poi av
 3. **Secret** (facoltativo, Workers → snipe → Settings → Variables and Secrets, tipo Secret): `CARDTRADER_TOKEN` con il token del proprietario. Chi accede con quello stesso token ritrova i dati del vecchio account unico e ha il piano "Proprietario".
 4. Apri l'URL `*.workers.dev` e accedi con il tuo token API di CardTrader. Ogni utente accede con il proprio token: ha alert, lista dei desideri, storico e notifiche separati, e consuma il limite di richieste del suo token.
 
+## Lingue
+
+L'interfaccia è in italiano; `public/i18n.js` la traduce in inglese al volo (scelta in Opzioni o sulla pagina di accesso, predefinita in base alla lingua del browser). Per una frase nuova basta aggiungerla al dizionario in quel file. Notifiche push e pagine legali restano in italiano.
+
 ## Account e piani
 
 - L'accesso è un cookie di sessione firmato. Il token CardTrader resta nel server dati dell'utente e non torna mai al telefono.
