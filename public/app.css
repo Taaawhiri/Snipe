@@ -486,3 +486,16 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
   .land-left .login-card { justify-content: center; }
   .login-plans { display: flex; flex-direction: column; justify-content: space-between; }
 }
+.hero-brand { display: flex; align-items: center; gap: 14px; }
+.hero-brand .reticle svg { width: 56px; height: 56px; display: block; }
+@media (min-width: 900px) { .hero-brand .reticle svg { width: 68px; height: 68px; } .hero-brand { gap: 16px; } }
+/* desktop: griglia 2×2 — titolo accanto alle funzioni, accesso accanto ai piani */
+@media (min-width: 900px) {
+  .landing { grid-template-areas: 'hero features' 'form plans'; grid-template-rows: auto 1fr; row-gap: 12px; }
+  .land-left, .land-right { display: contents; }
+  .landing .hero { grid-area: hero; justify-content: center; }
+  .landing .features { grid-area: features; }
+  .landing .login-card { grid-area: form; justify-content: center; }
+  .landing .login-plans { grid-area: plans; }
+}
+@media (min-width: 900px) { .landing .login-plans { justify-content: center; } }
