@@ -159,8 +159,6 @@
     // opzioni
     'Il tuo piano': 'Your plan', 'Confronta i piani': 'Compare plans',
     'Il pagamento online arriverà a breve. Gli account creati prima dei piani restano Pro gratis fino ad allora.': 'Online payment is coming soon. Accounts created before the plans stay on Pro for free until then.',
-    'Pagamento sicuro con Lemon Squeezy (carta, PayPal). Disdici quando vuoi da “Gestisci abbonamento”.': 'Secure payment via Lemon Squeezy (card, PayPal). Cancel anytime from “Manage subscription”.',
-    'Si parte gratis. Pro e Sniper si attivano dall’app, con carta o PayPal.': 'Start free. Upgrade to Pro or Sniper in the app, by card or PayPal.',
     'Passa a Pro': 'Upgrade to Pro', 'Passa a Sniper': 'Upgrade to Sniper', 'Pro mensile': 'Pro monthly', 'Pro annuale': 'Pro yearly',
     'Sniper mensile': 'Sniper monthly', 'Sniper annuale': 'Sniper yearly', 'Gestisci abbonamento': 'Manage subscription',
     'Gratuito': 'Free', 'Proprietario': 'Owner', 'Prezzo': 'Price', '0 €': '€0', '4,99 €/mese': '€4.99/month', '9,99 €/mese': '€9.99/month',

@@ -97,13 +97,23 @@ npm run test:ui     # schermate: la pagina vera con API simulate, in Chromium he
 `/api/health` mostra la versione in esecuzione.
 
 
-## Pagamenti (Lemon Squeezy)
+## Attivare i pagamenti (quando vuoi)
 
-1. Su Lemon Squeezy crea i prodotti **Pro** e **Sniper**, ognuno con variante mensile e annuale.
-2. Nel Worker (Settings → Variables) imposta:
-   - `LS_CHECKOUT_PRO_MONTHLY`, `LS_CHECKOUT_PRO_YEARLY`, `LS_CHECKOUT_SNIPER_MONTHLY`, `LS_CHECKOUT_SNIPER_YEARLY`: i link di checkout ("Share" della variante);
-   - `LS_VARIANTS_PRO`, `LS_VARIANTS_SNIPER`: gli ID delle varianti, separati da virgola;
-   - Secret `LS_WEBHOOK_SECRET`: la chiave di firma del webhook.
-3. Settings → Webhooks: URL `https://<worker>/api/billing/webhook`, eventi `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_resumed`, `subscription_expired`, `subscription_paused`, `subscription_unpaused`, stessa chiave di firma.
+Per ora l'app mostra "pagamento in arrivo": i pulsanti per abbonarsi compaiono da soli **solo quando imposti i link di acquisto**, quindi non serve toccare il codice.
 
-L'utente viene riconosciuto dal campo `checkout[custom][user_id]` che l'app aggiunge al link. Disdetto = piano attivo fino alla scadenza, poi Gratuito.
+**Passo 1 – Lemon Squeezy.** Crea due prodotti, *Pro* e *Sniper*, ciascuno con una variante mensile e una annuale. Per ogni variante copia il link di acquisto (pulsante *Share*) e il suo ID.
+
+**Passo 2 – Cloudflare.** Apri il Worker → *Settings → Variables* e aggiungi:
+
+| Nome | Cosa metterci |
+|---|---|
+| `LS_CHECKOUT_PRO_MONTHLY` / `LS_CHECKOUT_PRO_YEARLY` | link di acquisto di Pro |
+| `LS_CHECKOUT_SNIPER_MONTHLY` / `LS_CHECKOUT_SNIPER_YEARLY` | link di acquisto di Sniper |
+| `LS_VARIANTS_PRO` / `LS_VARIANTS_SNIPER` | ID delle varianti (più ID separati da virgola) |
+| `LS_WEBHOOK_SECRET` (tipo **Secret**) | la chiave di firma del passo 3 |
+
+**Passo 3 – Webhook.** Su Lemon Squeezy → *Settings → Webhooks*: URL `https://<tuo-worker>/api/billing/webhook`, spunta tutti gli eventi `subscription_…`, scegli una chiave di firma e mettila in `LS_WEBHOOK_SECRET`.
+
+**Passo 4 – Prova.** Con la modalità test di Lemon Squeezy fai un acquisto con la carta di prova: il piano cambia da solo in pochi secondi. Se un abbonamento viene disdetto resta attivo fino alla scadenza, poi torna Gratuito.
+
+Quando sei pronto, cambia anche le frasi "arriverà a breve" in `public/index.html`.
