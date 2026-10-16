@@ -259,6 +259,7 @@
     [/^Utente CardTrader (\d+)$/, 'CardTrader user $1'],
     [/^(.+) · (\d+)\/(\d+) scansioni questo mese$/, (m, e, a, b) => `${D[e] || e} · ${a}/${b} scans this month`],
     [/^N\. (.+)$/, 'No. $1'],
+    [/^Ricalcolo i prezzi di (\d+) (carta|carte)…$/, (m, n) => `Recalculating prices for ${n} ${n === '1' ? 'card' : 'cards'}…`],
     [/^Valore attuale \(prezzo (tipico|più basso) CardTrader( Zero)?\)$/, (m, t, z) => `Current value (${t === 'tipico' ? 'typical' : 'lowest'} CardTrader${z ? ' Zero' : ''} price)`],
     [/^(\d+) (copia|copie) senza un prezzo Zero: .*$/, (m, n) => `${n} ${n === '1' ? 'copy' : 'copies'} without a Zero price: no Zero seller offers it now, or the price arrives within an hour.`],
     [/^CardTrader chiede una pausa: riprovo da solo tra (\d+)s…$/, 'CardTrader asked for a pause: retrying by itself in $1s…'],

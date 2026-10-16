@@ -707,3 +707,4 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .meter > i { display: block; height: 100%; border-radius: 999px; background: var(--green); transition: width 0.4s; }
 .meter.high > i { background: var(--yellow); }
 .meter.full > i { background: #ff5a6e; }
+#collList.loading { opacity: 0.45; pointer-events: none; transition: opacity 0.2s; }

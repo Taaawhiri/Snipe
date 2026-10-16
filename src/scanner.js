@@ -314,11 +314,25 @@ export class Scanner extends DurableObject {
     const coll = await this.get('coll', []);
     // Prezzi salvati prima delle opzioni Zero/tipico: rileggiamo subito gli annunci di quelle carte
     // (al massimo 10 per apertura, il resto al giro orario) e ricalcoliamo.
+    let refreshing = 0;
     if (zeroOnly || typical) {
       const old = await this.get('collPrices', {});
-      const stale = coll.filter((c) => !old[c.key] || !('typCents' in old[c.key])).slice(0, 10);
-      for (const c of stale) await this.productsForCard(c.bp, 60 * 60_000).catch(() => null);
-      if (stale.length) await this.collectionPrices(true);
+      const stale = coll.filter((c) => !old[c.key] || !('typCents' in old[c.key]));
+      refreshing = stale.length;
+      if (stale.length && !this.collRefreshing) {
+        // In sottofondo: la risposta arriva subito e la pagina si aggiorna da sola quando i prezzi sono pronti.
+        this.collRefreshing = true;
+        this.ctx.waitUntil((async () => {
+          try {
+            for (const c of stale) {
+              await this.productsForCard(c.bp, 60 * 60_000).catch(() => null);
+              await this.collectionPrices(true).catch(() => null);
+            }
+          } finally {
+            this.collRefreshing = false;
+          }
+        })());
+      }
     }
     const prices = await this.get('collPrices', {});
     const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
@@ -336,7 +350,7 @@ export class Scanner extends DurableObject {
       it.change7 = old && last && old.min ? last.min / old.min - 1 : null;
     }
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
-    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical };
+    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, refreshing };
   }
 
   /** Una volta al giorno segnala al catalogo le espansioni dei propri alert e desideri (interesse di fondo). */

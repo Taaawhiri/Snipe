@@ -285,10 +285,14 @@
   let coll = null;
   let hviewChosen = false;
 
+  let collPoll = null;
   async function loadCollection() {
     try {
       coll = await api('/api/collection');
       renderCollection();
+      // Prezzi in ricalcolo sul server: ricontrolliamo tra qualche secondo.
+      clearTimeout(collPoll);
+      if (coll.refreshing) collPoll = setTimeout(() => { if (!$('collView').hidden) loadCollection(); }, 5000);
     } catch (e) {
       $('collHero').replaceChildren(el('p', { class: 'error', text: e.message }));
     }
@@ -318,6 +322,7 @@
 
   function renderCollection() {
     if (!coll) return;
+    $('collList').classList.remove('loading');
     $('collZero').checked = !!coll.zeroOnly;
     $('collTypical').checked = !!coll.typical;
     const { items, summary: sm, history } = coll;
@@ -339,7 +344,8 @@
         el('div', null, el('b', { text: sm.paid ? money(sm.paid) : '—' }), el('span', { text: 'spesi' })),
         el('div', null, el('b', { class: gain == null ? '' : gain >= 0 ? 'up' : 'dn', text: gain == null ? '—' : `${gain >= 0 ? '+' : ''}${money(gain)}` }), el('span', { text: 'guadagno teorico' })),
       ),
-      sm.missing ? el('p', { class: 'small muted', text: coll.zeroOnly
+      coll.refreshing ? el('div', { class: 'scan-wait small' }, el('span', { class: 'spinner' }), el('span', { text: `Ricalcolo i prezzi di ${coll.refreshing} ${coll.refreshing === 1 ? 'carta' : 'carte'}…` })) : null,
+      sm.missing && !coll.refreshing ? el('p', { class: 'small muted', text: coll.zeroOnly
         ? `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} senza un prezzo Zero: nessun venditore Zero la offre ora, oppure il prezzo arriva entro un'ora.`
         : `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} ancora senza prezzo: arriva entro un'ora.` }) : null,
       coll.limit < coll.unlimited ? el('p', { class: 'small muted', text: `${items.length} su ${coll.limit} carte diverse incluse nel tuo piano.` }) : null,
@@ -411,10 +417,12 @@
   document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
   $('collTypical').addEventListener('change', async () => {
+    $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });
     loadCollection();
   });
   $('collZero').addEventListener('change', async () => {
+    $('collList').classList.add('loading');
     await saveSettings({ collZero: $('collZero').checked });
     loadCollection();
   });
