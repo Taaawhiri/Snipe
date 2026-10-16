@@ -593,9 +593,9 @@
       list.sort((a, b) => a.name.localeCompare(b.name));
     }
     $('cardGrid').replaceChildren(
-      ...list.map((c) => {
+      ...list.map((c, i) => {
         const shown = price(c);
-        return el('div', { class: 'tile' },
+        return el('div', { class: 'tile', style: `--i:${Math.min(i, 24)}` },
           el('a', { class: 'tile-go', href: cardUrl(c.id), target: '_blank', rel: 'noopener noreferrer', 'aria-label': `Apri ${c.name} su CardTrader`, title: 'Apri su CardTrader', text: '↗' }),
           el('button', { class: 'tile-main', type: 'button', onclick: () => openCard(c) },
           el('div', { class: 'art' },
@@ -603,7 +603,7 @@
             el('span', { class: 'pricepill' + (c.loading || shown == null ? ' none' : ''), text: c.loading ? '…' : priceText(c) }),
             !zeroMode && view(c).lowestZero != null ? el('span', { class: 'zeropill', text: 'Zero ' + money(view(c).lowestZero, c.currency) }) : null,
           ),
-          el('div', null,
+          el('div', { class: 'info' },
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
             el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
             c.expName ? el('div', { class: 'sub', text: c.expName }) : null,
