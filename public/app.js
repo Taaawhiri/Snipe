@@ -153,6 +153,10 @@
   function renderWish() {
     const wl = $('wishList');
     const wish = state.wish || [];
+    const have = new Set(wish.map((w) => w.id));
+    const missing = new Set(state.rules.filter((r) => r.blueprintId && !have.has(r.blueprintId)).map((r) => r.blueprintId)).size;
+    $('wishFromRules').hidden = !missing;
+    $('wishFromRules').textContent = `♥ Aggiungi le carte dei tuoi alert (${missing})`;
     wl.replaceChildren(
       ...(wish.length
         ? wish.map((w) => {
@@ -181,6 +185,23 @@
     );
   }
 
+  const wishFromRule = (r) => ({ id: r.blueprintId, name: r.cardName, image: r.cardImage, expansionId: r.expansionId, expName: r.expansionName });
+
+  async function wishAllFromRules() {
+    const have = new Set((state.wish || []).map((w) => w.id));
+    const todo = [...new Map(state.rules.filter((r) => r.blueprintId && !have.has(r.blueprintId)).map((r) => [r.blueprintId, r])).values()];
+    for (const r of todo) {
+      try {
+        const c = wishFromRule(r);
+        state.wish = await api('/api/wish', { method: 'POST', body: JSON.stringify({ id: c.id, name: c.name, image: c.image, expansionId: c.expansionId, expName: c.expName }) });
+      } catch (e) {
+        alert(e.message); // per esempio il limite del piano
+        break;
+      }
+    }
+    refresh();
+  }
+
   async function toggleWish(c, remove) {
     try {
       state.wish = await api('/api/wish', { method: 'POST', body: JSON.stringify({ id: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId || (dlgExp && dlgExp.id), expName: c.expName || (dlgExp && dlgExp.name), remove }) });
@@ -197,6 +218,7 @@
     const inWish = (state.wish || []).some((w) => w.id === current.id);
     $('dlgWish').textContent = inWish ? '★ Nella lista dei desideri (tocca per togliere)' : '☆ Aggiungi alla lista dei desideri';
   }
+  $('wishFromRules').addEventListener('click', wishAllFromRules);
   $('dlgWish').addEventListener('click', () => current && toggleWish(current, (state.wish || []).some((w) => w.id === current.id)));
 
   /** Grafico dei prezzi giornalieri: linea piena = più basso, tratteggiata = con Zero. */
@@ -317,7 +339,22 @@
     const users = data.users;
     const active = users.filter((u) => u.stats && u.stats.activeRules > 0 && !u.blocked).length;
     const byPlan = data.plans.map((p) => `${users.filter((u) => u.plan === p.id).length} ${p.label}`).join(' · ');
-    $('adminSummary').textContent = `${users.length} ${users.length === 1 ? 'utente' : 'utenti'} · ${active} con alert attivi · ${byPlan}`;
+    // Stima: ogni giro di scan è una richiesta, più il controllo ogni 10 minuti e un po' di uso dell'app.
+    const perDay = (u) => (u.blocked ? 0 : (u.stats && u.stats.scanSec ? Math.round(86400 / u.stats.scanSec) : 0) + 144 + (u.stats && u.stats.scanSec ? 200 : 0));
+    const total = users.reduce((t, u) => t + perDay(u), 0);
+    const today = users.reduce((t, u) => t + ((u.stats && u.stats.today && u.stats.today.alarms) || 0), 0);
+    const pct = Math.round((total / 100000) * 100);
+    $('adminSummary').replaceChildren(
+      document.createTextNode(`${users.length} ${users.length === 1 ? 'utente' : 'utenti'} · ${active} con alert attivi · ${byPlan}`),
+      el('div', { class: 'usage' },
+        el('div', { class: 'usage-top' },
+          el('b', { text: `Consumo stimato: ~${total.toLocaleString('it-IT')} richieste al giorno` }),
+          el('span', { text: `${pct}% dei 100.000 del piano gratuito Cloudflare` }),
+        ),
+        el('div', { class: 'bar' + (pct >= 80 ? ' hot' : '') }, el('i', { style: `width:${Math.min(100, pct)}%` })),
+        el('span', { class: 'small', text: `Oggi finora: ${today.toLocaleString('it-IT')} giri di scan (si azzera a mezzanotte UTC, cioè alle ${new Date(Date.UTC(2000, 0, 1)).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} ora italiana).` }),
+      ),
+    );
     $('adminList').replaceChildren(
       ...users.map((u) => {
         const st = u.stats || {};
@@ -338,6 +375,7 @@
             chip(`${st.alerts ?? 0} avvisi`),
             chip(`${st.wish ?? 0} desideri`),
             chip(`${st.devices ?? 0} ${st.devices === 1 ? 'dispositivo' : 'dispositivi'}`, 'zero'),
+            chip(st.scanSec ? `~${perDay(u).toLocaleString('it-IT')} richieste/giorno` : 'nessuno scan', st.scanSec && perDay(u) > 5000 ? 'warn' : ''),
             st.lastScan ? chip(`scan ${ago(st.lastScan)}`, 'cond') : chip('mai scansionato'),
             u.blocked ? chip('Sospeso', 'warn') : null,
           ),
@@ -473,6 +511,11 @@
           el('div', { class: 'acts' },
             !(state.account && state.account.plan.priority) ? null : el('button', { class: 'btn star' + (r.priority ? ' on' : ''), type: 'button', title: 'Controlla più spesso', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', text: r.priority ? '★' : '☆',
               onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, priority: !r.priority }) }),
+            r.blueprintId ? (() => {
+              const inWish = (state.wish || []).some((w) => w.id === r.blueprintId);
+              return el('button', { class: 'btn star' + (inWish ? ' on' : ''), type: 'button', title: inWish ? 'Nella lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-label': inWish ? 'Togli dalla lista dei desideri' : 'Aggiungi alla lista dei desideri', text: '♥',
+                onclick: () => toggleWish(wishFromRule(r), inWish) });
+            })() : null,
             el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
             el('button', { class: 'btn', type: 'button', text: 'Modifica', onclick: () => openEdit(r) }),
             el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Riattiva',

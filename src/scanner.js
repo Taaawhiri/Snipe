@@ -96,6 +96,7 @@ export class Scanner extends DurableObject {
     if (!force && sig === this.statusSig && Date.now() - (this.statusSavedAt || 0) < 60_000) return;
     this.statusSig = sig;
     this.statusSavedAt = Date.now();
+    status.dayWrites = (status.dayWrites || 0) + 1;
     await this.ctx.storage.put('status', status);
   }
 
@@ -285,6 +286,11 @@ export class Scanner extends DurableObject {
         bought: bought.length,
         devices: subs.length,
         lastScan: status.lastScan || null,
+        // Per la stima del consumo: ogni giro di scan è una richiesta al server dati.
+        scanSec: rules.some((r) => r.enabled) && !(await this.settings()).paused && !(await this.get('suspended', false))
+          ? Math.max((await this.settings()).scanEverySec, (await this.plan()).scanSec)
+          : null,
+        today: status.day === new Date().toISOString().slice(0, 10) ? { alarms: status.dayAlarms || 0, writes: status.dayWrites || 0 } : { alarms: 0, writes: 0 },
         lastError: status.lastError || null,
         scans: status.scans || 0,
         requests: status.requests || 0,
@@ -1082,6 +1088,9 @@ export class Scanner extends DurableObject {
   async alarm() {
     if (await this.get('suspended', false)) return; // account sospeso dalla pagina admin
     const status = await this.status();
+    const day = new Date().toISOString().slice(0, 10);
+    if (status.day !== day) Object.assign(status, { day, dayAlarms: 0, dayWrites: 0 });
+    status.dayAlarms = (status.dayAlarms || 0) + 1;
     try {
       await this.scanOnce(status);
       status.lastError = null;

@@ -430,3 +430,8 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .pt-head b { font-family: var(--display); font-size: 14px; }
 .pt-row .cur { color: var(--red); }
 @media (prefers-color-scheme: dark) { .pt-row .cur { color: var(--yellow); } }
+#wishFromRules { align-self: flex-start; }
+.usage { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); color: var(--text); }
+.usage-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: 13.5px; }
+.usage-top span { color: var(--muted); font-weight: 700; }
+.bar.hot > i { background: var(--bad); }
