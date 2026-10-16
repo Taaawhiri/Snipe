@@ -96,3 +96,14 @@ npm run test:ui     # schermate: la pagina vera con API simulate, in Chromium he
 
 `/api/health` mostra la versione in esecuzione.
 
+
+## Pagamenti (Lemon Squeezy)
+
+1. Su Lemon Squeezy crea i prodotti **Pro** e **Sniper**, ognuno con variante mensile e annuale.
+2. Nel Worker (Settings → Variables) imposta:
+   - `LS_CHECKOUT_PRO_MONTHLY`, `LS_CHECKOUT_PRO_YEARLY`, `LS_CHECKOUT_SNIPER_MONTHLY`, `LS_CHECKOUT_SNIPER_YEARLY`: i link di checkout ("Share" della variante);
+   - `LS_VARIANTS_PRO`, `LS_VARIANTS_SNIPER`: gli ID delle varianti, separati da virgola;
+   - Secret `LS_WEBHOOK_SECRET`: la chiave di firma del webhook.
+3. Settings → Webhooks: URL `https://<worker>/api/billing/webhook`, eventi `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_resumed`, `subscription_expired`, `subscription_paused`, `subscription_unpaused`, stessa chiave di firma.
+
+L'utente viene riconosciuto dal campo `checkout[custom][user_id]` che l'app aggiunge al link. Disdetto = piano attivo fino alla scadenza, poi Gratuito.

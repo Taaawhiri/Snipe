@@ -159,6 +159,10 @@
     // opzioni
     'Il tuo piano': 'Your plan', 'Confronta i piani': 'Compare plans',
     'Il pagamento online arriverà a breve. Gli account creati prima dei piani restano Pro gratis fino ad allora.': 'Online payment is coming soon. Accounts created before the plans stay on Pro for free until then.',
+    'Pagamento sicuro con Lemon Squeezy (carta, PayPal). Disdici quando vuoi da “Gestisci abbonamento”.': 'Secure payment via Lemon Squeezy (card, PayPal). Cancel anytime from “Manage subscription”.',
+    'Si parte gratis. Pro e Sniper si attivano dall’app, con carta o PayPal.': 'Start free. Upgrade to Pro or Sniper in the app, by card or PayPal.',
+    'Passa a Pro': 'Upgrade to Pro', 'Passa a Sniper': 'Upgrade to Sniper', 'Pro mensile': 'Pro monthly', 'Pro annuale': 'Pro yearly',
+    'Sniper mensile': 'Sniper monthly', 'Sniper annuale': 'Sniper yearly', 'Gestisci abbonamento': 'Manage subscription',
     'Gratuito': 'Free', 'Proprietario': 'Owner', 'Prezzo': 'Price', '0 €': '€0', '4,99 €/mese': '€4.99/month', '9,99 €/mese': '€9.99/month',
     'Alert su una carta': 'Card alerts', 'Alert su tutto un set': 'Whole-set alerts', 'Alert su un set': 'Set alerts',
     'Velocità degli alert': 'Alert speed', 'Storico prezzi': 'Price history', 'Spedizione nell’avviso': 'Shipping in alerts', 'Stella priorità': 'Priority star',
@@ -244,6 +248,7 @@
   };
 
   const R = [
+    [/^Disdetto: attivo fino al (.+)$/, 'Cancelled: active until $1'], [/^Si rinnova il (.+)$/, 'Renews on $1'],
     [/^(\d+)s fa$/, '$1s ago'], [/^(\d+)m fa$/, '$1m ago'], [/^(\d+)h fa$/, '$1h ago'], [/^(\d+)g fa$/, '$1d ago'], [/^adesso$/, 'just now'],
     [/^Ultimo scan (.+) fa$/, 'Last scan $1 ago'], [/^ultimo controllo (.+) fa$/, 'last check $1 ago'], [/^scan (.+) fa$/, 'scan $1 ago'],
     [/^Ultimo scan (.+)$/, 'Last scan $1'], [/^ultimo controllo (.+)$/, 'last check $1'],

@@ -4,7 +4,7 @@
   const isMobileOS = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
   document.addEventListener('click', (ev) => {
     const a = ev.target.closest && ev.target.closest('a[target="_blank"]');
-    if (!a || !isMobileOS || !navigator.share) return;
+    if (!a || a.dataset.direct || !isMobileOS || !navigator.share) return;
     let u;
     try { u = new URL(a.href); } catch { return; }
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;

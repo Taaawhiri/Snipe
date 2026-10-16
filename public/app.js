@@ -86,7 +86,7 @@
   const isMobileOS = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
   document.addEventListener('click', (ev) => {
     const a = ev.target.closest && ev.target.closest('a[target="_blank"]');
-    if (!a || !isMobileOS || !navigator.share) return;
+    if (!a || a.dataset.direct || !isMobileOS || !navigator.share) return;
     let u;
     try { u = new URL(a.href); } catch { return; }
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
@@ -881,10 +881,35 @@
       ...(out ? [kvRow('Alert fermi', `${out} oltre il limite del piano`, 'bad')] : []),
     );
     $('planTable').replaceChildren(...planTable(p.id));
+    renderBilling(p.id);
     // Frequenze più veloci di quella del piano: visibili ma non selezionabili.
     for (const o of $('setScan').options) o.disabled = Number(o.value) < p.scanSec;
   }
 
+
+  /** Pulsanti per abbonarsi (Lemon Squeezy) e link per gestire l'abbonamento. */
+  let billingLinks = null;
+  async function renderBilling(planId) {
+    const box = $('planBuy');
+    if (!box) return;
+    if (planId === 'owner') return box.replaceChildren();
+    if (!billingLinks) billingLinks = await api('/api/billing/links').catch(() => ({}));
+    const L = billingLinks || {};
+    const btn = (href, text) => (href ? el('a', { class: 'btn', href, target: '_blank', rel: 'noopener', 'data-direct': '1', text }) : null);
+    const rows = [];
+    for (const id of ['pro', 'sniper']) {
+      if (id === planId) continue;
+      const l = L[id] || {};
+      const b = [btn(l.monthly, `${PLAN_INFO[id].label} mensile`), btn(l.yearly, `${PLAN_INFO[id].label} annuale`)].filter(Boolean);
+      if (b.length) rows.push(el('div', { class: 'buy-row' }, el('b', { text: `Passa a ${PLAN_INFO[id].label}` }), ...b));
+    }
+    const bill = L.billing;
+    if (bill && bill.portalUrl) {
+      const when = bill.status === 'cancelled' && bill.endsAt ? `Disdetto: attivo fino al ${new Date(bill.endsAt).toLocaleDateString()}` : bill.renewsAt ? `Si rinnova il ${new Date(bill.renewsAt).toLocaleDateString()}` : '';
+      rows.push(el('div', { class: 'buy-row' }, when ? el('span', { class: 'muted small', text: when }) : null, btn(bill.portalUrl, 'Gestisci abbonamento')));
+    }
+    box.replaceChildren(...rows);
+  }
   // ---------- admin ----------
   const isOwner = () => !!(state && state.account && state.account.plan && state.account.plan.id === 'owner');
   let adminLoaded = 0;

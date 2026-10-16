@@ -1,5 +1,6 @@
 import { BUILD } from './build.js';
 import { DEFAULT_PLAN, PLANS } from './plans.js';
+import { billingChange, checkoutUrl, verifySignature } from './billing.js';
 import { recognizeCard } from './recognize.js';
 import { COOKIE, clearCookie, getCookie, makeSession, readSession, sessionCookie } from './session.js';
 export { Scanner } from './scanner.js';
@@ -185,6 +186,22 @@ async function scanCard(req, env, user) {
   return json({ scan, engine: result.engine, candidates: found.candidates || [], used: quota.used, limit: quota.limit });
 }
 
+/** Lemon Squeezy: eventi di abbonamento -> piano dell'utente. */
+async function billingWebhook(req, env) {
+  const raw = await req.text();
+  if (!(await verifySignature(env.LS_WEBHOOK_SECRET, raw, req.headers.get('x-signature')))) return json({ error: 'firma non valida' }, 401);
+  let payload;
+  try { payload = JSON.parse(raw); } catch { return json({ error: 'json' }, 400); }
+  const ch = billingChange(env, payload);
+  if (!ch) return json({ ok: true, ignored: true });
+  const user = await registry(env).fetch(`https://reg/user?id=${encodeURIComponent(ch.userId)}`).then((r) => (r.ok ? r.json() : null));
+  if (!user) return json({ ok: true, ignored: 'utente sconosciuto' });
+  if (user.plan === 'owner') return json({ ok: true, ignored: 'owner' });
+  await registry(env).fetch('https://reg/update', { method: 'POST', body: JSON.stringify({ id: user.id, patch: { plan: ch.plan, billing: ch.billing } }) });
+  await scanner(env, user.doName).fetch('https://do.internal/api/_admin', { method: 'POST', body: JSON.stringify({ plan: ch.plan, blocked: false }) }).catch(() => null);
+  return json({ ok: true, plan: ch.plan });
+}
+
 export default {
   async fetch(req, env, ctx) {
     try {
@@ -215,6 +232,8 @@ async function handle(req, env) {
     if (url.pathname === '/api/login' && req.method === 'POST') return login(req, env);
     if (url.pathname === '/api/logout' && req.method === 'POST') return json({ ok: true }, 200, { 'set-cookie': clearCookie() });
 
+    if (url.pathname === '/api/billing/webhook' && req.method === 'POST') return billingWebhook(req, env);
+
     // Le rotte con "_" sono interne (tra Worker e server dati).
     if (url.pathname.startsWith('/api/_')) return json({ error: 'not found' }, 404);
 
@@ -227,6 +246,14 @@ async function handle(req, env) {
     if (url.pathname.startsWith('/api/admin/')) return admin(req, env, url, user);
     if (url.pathname === '/api/scan' && req.method === 'POST') return scanCard(req, env, user);
     if (url.pathname === '/api/account/delete' && req.method === 'POST') return deleteAccount(req, env, user);
+    if (url.pathname === '/api/billing/links') {
+      const link = (v) => checkoutUrl(v, user.id);
+      return json({
+        pro: { monthly: link(env.LS_CHECKOUT_PRO_MONTHLY), yearly: link(env.LS_CHECKOUT_PRO_YEARLY) },
+        sniper: { monthly: link(env.LS_CHECKOUT_SNIPER_MONTHLY), yearly: link(env.LS_CHECKOUT_SNIPER_YEARLY) },
+        billing: user.billing || null,
+      });
+    }
     if (url.pathname === '/api/profile' && req.method === 'POST') {
       const b = await req.json().catch(() => ({}));
       const name = String(b.displayName || '').trim().slice(0, 40);
