@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#9b1c31">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <title>Snipe</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png">
@@ -21,6 +21,7 @@
 <body>
 <div id="login" class="login" hidden>
   <div class="landing">
+    <div class="land-left">
     <header class="hero">
       <div class="reticle"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg></div>
       <div class="logo">Snipe</div>
@@ -43,6 +44,8 @@
       <p class="muted small">Il token resta sul server di Snipe e non viene mai mostrato né condiviso. Puoi revocarlo in qualsiasi momento da CardTrader.</p>
     </form>
 
+    </div>
+    <div class="land-right">
     <ul class="features">
       <li><b>🔔 Alert immediati</b><span>Scegli una carta e un prezzo: quando un annuncio scende sotto, ti arriva una notifica sul telefono.</span></li>
       <li><b>📉 Sconti anomali</b><span>Riconosce gli annunci molto sotto il resto del mercato, anche su un intero set.</span></li>
@@ -56,6 +59,7 @@
       <div id="loginPlans" class="plan-table"></div>
       <p class="muted small">Si parte gratis. Il pagamento online dei piani Pro e Sniper arriverà a breve.</p>
     </section>
+    </div>
 
   </div>
 </div>

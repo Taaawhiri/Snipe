@@ -22,9 +22,9 @@
   --display: 'Fredoka', 'Nunito', system-ui, sans-serif;
   --sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --radius: 18px;
-  color-scheme: light dark;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) {
+@media all {
   :root {
     --bg: #0f1530;
     --surface: #182049;
@@ -120,7 +120,7 @@ details.more[open] > summary { margin-bottom: 10px; }
 .chip { font-size: 12.5px; font-weight: 700; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); border: 2px solid var(--line); color: var(--muted); white-space: nowrap; }
 .chip.cond { color: var(--green); background: var(--green-soft); border-color: transparent; }
 .chip.lang { color: var(--yellow-ink); background: var(--yellow-soft); border-color: transparent; }
-@media (prefers-color-scheme: dark) { .chip.lang { color: var(--yellow); } }
+@media all { .chip.lang { color: var(--yellow); } }
 .chip.zero { color: var(--blue); background: var(--blue-soft); border-color: transparent; }
 .chip.on { color: var(--red); background: var(--red-soft); border-color: transparent; }
 .chip.warn { color: var(--yellow-ink); background: var(--yellow); border-color: transparent; }
@@ -299,7 +299,7 @@ input[type='time'] { min-width: 0; }
 .cmbox .delta.good { color: var(--green); }
 .cmbox .delta.bad { color: var(--bad); }
 .tile .cmpill { position: absolute; right: 8px; bottom: 8px; padding: 3px 9px; border-radius: 999px; background: var(--green); color: #fff; border: 2px solid var(--outline); font: 600 13px var(--display); }
-@media (prefers-color-scheme: dark) { .tile .cmpill { color: #06251a; } }
+@media all { .tile .cmpill { color: #06251a; } }
 .tile .cmtxt { font-size: 12.5px; font-weight: 700; color: var(--blue); }
 .ref .cmtag { font-size: 11px; font-weight: 700; color: var(--blue); text-decoration: none; margin-left: 4px; }
 
@@ -320,7 +320,7 @@ select.open option { padding: 8px 10px; border-radius: 8px; }
 
 /* ================= restyling 2026-10 ================= */
 :root { --shadow-soft: 0 1px 2px rgba(15, 21, 48, 0.08), 0 8px 24px rgba(15, 21, 48, 0.10); --holo: linear-gradient(115deg, transparent 20%, rgba(255, 120, 200, 0.28) 36%, rgba(120, 220, 255, 0.30) 46%, rgba(255, 240, 140, 0.28) 56%, transparent 72%); }
-@media (prefers-color-scheme: dark) { :root { --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45); } }
+@media all { :root { --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45); } }
 
 /* testata: gradiente bordeaux → blu notte con riflesso */
 .top { background: linear-gradient(180deg, #9b1c31 0%, rgba(155, 28, 49, 0.85) 30%, rgba(155, 28, 49, 0) 100%), linear-gradient(110deg, #9b1c31 0%, #9b1c31 30%, #4a1d48 75%, #1b2350 100%); border-bottom: 0; box-shadow: 0 6px 20px rgba(15, 21, 48, 0.35); }
@@ -328,12 +328,12 @@ select.open option { padding: 8px 10px; border-radius: 8px; }
 .brand svg { animation: wobble 6s ease-in-out infinite; transform-origin: 50% 70%; }
 @keyframes wobble { 0%, 86%, 100% { transform: rotate(0); } 89% { transform: rotate(-14deg); } 92% { transform: rotate(12deg); } 95% { transform: rotate(-6deg); } }
 .status { background: rgba(255, 255, 255, 0.92); border-color: transparent; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); color: #1b2340; }
-@media (prefers-color-scheme: dark) { .status { background: rgba(15, 21, 48, 0.75); color: var(--text); backdrop-filter: blur(6px); } }
+@media all { .status { background: rgba(15, 21, 48, 0.75); color: var(--text); backdrop-filter: blur(6px); } }
 
 /* tipografia */
 h1 { font-size: 28px; letter-spacing: -0.01em; }
 .intro h1 { background: linear-gradient(90deg, var(--text), var(--red)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-@media (prefers-color-scheme: dark) { .intro h1 { background-image: linear-gradient(90deg, #fff, var(--yellow)); } }
+@media all { .intro h1 { background-image: linear-gradient(90deg, #fff, var(--yellow)); } }
 
 /* ---------- tessere delle carte ---------- */
 .grid { gap: 18px 14px; }
@@ -429,7 +429,7 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .pt-row > :not(:first-child) { text-align: center; font-weight: 700; }
 .pt-head b { font-family: var(--display); font-size: 14px; }
 .pt-row .cur { color: var(--red); }
-@media (prefers-color-scheme: dark) { .pt-row .cur { color: var(--yellow); } }
+@media all { .pt-row .cur { color: var(--yellow); } }
 #wishFromRules { align-self: flex-start; }
 .usage { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); color: var(--text); }
 .usage-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: 13.5px; }
@@ -443,7 +443,7 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 8px 0 4px; }
 .hero .reticle svg { width: 64px; height: 64px; }
 .hero .logo { font-size: 40px; color: var(--red); text-shadow: none; }
-@media (prefers-color-scheme: dark) { .hero .logo { color: #fff; } }
+@media all { .hero .logo { color: #fff; } }
 .hero .tagline { margin: 0; font-size: 17px; font-weight: 700; color: var(--muted); max-width: 400px; }
 .features { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 10px; }
 .features li { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-soft); }
@@ -451,3 +451,15 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .features span { font-size: 14px; color: var(--muted); font-weight: 600; line-height: 1.4; }
 .login-plans .plan-table { margin-top: 0; }
 .login-card .steps { font-size: 14px; }
+.land-left, .land-right { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+@media (min-width: 900px) {
+  .login { align-items: center; padding: 48px 0; }
+  .landing { width: min(1080px, 100%); display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+  .land-left { position: sticky; top: 48px; }
+  .hero { align-items: flex-start; text-align: left; padding-top: 0; }
+  .hero .logo { font-size: 56px; line-height: 1.1; }
+  .hero .tagline { font-size: 20px; max-width: none; }
+  .hero .reticle svg { width: 76px; height: 76px; }
+  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .features li:last-child { grid-column: 1 / -1; }
+}
