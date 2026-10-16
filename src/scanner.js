@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
-import { DEFAULT_SETTINGS, cleanSettings, isQuiet } from './settings.js';
+import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
@@ -329,9 +329,9 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/latest' && method === 'GET') {
       const alerts = await this.get('alerts', []);
-      const notice = await this.get('notice', null);
-      const a = alerts[0] || null;
-      return json(notice && (!a || notice.ts > a.ts) ? notice : a);
+      // L'ultima cosa da notificare: un avviso, un problema dello scan o il riepilogo del mattino.
+      const items = [alerts[0], await this.get('notice', null), await this.get('summaryNotice', null)].filter(Boolean);
+      return json(items.sort((x, y) => y.ts - x.ts)[0] || null);
     }
 
     if (path === '/api/_version') {
@@ -349,6 +349,7 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/_tick' && method === 'POST') {
+      await this.maybeSummary().catch(() => null);
       const b = await req.json().catch(() => ({}));
       if (b.doName && b.doName !== (await this.get('doName', null))) await this.ctx.storage.put('doName', b.doName);
       if (b.plan && b.plan !== (await this.get('plan', null))) {
@@ -1177,6 +1178,7 @@ export class Scanner extends DurableObject {
       status.indexError = String(e.message || e);
     }
     await this.checkStuck(status);
+    await this.maybeSummary();
     await this.saveStatus(status);
 
     const settings = await this.settings();
@@ -1276,6 +1278,37 @@ export class Scanner extends DurableObject {
         // senza stima l'alert parte comunque
       }
     }
+  }
+
+  /** Riepilogo del mattino (dalle 9, ora italiana): una notifica al giorno, solo se c'è qualcosa da dire. */
+  async maybeSummary() {
+    const settings = await this.settings();
+    if (settings.summary === false || (await this.get('suspended', false))) return;
+    const now = new Date();
+    if (localMinutes(now, settings.tz) < 9 * 60) return;
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: settings.tz || 'Europe/Rome' }).format(now);
+    if ((await this.get('summaryDay', null)) === today) return;
+    await this.ctx.storage.put('summaryDay', today);
+    if (!(await this.get('subs', [])).length) return;
+
+    const since = Date.now() - 86400_000;
+    const recent = (await this.get('alerts', [])).filter((a) => !a.test && a.ts >= since);
+    const best = recent.reduce((b, a) => (!b || a.discount > b.discount ? a : b), null);
+    let dropCents = 0;
+    let dropCards = 0;
+    for (const w of await this.get('wish', [])) {
+      const h = await this.get(`h:${w.id}`, []);
+      if (h.length < 2) continue;
+      const diff = h[h.length - 2].min - h[h.length - 1].min;
+      if (diff > 0) { dropCents += diff; dropCards++; }
+    }
+    if (!recent.length && !dropCards) return;
+    const money = (c) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(c / 100);
+    const parts = [];
+    if (recent.length) parts.push(`${recent.length} ${recent.length === 1 ? 'affare' : 'affari'} nelle ultime 24 ore${best && best.discount >= 0.01 ? `, il migliore −${Math.round(best.discount * 100)}% su ${best.name}` : ''}.`);
+    if (dropCards) parts.push(`${dropCards} ${dropCards === 1 ? 'carta' : 'carte'} della lista dei desideri ${dropCards === 1 ? 'è scesa' : 'sono scese'} di ${money(dropCents)} in totale.`);
+    await this.ctx.storage.put('summaryNotice', { id: `summary:${today}`, ts: Date.now(), kind: 'system', name: 'il riepilogo di oggi', text: parts.join(' ') });
+    await this.notify();
   }
 
   /** Se per 15 minuti CardTrader non dà annunci nuovi mentre ci sono alert attivi, avvisa una volta. */

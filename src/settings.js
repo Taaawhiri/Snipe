@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS = {
   quietTo: '08:00',
   tz: 'Europe/Rome',
   scanEverySec: 10,
+  summary: true, // riepilogo giornaliero alle 9
 };
 
 /** "07:30" -> 450 minuti dalla mezzanotte; null se non è un orario valido. */
@@ -59,5 +60,6 @@ export function cleanSettings(input, old = DEFAULT_SETTINGS) {
     quietTo: pickTime(b.quietTo, old.quietTo),
     tz: typeof b.tz === 'string' && validTz(b.tz) ? b.tz : old.tz,
     scanEverySec: SCAN_CHOICES.includes(scan) ? scan : old.scanEverySec,
+    summary: b.summary === undefined ? old.summary !== false : !!b.summary,
   };
 }

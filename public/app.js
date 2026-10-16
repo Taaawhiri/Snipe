@@ -675,6 +675,7 @@
     if (free('setPaused')) $('setPaused').checked = !!s.paused;
     if (free('setScan')) $('setScan').value = String(s.scanEverySec);
     if (free('setQuiet')) $('setQuiet').checked = !!s.quietEnabled;
+    if (free('setSummary')) $('setSummary').checked = s.summary !== false;
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
@@ -693,6 +694,7 @@
   $('setPaused').addEventListener('change', () => saveSettings({ paused: $('setPaused').checked }));
   $('setScan').addEventListener('change', () => saveSettings({ scanEverySec: Number($('setScan').value) }));
   $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
+  $('setSummary').addEventListener('change', () => saveSettings({ summary: $('setSummary').checked }));
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
   $('setSound').addEventListener('change', () => {
