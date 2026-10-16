@@ -20,6 +20,19 @@ async function secret(env) {
   return cachedSecret;
 }
 
+let cachedOwner = null;
+async function ownerId(env) {
+  const t = String(env.CARDTRADER_TOKEN || '').trim();
+  if (!t) return null;
+  if (cachedOwner && cachedOwner.t === t) return cachedOwner.id;
+  const res = await fetch(`${env.CARDTRADER_API || API}/info`, { headers: { Authorization: `Bearer ${t}`, Accept: 'application/json' } }).catch(() => null);
+  if (!res || !res.ok) return null;
+  const info = await res.json().catch(() => null);
+  if (!info || info.id == null) return null;
+  cachedOwner = { t, id: String(info.id) };
+  return cachedOwner.id;
+}
+
 const json = (d, status = 200, headers = {}) => Response.json(d, { status, headers });
 
 /** Login: il token CardTrader identifica l'utente (GET /info). */
@@ -33,7 +46,8 @@ async function login(req, env) {
   const info = await res.json();
   if (!info || info.id == null) return json({ error: 'Risposta inattesa da CardTrader.' }, 502);
 
-  const owner = !!env.CARDTRADER_TOKEN && env.CARDTRADER_TOKEN.trim() === token;
+  // Proprietario = stesso utente CardTrader del Secret, anche se il token è stato rigenerato o copiato diverso.
+  const owner = (await ownerId(env)) === String(info.id);
   const user = await registry(env)
     .fetch('https://reg/login', { method: 'POST', body: JSON.stringify({ userId: info.id, name: info.name, owner, defaultPlan: DEFAULT_PLAN }) })
     .then((r) => r.json());

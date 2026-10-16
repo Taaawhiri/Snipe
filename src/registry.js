@@ -31,13 +31,15 @@ export class Registry extends DurableObject {
       const users = await this.get('users', {});
       const id = String(userId);
       const prev = users[id];
-      const hasMain = Object.values(users).some((u) => u.doName === 'main');
+      const mainTaken = Object.entries(users).some(([uid, u]) => uid !== id && u.doName === 'main');
       users[id] = {
         name: String(name || '').slice(0, 80),
         created: prev ? prev.created : Date.now(),
         lastLogin: Date.now(),
-        plan: prev ? prev.plan : owner ? 'owner' : defaultPlan,
-        doName: prev ? prev.doName : owner && !hasMain ? 'main' : `u:${id}`,
+        plan: owner ? 'owner' : prev ? prev.plan : defaultPlan,
+        // Il proprietario usa sempre il server dati 'main' (quello dell'account unico di prima),
+        // anche se a un primo accesso non era stato riconosciuto.
+        doName: owner && !mainTaken ? 'main' : prev ? prev.doName : `u:${id}`,
       };
       await this.ctx.storage.put('users', users);
       return json({ id, ...users[id] });
