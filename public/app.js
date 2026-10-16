@@ -607,7 +607,7 @@
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
             el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
             c.expName ? el('div', { class: 'sub', text: c.expName }) : null,
-            c.cm ? el('div', { class: 'cmtxt', text: `Cardmarket ${money(Math.round(c.cm.trend * 100), c.currency)}${$('cardLang').value ? ' (tutte le lingue)' : ''}` }) : null,
+            c.cm ? el('div', { class: 'cmtxt', text: `Cardmarket da ${money(Math.round((c.cm.low ?? c.cm.trend) * 100), c.currency)}${$('cardLang').value ? ' (tutte le lingue)' : ''}` }) : null,
           ),
           ),
         );
