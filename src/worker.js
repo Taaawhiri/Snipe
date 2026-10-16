@@ -1,5 +1,6 @@
 import { BUILD } from './build.js';
 import { DEFAULT_PLAN, PLANS } from './plans.js';
+import { recognizeCard } from './recognize.js';
 import { COOKIE, clearCookie, getCookie, makeSession, readSession, sessionCookie } from './session.js';
 export { Scanner } from './scanner.js';
 export { Registry } from './registry.js';
@@ -128,6 +129,29 @@ async function forward(env, doName, req, headers) {
   return res || json({ error: 'Server dati non raggiungibile: riprova.' }, 503);
 }
 
+/** Scanner: foto della carta -> lettura (nome, numero, lingua) -> carte candidate nell'indice. */
+async function scanCard(req, env, user) {
+  const b = await req.json().catch(() => ({}));
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(String(b.image || ''));
+  if (!m) return json({ error: 'Foto mancante o in un formato non supportato.' }, 400);
+  if (m[2].length > 3_000_000) return json({ error: 'Foto troppo grande.' }, 413);
+  const quota = await scanner(env, user.doName).fetch('https://do.internal/api/_scanquota', { method: 'POST' }).then((r) => r.json());
+  if (!quota.ok) return json({ error: `Hai usato le ${quota.limit} scansioni del mese incluse nel piano ${quota.plan}.`, upgrade: true }, 403);
+  const bin = atob(m[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  let result;
+  try {
+    result = await recognizeCard(env, bytes, m[1]);
+  } catch (e) {
+    return json({ error: `Riconoscimento non riuscito: ${String(e.message || e)}` }, 502);
+  }
+  const scan = result.scan;
+  if (!scan || (!scan.name && !scan.number)) return json({ scan, engine: result.engine, candidates: [], used: quota.used, limit: quota.limit });
+  const found = await scanner(env, 'main').fetch('https://do.internal/api/_identify', { method: 'POST', body: JSON.stringify(scan) }).then((r) => r.json());
+  return json({ scan, engine: result.engine, candidates: found.candidates || [], used: quota.used, limit: quota.limit });
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -150,6 +174,7 @@ export default {
     if (user.blocked) return json({ error: 'Questo account è stato sospeso.' }, 401, { 'set-cookie': clearCookie() });
 
     if (url.pathname.startsWith('/api/admin/')) return admin(req, env, url, user);
+    if (url.pathname === '/api/scan' && req.method === 'POST') return scanCard(req, env, user);
     if (url.pathname === '/api/profile' && req.method === 'POST') {
       const b = await req.json().catch(() => ({}));
       const name = String(b.displayName || '').trim().slice(0, 40);

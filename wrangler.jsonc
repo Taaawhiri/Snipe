@@ -5,6 +5,8 @@
   // Un deploy da Git non cancella le variabili impostate a mano dalla dashboard.
   "keep_vars": true,
   "assets": { "directory": "./public" },
+  // Workers AI: riconoscimento delle carte dalle foto (scanner).
+  "ai": { "binding": "AI" },
   "durable_objects": {
     "bindings": [
       { "name": "SCANNER", "class_name": "Scanner" },

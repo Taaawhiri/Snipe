@@ -92,7 +92,10 @@
         </div>
         <div id="collList" class="list"></div>
         <p class="muted small">Aggiungi le carte dal loro dettaglio con <b>Ce l'ho</b>, oppure in automatico segnando un avviso come <b>Comprato</b>. Il valore usa il prezzo più basso su CardTrader nella lingua e condizione della tua copia, aggiornato ogni ora.</p>
-        <button class="btn primary" type="button" data-go="cards">+ Aggiungi dalla scheda Carte</button>
+        <div class="dlg-actions">
+          <button class="btn act scan-btn" type="button" data-scan>📷 Scansiona</button>
+          <button class="btn act" type="button" data-go="cards">＋ Cerca carta</button>
+        </div>
       </div>
       <div id="alertsView" hidden>
       <div class="ticker">
@@ -126,6 +129,7 @@
           <input id="cardExpFilter" type="search" placeholder="Cerca (es. 151, Obsidian, Paldea)" autocomplete="off">
           <select id="cardExp" size="1"></select>
           <button id="setAlertBtn" class="btn" type="button" hidden>Alert su tutto il set</button>
+          <button class="btn scan-btn" type="button" data-scan>📷 Scansiona una carta</button>
         </div>
         <div class="row">
           <div class="field">
@@ -388,6 +392,22 @@
     </div>
     <p id="ownError" class="error" hidden></p>
     <button id="ownAdd" class="btn primary wide" type="button">Aggiungi alla collezione</button>
+  </div>
+</dialog>
+<input id="scanInput" type="file" accept="image/*" capture="environment" hidden>
+<dialog id="scanDialog" class="sheet" aria-labelledby="scanTitle">
+  <form method="dialog" class="sheet-head">
+    <h2 id="scanTitle">Scansione</h2>
+    <button class="btn" aria-label="Chiudi">Chiudi</button>
+  </form>
+  <div class="sheet-body scan-sheet">
+    <div class="scan-top">
+      <img id="scanPhoto" alt="" width="96" height="134">
+      <div id="scanRead" class="scan-read"></div>
+    </div>
+    <p id="scanMsg" class="muted small"></p>
+    <div id="scanList" class="list"></div>
+    <button class="btn primary wide" type="button" data-scan>📷 Scansiona un'altra carta</button>
   </div>
 </dialog>
 <dialog id="sellerDialog" class="sheet" aria-labelledby="slTitle">

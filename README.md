@@ -34,6 +34,15 @@ Gli alert su una carta valutano subito anche gli annunci già in vendita, poi av
 3. **Secret** (facoltativo, Workers → snipe → Settings → Variables and Secrets, tipo Secret): `CARDTRADER_TOKEN` con il token del proprietario. Chi accede con quello stesso token ritrova i dati del vecchio account unico e ha il piano "Proprietario".
 4. Apri l'URL `*.workers.dev` e accedi con il tuo token API di CardTrader. Ogni utente accede con il proprio token: ha alert, lista dei desideri, storico e notifiche separati, e consuma il limite di richieste del suo token.
 
+## Scanner delle carte
+
+Il pulsante "Scansiona" fotografa una carta: il Worker la manda al riconoscimento, che restituisce nome (in inglese), numero, codice del set e lingua; poi `src/cardid.js` cerca le carte corrispondenti nell'indice. Il motore si sceglie con la variabile `SCAN_PROVIDER` del Worker:
+
+- `workers-ai` (predefinito): Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`), nessuna chiave esterna.
+- `claude`: Claude Haiku 5.5, con Claude Opus 5.5 di riserva quando Haiku non è sicuro. Serve il Secret `ANTHROPIC_API_KEY`; `SCAN_CLAUDE_MODEL` cambia il modello principale, `SCAN_CLAUDE_FALLBACK=off` toglie la riserva.
+
+Scansioni al mese per piano: Gratuito 5, Pro 200, Sniper 1000.
+
 ## Lingue
 
 L'interfaccia è in italiano; `public/i18n.js` la traduce in inglese al volo (scelta in Opzioni o sulla pagina di accesso, predefinita in base alla lingua del browser). Per una frase nuova basta aggiungerla al dizionario in quel file. Notifiche push e pagine legali restano in italiano.

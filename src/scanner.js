@@ -7,6 +7,7 @@ import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
 import { dealsFromProducts } from './daydeals.js';
 import { collKey, priceFor, summarize } from './collection.js';
+import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
@@ -196,6 +197,33 @@ export class Scanner extends DurableObject {
     this.ctx.waitUntil(
       this.catalog().fetch('https://do.internal/api/_pop', { method: 'POST', body: JSON.stringify({ id, weight }) }).catch(() => null),
     );
+  }
+
+  // ---------- Scanner: dalla lettura della foto alle carte dell'indice ----------
+
+  async identify(scan) {
+    if (!scan || (!scan.name && !scan.number)) return { candidates: [] };
+    const meta = await this.indexMeta();
+    const exps = await this.pokemonExpansions().catch(() => []);
+    const byId = new Map(exps.map((e) => [e.id, e]));
+    const best = [];
+    for (let i = 0; i < meta.have.length; i += 100) {
+      const ids = meta.have.slice(i, i + 100);
+      const got = await this.ctx.storage.get(ids.map((id) => `ix:${id}`));
+      for (const [key, rows] of got) {
+        const expId = parseInt(key.slice(3), 10);
+        const e = byId.get(expId) || {};
+        for (const r of rows) {
+          const score = scoreRow(r, scan, e.code);
+          if (score < 5) continue; // almeno il nome completo + qualcosa, o il numero esatto + qualcosa
+          best.push({ score, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
+        }
+      }
+    }
+    // A parità di punteggio: le espansioni giapponesi se la carta è giapponese, poi le più recenti.
+    const jpSet = (c) => /japan|jp\b|\bjp|s\d|sv\d+[a-z]?$|30th/i.test(`${c.expName} ${c.expCode}`);
+    best.sort((a, b) => b.score - a.score || (scan.language === 'jp' ? jpSet(b) - jpSet(a) : jpSet(a) - jpSet(b)) || b.expansionId - a.expansionId);
+    return { candidates: best.slice(0, 8), indexComplete: !!meta.complete };
   }
 
   // ---------- Collezione ----------
@@ -434,6 +462,22 @@ export class Scanner extends DurableObject {
       pop.s[id] = (pop.s[id] || 0) + Math.min(5, Math.max(0, Number(weight) || 1));
       await this.ctx.storage.put('pop', pop);
       return json({ ok: true });
+    }
+
+    if (path === '/api/_identify' && method === 'POST') {
+      return json(await this.identify(await req.json()));
+    }
+
+    if (path === '/api/_scanquota' && method === 'POST') {
+      // Scansioni del mese: { check: true } controlla e conta una scansione.
+      const plan = await this.plan();
+      const month = new Date().toISOString().slice(0, 7);
+      const q = await this.get('scanQuota', { month, used: 0 });
+      if (q.month !== month) Object.assign(q, { month, used: 0 });
+      if (q.used >= plan.maxScans) return json({ ok: false, used: q.used, limit: plan.maxScans, plan: plan.label });
+      q.used++;
+      await this.ctx.storage.put('scanQuota', q);
+      return json({ ok: true, used: q.used, limit: plan.maxScans });
     }
 
     if (path === '/api/_catinfo') return json(await this.catalogInfo(await this.status()));
