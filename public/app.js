@@ -268,6 +268,12 @@
       kvRow('Versione', sys.build || '—'),
     ];
     if (sys.indexError) rows.push(kvRow('Errore indice', sys.indexError, 'bad'));
+    if (sys.market) {
+      const m = sys.market;
+      rows.push(kvRow('Ritmo richieste CardTrader', `una ogni ${(m.gapMs / 1000).toFixed(1)} s · ${m.tokens} pronte`));
+      const last = (m.recent429 || []).slice().reverse();
+      rows.push(kvRow('Ultimi 429', last.length ? last.map((x) => `${hhmmss(x.ts)} ${x.path.includes('blueprint_id') ? 'carta' : 'espansione'}`).join(', ') : 'nessuno', last.length ? 'bad' : ''));
+    }
     $('sysList').replaceChildren(...rows);
     const bar = $('indexBar');
     bar.hidden = !idx || idx.complete;
