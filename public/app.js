@@ -461,7 +461,8 @@
             ),
             a.test ? null : el('div', { class: 'prices' },
               el('span', { class: 'price', text: money(a.cents, a.currency) }),
-              el('span', { class: 'ref' }, money(a.refCents, a.currency), a.refKind === 'cardmarket' ? el('span', { class: 'cmtag', text: 'Cardmarket' }) : null),
+              a.refKind === 'stock' ? el('span', { class: 'chip zero', text: 'Di nuovo disponibile' })
+              : el('span', { class: 'ref' }, money(a.refCents, a.currency), a.refKind === 'cardmarket' ? el('span', { class: 'cmtag', text: 'Cardmarket' }) : a.refKind === 'drop' ? el('span', { class: 'cmtag', text: '7 giorni fa' }) : null),
             ),
             a.test ? null : el('div', { class: 'ship', text: a.zero
               ? 'Spedizione con CardTrader Zero: una sola per tutto l’ordine'
@@ -470,7 +471,7 @@
                 : 'Spedizione non stimata' }),
           ),
           el('div', { class: 'side' },
-            a.test ? chip('prova') : a.discount >= 0.01 ? el('span', { class: `badge ${lv}`, text: `−${Math.round(a.discount * 100)}%` }) : chip('Sotto soglia', 'zero'),
+            a.test ? chip('prova') : a.refKind === 'stock' ? chip('Disponibile', 'cond') : a.discount >= 0.01 ? el('span', { class: `badge ${lv}`, text: `−${Math.round(a.discount * 100)}%` }) : chip('Sotto soglia', 'zero'),
             el('span', { class: 'when', text: ago(a.ts) }),
             a.test ? null : el('span', { class: 'go', text: 'CardTrader ↗' }),
           ),
@@ -513,7 +514,7 @@
               r.cardName ? el('div', { class: 'e', text: r.expansionName || '' }) : null,
             ),
             el('div', { class: 'chips' },
-              chip(r.cmDiscount ? `Cardmarket −${r.cmDiscount}%` : r.maxPriceCents ? `Sotto ${money(r.maxPriceCents)}` : `Sconto da ${r.minDiscount}%`, 'on'),
+              chip(r.dropPct ? `Calo −${r.dropPct}% in 7 giorni` : r.stock ? 'Torna disponibile' : r.cmDiscount ? `Cardmarket −${r.cmDiscount}%` : r.maxPriceCents ? `Sotto ${money(r.maxPriceCents)}` : `Sconto da ${r.minDiscount}%`, 'on'),
               r.nameContains ? chip(`“${r.nameContains}”`) : null,
               chip(r.minCondition || 'Qualsiasi condizione', 'cond'),
               chip(r.language ? r.language.toUpperCase() : 'Tutte le lingue', 'lang'),
@@ -719,6 +720,8 @@
     $('edPrice').hidden = mode !== 'price';
     $('edPercent').hidden = mode !== 'percent';
     $('edCm').hidden = mode !== 'cm';
+    $('edDrop').hidden = mode !== 'drop';
+    $('edStock').hidden = mode !== 'stock';
   }
 
   // Alert su un intero set: stesso modulo della modifica, con valori di partenza prudenti.
@@ -746,8 +749,11 @@
     const legacy = !r.blueprintId;
     $('edTitle').textContent = r.cardName || r.expansionName || 'Modifica alert';
     $('edSub').textContent = r.cardName ? r.expansionName || '' : 'Alert su tutta l’espansione';
-    const mode = r.cmDiscount ? 'cm' : r.maxPriceCents ? 'price' : 'percent';
+    const mode = r.cmDiscount ? 'cm' : r.dropPct ? 'drop' : r.stock ? 'stock' : r.maxPriceCents ? 'price' : 'percent';
     document.querySelector(`input[name="emode"][value="${mode}"]`).checked = true;
+    document.querySelectorAll('#editDialog .card-only').forEach((x) => (x.hidden = legacy));
+    $('edDropPct').value = r.dropPct || 15;
+    $('edDropLabel').textContent = `${$('edDropPct').value}%`;
     $('emodeCmLabel').hidden = !(r.cmId || r.cmDiscount);
     $('edCmPct').value = r.cmDiscount || 20;
     $('edCmLabel').textContent = `${$('edCmPct').value}%`;
@@ -770,6 +776,8 @@
   );
   $('edCmPct').addEventListener('input', () => ($('edCmLabel').textContent = `${$('edCmPct').value}%`));
   $('edPct').addEventListener('input', () => ($('edPctLabel').textContent = `${$('edPct').value}%`));
+  $('edDropPct').addEventListener('input', () => ($('edDropLabel').textContent = `${$('edDropPct').value}%`));
+  $('alertDrop').addEventListener('input', () => ($('alertDropLabel').textContent = `${$('alertDrop').value}%`));
 
   $('editForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -795,6 +803,10 @@
     if (emode === 'cm') {
       body.cmDiscount = Number($('edCmPct').value);
       body.cmId = editing.cmId;
+    } else if (emode === 'drop') {
+      body.dropPct = Number($('edDropPct').value);
+    } else if (emode === 'stock') {
+      body.stock = true;
     } else if (!pct) {
       const v = Number($('edMax').value);
       if (!(v > 0)) { $('edError').textContent = 'Inserisci un prezzo maggiore di zero.'; $('edError').hidden = false; return; }
@@ -1195,6 +1207,8 @@
     $('amodePrice').hidden = false;
     $('amodePercent').hidden = true;
     $('amodeCm').hidden = true;
+    $('amodeDrop').hidden = true;
+    $('amodeStock').hidden = true;
     const low = v.lowest;
     const base = low == null ? '' : (Math.floor((low * 0.8) / 50) * 0.5).toFixed(2);
     $('alertMax').value = base && Number(base) > 0 ? base : low == null ? '' : (low / 100).toFixed(2);
@@ -1227,6 +1241,8 @@
       $('amodePrice').hidden = mode !== 'price';
       $('amodePercent').hidden = mode !== 'percent';
       $('amodeCm').hidden = mode !== 'cm';
+      $('amodeDrop').hidden = mode !== 'drop';
+      $('amodeStock').hidden = mode !== 'stock';
     }),
   );
   $('alertCmPct').addEventListener('input', updateCmHint);
@@ -1254,7 +1270,9 @@
       if (!current.cmId) { $('alertError').textContent = 'Per questa carta non c’è un riferimento Cardmarket.'; $('alertError').hidden = false; return; }
       body.cmDiscount = Number($('alertCmPct').value);
       body.cmId = current.cmId;
-    } else if (pct) body.minDiscount = Number($('alertPct').value);
+    } else if (mode === 'drop') body.dropPct = Number($('alertDrop').value);
+    else if (mode === 'stock') body.stock = true;
+    else if (pct) body.minDiscount = Number($('alertPct').value);
     else {
       const v = Number($('alertMax').value);
       if (!(v > 0)) { $('alertError').textContent = 'Inserisci un prezzo maggiore di zero.'; $('alertError').hidden = false; return; }

@@ -314,6 +314,15 @@
       <label><input type="radio" name="emode" value="price"> Sotto un prezzo</label>
       <label><input type="radio" name="emode" value="percent"> Sconto in %</label>
       <label id="emodeCmLabel" hidden><input type="radio" name="emode" value="cm"> Sotto Cardmarket</label>
+      <label class="card-only"><input type="radio" name="emode" value="drop"> Calo di prezzo</label>
+      <label class="card-only"><input type="radio" name="emode" value="stock"> Torna disponibile</label>
+    </div>
+    <div id="edDrop" hidden>
+      <label for="edDropPct">Almeno <b id="edDropLabel">15%</b> sotto il prezzo di 7 giorni fa</label>
+      <input id="edDropPct" type="range" min="5" max="60" step="5" value="15">
+    </div>
+    <div id="edStock" hidden>
+      <p class="muted small">Avviso quando la carta torna ad avere almeno un annuncio con questi filtri.</p>
     </div>
     <div id="edPrice">
       <label for="edMax">Avvisami se costa meno di (€)</label>
@@ -402,6 +411,16 @@
         <label><input type="radio" name="amode" value="price" checked> Sotto un prezzo</label>
         <label><input type="radio" name="amode" value="percent"> Sconto in %</label>
         <label id="amodeCmLabel" hidden><input type="radio" name="amode" value="cm"> Sotto Cardmarket</label>
+        <label><input type="radio" name="amode" value="drop"> Calo di prezzo</label>
+        <label><input type="radio" name="amode" value="stock"> Torna disponibile</label>
+      </div>
+      <div id="amodeDrop" hidden>
+        <label for="alertDrop">Avvisami se il prezzo più basso scende di almeno <b id="alertDropLabel">15%</b> rispetto a 7 giorni fa</label>
+        <input id="alertDrop" type="range" min="5" max="60" step="5" value="15">
+        <p class="muted small">Usa lo storico prezzi: parte dopo 3 giorni di dati sulla carta.</p>
+      </div>
+      <div id="amodeStock" hidden>
+        <p class="muted small">Ti avviso quando la carta passa da nessun annuncio (con i filtri qui sotto) ad almeno uno, a qualunque prezzo.</p>
       </div>
       <div id="amodePrice">
         <label for="alertMax">Avvisami se costa meno di (€)</label>

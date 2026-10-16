@@ -3,7 +3,7 @@ import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, list
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
-import { addPoint } from './history.js';
+import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet } from './settings.js';
@@ -55,7 +55,8 @@ export class Scanner extends DurableObject {
   histAt = new Map(); // carta -> ultima scrittura dello storico (al massimo ogni 30 minuti)
   bpCache = new Map(); // carta -> { ts, data }: tutti gli annunci di una carta (la lettura per espansione ne dà solo i più economici)
   cmCache = new Map();
-  cmRemote = new Map(); // prezzi Cardmarket chiesti al catalogo condiviso
+  cmRemote = new Map();
+  stockState = new Map(); // alert "torna disponibile": quanti annunci adatti c'erano al giro precedente // prezzi Cardmarket chiesti al catalogo condiviso
   cmFailedAt = 0;
   queue = Promise.resolve();
   lastCall = 0;
@@ -633,7 +634,7 @@ export class Scanner extends DurableObject {
         const old = rules[i];
         rules[i] = rule;
         // Se cambiano i criteri, gli annunci già visti vanno rivalutati con i criteri nuovi.
-        const keys = ['maxPriceCents', 'minDiscount', 'minPriceCents', 'zero', 'language', 'minCondition', 'nameContains'];
+        const keys = ['dropPct', 'stock', 'maxPriceCents', 'minDiscount', 'minPriceCents', 'zero', 'language', 'minCondition', 'nameContains'];
         if (keys.some((k) => old[k] !== rule[k])) await this.resetRuleMemory(rule.id);
       } else rules.push(rule);
       await this.ctx.storage.put('rules', rules);
@@ -733,6 +734,9 @@ export class Scanner extends DurableObject {
     const cmDiscount = Number(b.cmDiscount);
     const cmId = parseInt(b.cmId, 10);
     const cm = Number.isFinite(cmDiscount) && cmDiscount > 0 && Number.isInteger(cmId) && cmId > 0;
+    const dropPct = Number(b.dropPct);
+    const drop = !cm && Number.isFinite(dropPct) && dropPct > 0 && Number.isInteger(blueprintId) && blueprintId > 0;
+    const stock = !cm && !drop && b.stock === true && Number.isInteger(blueprintId) && blueprintId > 0;
     return {
       id: typeof b.id === 'string' && b.id ? b.id.slice(0, 64) : crypto.randomUUID(),
       expansionId,
@@ -742,10 +746,14 @@ export class Scanner extends DurableObject {
       cardImage: /^https:\/\//.test(b.cardImage || '') ? String(b.cardImage).slice(0, 300) : null,
       nameContains: String(b.nameContains || '').trim().slice(0, 60),
       // Se presente, l'alert scatta per prezzo assoluto e lo sconto percentuale non conta.
-      maxPriceCents: !cm && Number.isFinite(maxPrice) && maxPrice > 0 ? Math.round(clamp(maxPrice, 0.01, 100000, 1) * 100) : null,
+      maxPriceCents: !cm && !drop && !stock && Number.isFinite(maxPrice) && maxPrice > 0 ? Math.round(clamp(maxPrice, 0.01, 100000, 1) * 100) : null,
       // Alert "almeno X% sotto la tendenza Cardmarket": la soglia in euro si calcola a ogni controllo.
       cmDiscount: cm ? clamp(cmDiscount, 5, 90, 20) : null,
       cmId: cm ? cmId : null,
+      // Alert "calo di prezzo": scatta se il prezzo più basso scende di dropPct% rispetto a 7 giorni prima.
+      dropPct: drop ? clamp(dropPct, 5, 80, 15) : null,
+      // Alert "torna disponibile": scatta quando la carta passa da nessun annuncio adatto ad almeno uno.
+      stock,
       zero: b.zero === 'only' || b.zero === 'exclude' ? b.zero : '',
       minDiscount: clamp(Number(b.minDiscount), 5, 90, 30),
       minPriceCents: Math.round(clamp(Number(b.minPrice), 0, 100000, 5) * 100),
@@ -1257,9 +1265,27 @@ export class Scanner extends DurableObject {
       }
       const data = this.dataForRule(rule);
       if (!data) continue; // nessun dato ancora: arriverà a uno dei prossimi giri
-      const deals = findDeals(data, evalRule).map((d) =>
-        cmRef ? { ...d, refCents: Math.round(cmRef * 100), discount: Math.max(0, 1 - d.cents / (cmRef * 100)) } : d,
-      );
+      let refKind = cmRef ? 'cardmarket' : null;
+      let dropRef = null;
+      if (rule.dropPct) {
+        dropRef = refWeekAgo(await this.get(`h:${rule.blueprintId}`, []));
+        if (!dropRef) continue; // servono almeno 3 giorni di storico
+        evalRule = { ...rule, maxPriceCents: Math.floor(dropRef * (1 - rule.dropPct / 100)) };
+        refKind = 'drop';
+      }
+      let deals;
+      if (rule.stock) {
+        const list = (data[rule.blueprintId] || data[String(rule.blueprintId)] || []).filter((p) => !rejectReasons(p, rule).length).sort((a, b) => a.price.cents - b.price.cents);
+        const prev = this.stockState.get(rule.id);
+        this.stockState.set(rule.id, list.length);
+        deals = prev === 0 && list.length ? [{ product: list[0], cents: list[0].price.cents, refCents: null, discount: 0 }] : [];
+        refKind = 'stock';
+      } else {
+        deals = findDeals(data, evalRule).map((d) =>
+          cmRef ? { ...d, refCents: Math.round(cmRef * 100), discount: Math.max(0, 1 - d.cents / (cmRef * 100)) }
+          : dropRef ? { ...d, refCents: dropRef, discount: Math.max(0, 1 - d.cents / dropRef) } : d,
+        );
+      }
       // Gli alert su una carta valutano subito anche gli annunci già in vendita. Solo le vecchie regole
       // su un'intera espansione, che potrebbero produrre decine di alert, alla prima scansione
       // memorizzano soltanto ciò che c'è.
@@ -1283,7 +1309,7 @@ export class Scanner extends DurableObject {
           refCents: d.refCents,
           currency: p.price.currency || 'EUR',
           discount: d.discount,
-          refKind: cmRef ? 'cardmarket' : null,
+          refKind,
           seller: p.user && p.user.username,
           country: p.user && p.user.country_code,
           zero: isZero(p),

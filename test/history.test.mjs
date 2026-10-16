@@ -13,3 +13,13 @@ test('un punto al giorno con il minimo visto', () => {
   assert.equal(h.length, 2);
   assert.deepEqual(h[1], { d: '2026-10-18', min: 600, zero: null, n: 1 });
 });
+
+import { refWeekAgo } from '../src/history.js';
+
+test('riferimento di 7 giorni fa', () => {
+  const now = Date.parse('2026-10-20T10:00:00Z');
+  const h = [{ d: '2026-10-10', min: 900 }, { d: '2026-10-13', min: 1000 }, { d: '2026-10-15', min: 800 }, { d: '2026-10-20', min: 700 }];
+  assert.equal(refWeekAgo(h, now), 1000);
+  assert.equal(refWeekAgo(h.slice(2), now), null); // meno di 3 giorni
+  assert.equal(refWeekAgo([{ d: '2026-10-17', min: 5 }, { d: '2026-10-18', min: 6 }, { d: '2026-10-19', min: 7 }], now), 5); // il più vecchio
+});

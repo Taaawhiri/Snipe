@@ -29,3 +29,13 @@ export function addPoint(hist, products, ts = Date.now()) {
   }
   return out.slice(-HISTORY_DAYS);
 }
+
+/** Prezzo più basso di circa 7 giorni fa (o il più vecchio disponibile, con almeno 3 giorni di storico). */
+export function refWeekAgo(hist, now = Date.now()) {
+  if (!Array.isArray(hist) || hist.length < 3) return null;
+  const target = dayKey(now - 7 * 86400_000);
+  const past = hist.filter((p) => p.d <= target);
+  const pick = past.length ? past[past.length - 1] : hist[0];
+  if (pick.d === dayKey(now)) return null;
+  return pick.min;
+}
