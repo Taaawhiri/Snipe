@@ -156,6 +156,18 @@
     </section>
 
     <section id="tab-settings" class="tab" hidden>
+      <div id="planPanel" class="panel">
+        <div class="panel-head">
+          <h2>Il tuo piano</h2>
+          <span id="planBadge" class="state">—</span>
+        </div>
+        <div id="planUsage" class="kv"></div>
+        <details class="more">
+          <summary>Confronta i piani</summary>
+          <div id="planTable" class="plan-table"></div>
+          <p class="muted small">Il pagamento online arriverà a breve. Gli account creati prima dei piani restano Pro gratis fino ad allora.</p>
+        </details>
+      </div>
       <div class="panel">
         <div class="panel-head">
           <h2>Stato</h2>
@@ -179,6 +191,7 @@
             <option value="20">20 secondi</option>
             <option value="30">30 secondi</option>
             <option value="60">60 secondi</option>
+            <option value="300">5 minuti</option>
           </select>
           <p class="muted small">Più è lungo l'intervallo, meno richieste fai a CardTrader. Con tanti alert conviene 20 o 30 secondi.</p>
         </div>

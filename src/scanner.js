@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
-import { planOf } from './plans.js';
+import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint } from './history.js';
 import { pickDue, pickData } from './sources.js';
@@ -285,6 +285,11 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/_tick' && method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      if (b.plan && b.plan !== (await this.get('plan', null))) {
+        await this.ctx.storage.put('plan', b.plan);
+        this.planCache = null;
+      }
       await this.ensureAlarm();
       return json({ ok: true });
     }
@@ -301,6 +306,7 @@ export class Scanner extends DurableObject {
         alerts: alerts.slice(0, 60),
         status,
         pushDevices: subs.length,
+        outOfPlan: ((inPlan) => rules.filter((r) => r.enabled && !inPlan.has(r.id)).map((r) => r.id))(rulesInPlan(rules, await this.plan())),
         account: { name: ((await this.get('account', null)) || {}).name || decodeURIComponent(req.headers.get('x-user-name') || ''), plan: await this.plan() },
         bought: await this.get('bought', []),
         settings: await this.settings(),
@@ -479,7 +485,8 @@ export class Scanner extends DurableObject {
     if (path === '/api/history' && method === 'GET') {
       const id = parseInt(url.searchParams.get('blueprint_id'), 10);
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
-      return json(await this.get(`h:${id}`, []));
+      const days = (await this.plan()).historyDays;
+      return json((await this.get(`h:${id}`, [])).slice(-days));
     }
 
     if (path === '/api/wish' && method === 'GET') {
@@ -492,6 +499,8 @@ export class Scanner extends DurableObject {
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'id mancante' }, 400);
       let wish = (await this.get('wish', [])).filter((w) => w.id !== id);
       if (b.remove !== true) {
+        const plan = await this.plan();
+        if (wish.length >= plan.maxWish) return json({ error: `Il piano ${plan.label} include ${plan.maxWish} carte nella lista dei desideri.`, upgrade: true }, 403);
         wish = [{
           id,
           name: String(b.name || '').slice(0, 120),
@@ -556,16 +565,20 @@ export class Scanner extends DurableObject {
       if (!rule) return json({ error: 'Regola non valida' }, 400);
       const plan = await this.plan();
       if (!plan.priority) rule.priority = false;
-      if (!rule.blueprintId && !plan.setAlerts && !rules.some((r) => r.id === rule.id)) return json({ error: `Gli alert su un intero set non sono inclusi nel piano ${plan.label}.` }, 403);
       const i = rules.findIndex((r) => r.id === rule.id);
+      if (i < 0) {
+        const cards = rules.filter((r) => r.blueprintId).length;
+        const sets = rules.length - cards;
+        if (rule.blueprintId && cards >= plan.maxRules) return json({ error: `Il piano ${plan.label} include ${plan.maxRules} alert su una carta: passa a un piano superiore per aggiungerne altri.`, upgrade: true }, 403);
+        if (!rule.blueprintId && sets >= plan.maxSetRules) return json({ error: plan.maxSetRules ? `Il piano ${plan.label} include ${plan.maxSetRules} alert su un set.` : `Gli alert su tutto un set sono inclusi nei piani Pro e Sniper.`, upgrade: true }, 403);
+      }
       if (i >= 0) {
         const old = rules[i];
         rules[i] = rule;
         // Se cambiano i criteri, gli annunci già visti vanno rivalutati con i criteri nuovi.
         const keys = ['maxPriceCents', 'minDiscount', 'minPriceCents', 'zero', 'language', 'minCondition', 'nameContains'];
         if (keys.some((k) => old[k] !== rule[k])) await this.resetRuleMemory(rule.id);
-      } else if (rules.length >= plan.maxRules) return json({ error: `Il piano ${plan.label} permette al massimo ${plan.maxRules} alert.` }, 403);
-      else rules.push(rule);
+      } else rules.push(rule);
       await this.ctx.storage.put('rules', rules);
       await this.ensureAlarm();
       return json(rule);
@@ -1021,7 +1034,8 @@ export class Scanner extends DurableObject {
     const settings = await this.settings();
     const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
     if (scanning || (await this.indexPending()) || (await this.cmDue())) {
-      const every = scanning ? settings.scanEverySec * 1000 : SCAN_EVERY_MS;
+      // La frequenza scelta in Impostazioni, ma mai più veloce di quella del piano.
+      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : SCAN_EVERY_MS;
       await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
     }
   }
@@ -1137,7 +1151,11 @@ export class Scanner extends DurableObject {
     if (await this.get('suspended', false)) return;
     if (!(await this.token())) throw new Error('Token CardTrader mancante: esci e rientra');
     if ((await this.settings()).paused) return;
-    const rules = (await this.get('rules', [])).filter((r) => r.enabled);
+    const all = await this.get('rules', []);
+    const plan = await this.plan();
+    const inPlan = rulesInPlan(all, plan);
+    // Il piano decide quanti alert si controllano; senza stella prioritaria nei piani che non la includono.
+    const rules = all.filter((r) => inPlan.has(r.id)).map((r) => (plan.priority ? r : { ...r, priority: false }));
     const baselined = new Set(await this.get('baselined', []));
     const seen = await this.get('seen', {});
     const fresh = [];
@@ -1206,7 +1224,7 @@ export class Scanner extends DurableObject {
     status.scans = (status.scans || 0) + 1;
 
     if (fresh.length) {
-      await this.addShipping(fresh);
+      if ((await this.plan()).shipping) await this.addShipping(fresh);
       const alerts = await this.get('alerts', []);
       await this.ctx.storage.put('alerts', [...fresh.sort((a, b) => b.discount - a.discount), ...alerts].slice(0, MAX_ALERTS));
       await this.notify();

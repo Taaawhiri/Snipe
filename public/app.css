@@ -421,3 +421,12 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .admin-user .plan-sel { width: auto; min-height: 38px; flex: none; font-size: 14px; }
 .admin-user .row-btn { justify-content: flex-end; }
 .btn.mini.danger { color: var(--bad); }
+
+/* ---------- piani ---------- */
+.plan-table { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; font-size: 13px; }
+.pt-row { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 6px; align-items: center; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+.pt-row > span:first-child { color: var(--muted); font-weight: 700; }
+.pt-row > :not(:first-child) { text-align: center; font-weight: 700; }
+.pt-head b { font-family: var(--display); font-size: 14px; }
+.pt-row .cur { color: var(--red); }
+@media (prefers-color-scheme: dark) { .pt-row .cur { color: var(--yellow); } }

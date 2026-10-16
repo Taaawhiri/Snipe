@@ -38,7 +38,18 @@ Gli alert su una carta valutano subito anche gli annunci già in vendita, poi av
 
 - L'accesso è un cookie di sessione firmato. Il token CardTrader resta nel server dati dell'utente e non torna mai al telefono.
 - `src/registry.js` tiene l'elenco degli utenti, il loro piano e la chiave che firma le sessioni.
-- `src/plans.js` definisce i piani (`free`, `pro`, `owner`) e cosa include ciascuno. Per ora il piano gratuito include tutto: per mettere a pagamento una funzione basta toglierla da `free`.
+- `src/plans.js` definisce i piani e cosa include ciascuno:
+
+  | | Gratuito | Pro (4,99 €/mese, 39 €/anno) | Sniper (9,99 €/mese, 79 €/anno) |
+  | --- | --- | --- | --- |
+  | Alert su una carta | 3 | 30 | 100 |
+  | Alert su un set | — | 1 | illimitati |
+  | Lista dei desideri | 10 | 200 | illimitata |
+  | Velocità degli alert | 5 min | 30 s | 10 s |
+  | Storico prezzi | 7 giorni | 120 giorni | 120 giorni |
+  | Spedizione nell'avviso, stella priorità | — | ✓ | ✓ |
+
+  I nuovi account partono Gratuito. Gli account creati prima dei piani sono passati a Pro gratis. Il piano si cambia dalla sezione Utenti in Impostazioni (solo il proprietario); il pagamento online non è ancora collegato.
 
 Da qui ogni push su `main` va in produzione da solo.
 

@@ -131,9 +131,9 @@ export default {
     ctx.waitUntil(
       (async () => {
         const users = await registry(env).fetch('https://reg/users').then((r) => r.json()).catch(() => []);
-        const names = new Set(users.map((u) => u.doName));
-        if (!names.size) names.add('main');
-        await Promise.all([...names].map((n) => scanner(env, n).fetch('https://do.internal/api/_tick', { method: 'POST' }).catch(() => null)));
+        const list = users.length ? users : [{ doName: 'main', plan: '' }];
+        // Con il tick arriva anche il piano aggiornato, così gli scan in background lo rispettano.
+        await Promise.all(list.map((u) => scanner(env, u.doName).fetch('https://do.internal/api/_tick', { method: 'POST', body: JSON.stringify({ plan: u.blocked ? '' : u.plan, blocked: !!u.blocked }) }).catch(() => null)));
       })(),
     );
   },

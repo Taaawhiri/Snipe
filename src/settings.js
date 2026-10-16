@@ -1,6 +1,6 @@
 // Impostazioni condivise tra i dispositivi e logica degli orari silenziosi (pura, testabile).
 
-export const SCAN_CHOICES = [10, 20, 30, 60];
+export const SCAN_CHOICES = [10, 20, 30, 60, 300];
 
 export const DEFAULT_SETTINGS = {
   paused: false,

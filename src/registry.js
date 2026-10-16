@@ -24,6 +24,13 @@ export class Registry extends DurableObject {
     const url = new URL(req.url);
     const json = (d, status = 200) => Response.json(d, { status });
 
+    // Arrivo dei piani: chi aveva già un account resta Pro gratis finché il pagamento non è attivo.
+    if (!(await this.get('plansV1', false))) {
+      const users = await this.get('users', {});
+      for (const u of Object.values(users)) if (u.plan === 'free') u.plan = 'pro';
+      await this.ctx.storage.put({ users, plansV1: true });
+    }
+
     if (url.pathname === '/secret') return json({ secret: await this.secret() });
 
     if (url.pathname === '/login' && req.method === 'POST') {

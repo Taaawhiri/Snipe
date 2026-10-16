@@ -254,6 +254,48 @@
     );
   }
 
+  // ---------- piano ----------
+  const PLAN_ROWS = [
+    ['Alert su una carta', (p) => p.maxRules],
+    ['Alert su tutto un set', (p) => (p.maxSetRules >= p.unlimited ? 'illimitati' : p.maxSetRules || '—')],
+    ['Lista dei desideri', (p) => (p.maxWish >= p.unlimited ? 'illimitata' : `${p.maxWish} carte`)],
+    ['Velocità degli alert', (p) => (p.scanSec >= 60 ? `ogni ${p.scanSec / 60} min` : `ogni ${p.scanSec} s`)],
+    ['Storico prezzi', (p) => `${p.historyDays} giorni`],
+    ['Spedizione nell’avviso', (p) => (p.shipping ? '✓' : '—')],
+    ['Stella priorità', (p) => (p.priority ? '✓' : '—')],
+  ];
+  const PLAN_INFO = {
+    free: { label: 'Gratuito', price: '0 €', maxRules: 3, maxSetRules: 0, maxWish: 10, scanSec: 300, historyDays: 7, shipping: false, priority: false },
+    pro: { label: 'Pro', price: '4,99 €/mese', maxRules: 30, maxSetRules: 1, maxWish: 200, scanSec: 30, historyDays: 120, shipping: true, priority: true },
+    sniper: { label: 'Sniper', price: '9,99 €/mese', maxRules: 100, maxSetRules: 100000, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true },
+  };
+
+  function renderPlan() {
+    const p = state.account && state.account.plan;
+    if (!p) return;
+    $('planBadge').textContent = p.label;
+    const cards = state.rules.filter((r) => r.blueprintId).length;
+    const sets = state.rules.length - cards;
+    const lim = (n, max) => (max >= p.unlimited ? `${n}` : `${n} su ${max}`);
+    const out = (state.outOfPlan || []).length;
+    $('planUsage').replaceChildren(
+      kvRow('Alert su una carta', lim(cards, p.maxRules), cards > p.maxRules ? 'bad' : ''),
+      kvRow('Alert su un set', p.maxSetRules ? lim(sets, p.maxSetRules) : sets ? `${sets} (non inclusi)` : 'non inclusi', sets > p.maxSetRules ? 'bad' : ''),
+      kvRow('Lista dei desideri', lim((state.wish || []).length, p.maxWish)),
+      kvRow('Velocità degli alert', p.scanSec >= 60 ? `ogni ${p.scanSec / 60} minuti` : `fino a ogni ${p.scanSec} secondi`),
+      kvRow('Storico prezzi', `${p.historyDays} giorni`),
+      ...(out ? [kvRow('Alert fermi', `${out} oltre il limite del piano`, 'bad')] : []),
+    );
+    const ids = Object.keys(PLAN_INFO);
+    $('planTable').replaceChildren(
+      el('div', { class: 'pt-row pt-head' }, el('span'), ...ids.map((id) => el('b', { class: id === p.id ? 'cur' : '', text: PLAN_INFO[id].label }))),
+      el('div', { class: 'pt-row' }, el('span', { text: 'Prezzo' }), ...ids.map((id) => el('span', { class: id === p.id ? 'cur' : '', text: PLAN_INFO[id].price }))),
+      ...PLAN_ROWS.map(([label, f]) => el('div', { class: 'pt-row' }, el('span', { text: label }), ...ids.map((id) => el('span', { class: id === p.id ? 'cur' : '', text: String(f({ ...PLAN_INFO[id], unlimited: 100000 })) })))),
+    );
+    // Frequenze più veloci di quella del piano: visibili ma non selezionabili.
+    for (const o of $('setScan').options) o.disabled = Number(o.value) < p.scanSec;
+  }
+
   // ---------- admin ----------
   const isOwner = () => !!(state && state.account && state.account.plan && state.account.plan.id === 'owner');
   let adminLoaded = 0;
@@ -394,6 +436,7 @@
     $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con Snipe · ${money(saved)} risparmiati rispetto al riferimento`;
 
     renderWish();
+    renderPlan();
     $('adminPanel').hidden = !isOwner();
     if (isOwner() && !$('tab-settings').hidden && Date.now() - adminLoaded > 60_000) loadAdmin();
 
@@ -422,10 +465,11 @@
               chip(r.language ? r.language.toUpperCase() : 'Tutte le lingue', 'lang'),
               zeroTxt ? chip(zeroTxt, 'zero') : null,
               r.enabled ? null : chip('In pausa', 'warn'),
+              (state.outOfPlan || []).includes(r.id) ? chip('Fermo: oltre il limite del piano', 'warn') : null,
             ),
           ),
           el('div', { class: 'acts' },
-            el('button', { class: 'btn star' + (r.priority ? ' on' : ''), type: 'button', title: 'Controlla più spesso', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', text: r.priority ? '★' : '☆',
+            !(state.account && state.account.plan.priority) ? null : el('button', { class: 'btn star' + (r.priority ? ' on' : ''), type: 'button', title: 'Controlla più spesso', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', text: r.priority ? '★' : '☆',
               onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, priority: !r.priority }) }),
             el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
             el('button', { class: 'btn', type: 'button', text: 'Modifica', onclick: () => openEdit(r) }),
