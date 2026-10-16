@@ -19,3 +19,23 @@ test('scoreRow: nome e numero esatti battono il solo nome', () => {
   assert.ok(right > sameName && right > sameNum);
   assert.equal(scoreRow([4, 'Charizard ex', 'SIR | 199/165'], { ...scan, number: '199', total: '165', name: 'Charizard ex' }), 6 + 5 + 3);
 });
+
+import { langFromScript, expLang } from '../src/cardid.js';
+
+test('lingua dalla scrittura del testo copiato', () => {
+  assert.equal(langFromScript('コイキング'), 'jp');
+  assert.equal(langFromScript('はねじょうず'), 'jp');
+  assert.equal(langFromScript('잉어킹'), 'ko');
+  assert.equal(langFromScript('鲤鱼王'), 'zh');
+  assert.equal(langFromScript('Magikarp'), null);
+  assert.equal(parseScan('{"name":"Magikarp","number":"165/103","language":"en","text_sample":"コイキング"}').language, 'jp');
+});
+
+test('Magikarp giapponese: la versione JP batte quella cinese', () => {
+  const scan = { name: 'Magikarp', number: '165', total: '103', setCode: '', language: 'jp' };
+  const jp = scoreRow([1, 'Magikarp', 'Special Illustration Rare | 165/103'], scan, '', '30th Celebration JP');
+  const zh = scoreRow([2, 'Magikarp', '165/103'], scan, '', '30th Celebration Simplified Chinese');
+  assert.ok(jp > zh);
+  assert.equal(expLang('30th Celebration JP'), 'jp');
+  assert.equal(expLang('Black Bolt | sv11B'), null);
+});

@@ -214,16 +214,16 @@ export class Scanner extends DurableObject {
         const expId = parseInt(key.slice(3), 10);
         const e = byId.get(expId) || {};
         for (const r of rows) {
-          const score = scoreRow(r, scan, e.code);
-          if (score < 5) continue; // almeno il nome completo + qualcosa, o il numero esatto + qualcosa
+          const score = scoreRow(r, scan, e.code, e.name);
+          // Con un nome letto serve che il nome corrisponda; senza, numero e totale esatti.
+          const nameOk = !scan.name || normText(r[1]).split(' ').some((w) => normText(scan.name).split(' ').includes(w));
+          if (!nameOk || score < 8) continue;
           best.push({ score, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
         }
       }
     }
-    // A parità di punteggio: le espansioni giapponesi se la carta è giapponese, poi le più recenti.
-    const jpSet = (c) => /japan|jp\b|\bjp|s\d|sv\d+[a-z]?$|30th/i.test(`${c.expName} ${c.expCode}`);
-    best.sort((a, b) => b.score - a.score || (scan.language === 'jp' ? jpSet(b) - jpSet(a) : jpSet(a) - jpSet(b)) || b.expansionId - a.expansionId);
-    return { candidates: best.slice(0, 8), indexComplete: !!meta.complete };
+    best.sort((a, b) => b.score - a.score || b.expansionId - a.expansionId);
+    return { candidates: best.slice(0, 6), indexComplete: !!meta.complete };
   }
 
   // ---------- Collezione ----------
