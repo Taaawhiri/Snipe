@@ -1,17 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dealsFromCards } from '../src/daydeals.js';
+import { dealsFromProducts } from '../src/daydeals.js';
 
-const card = (o) => ({ single: true, id: 1, name: 'X', cm: { trend: 20 }, lc: {}, currency: 'EUR', ...o });
+const L = (id, cents, lang = 'en', cond = 'Near Mint') => ({ id, blueprint_id: 1, quantity: 1, price: { cents, currency: 'EUR' }, properties_hash: { condition: cond, pokemon_language: lang }, user: { username: 'u' + id } });
 
-test('affari: inglese NM almeno 25% sotto la tendenza', () => {
-  const out = dealsFromCards([
-    card({ id: 1, lc: { 'en|5': [1200, null], 'jp|6': [500, null] } }), // 40% sotto
-    card({ id: 2, lc: { 'en|5': [1800, null] } }), // 10%: no
-    card({ id: 3, lc: { 'en|3': [500, null] } }), // condizione bassa: no
-    card({ id: 4, cm: { trend: 5 }, lc: { 'en|6': [100, null] } }), // tendenza bassa: no
-    card({ id: 5, single: false, lc: { 'en|6': [100, null] } }),
-  ]);
-  assert.deepEqual(out.map((d) => d.id), [1]);
-  assert.equal(Math.round(out[0].discount * 100), 40);
+test('affari: molto sotto gli altri annunci CardTrader, inglese NM', () => {
+  const cards = [{ id: 1, single: true, name: 'Charizard', image: null, cm: { trend: 10 } }];
+  const products = { 1: [L(1, 1000), L(2, 2000), L(3, 2100), L(4, 2200), L(5, 2300), L(6, 500, 'jp'), L(7, 400, 'en', 'Played')] };
+  const out = dealsFromProducts(cards, products);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].cents, 1000);
+  assert.equal(out[0].refCents, 2150);
+  assert.equal(out[0].trendCents, 1000);
+});
+
+test('niente affari se il prezzo è in linea', () => {
+  const cards = [{ id: 1, single: true, name: 'X', cm: null }];
+  assert.equal(dealsFromProducts(cards, { 1: [L(1, 2000), L(2, 2050), L(3, 2100), L(4, 2200)] }).length, 0);
 });

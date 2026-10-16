@@ -126,7 +126,7 @@
 
     // affari del giorno
     'Affari del giorno': 'Deals of the day',
-    'Carte delle espansioni più recenti in vendita su CardTrader ad almeno il 25% sotto la tendenza Cardmarket. Solo inglese, Near Mint o meglio, tendenza da 10 € in su. Si aggiorna da solo durante il giorno.': 'Cards from the latest expansions for sale on CardTrader at least 25% below the Cardmarket trend. English only, Near Mint or better, trend of €10 or more. Updates by itself during the day.',
+    'Annunci delle espansioni più recenti che costano almeno il 30% meno del prezzo tipico della stessa carta su CardTrader (la mediana degli annunci successivi). Solo inglese, Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest expansions at least 30% cheaper than the typical price of the same card on CardTrader (the median of the next listings). English only, Near Mint or better, from €5. Updates by itself during the day.',
     'Carico gli affari…': 'Loading deals…',
     'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 15 minuti. Riprova più tardi.': "Collecting the first data: one expansion is checked every 15 minutes. Try again later.",
 
@@ -218,6 +218,7 @@
     [/^Più basso (.+)$/, 'Lowest $1'], [/^Con Zero (.+)$/, 'With Zero $1'], [/^dal (.+)$/, 'since $1'],
     [/^(\d+) affari · aggiornati (.+) · (\d+) espansioni controllate$/, '$1 deals · updated $2 · $3 expansions checked'],
     [/^Cardmarket tendenza (.+)$/, 'Cardmarket trend $1'],
+    [/^Prezzo tipico CardTrader (.+)$/, 'Typical CardTrader price $1'],
     [/^Cardmarket da (.+) · tutte le lingue e condizioni$/, 'Cardmarket from $1 · all languages and conditions'],
     [/^Escludere (.+)\? I suoi annunci non faranno più scattare alert\.$/, 'Exclude $1? Their listings will no longer trigger alerts.'],
     [/^Eliminare l'alert "(.+)"\? Anche i suoi avvisi verranno cancellati\.$/, 'Delete the alert "$1"? Its alerts will be deleted too.'],

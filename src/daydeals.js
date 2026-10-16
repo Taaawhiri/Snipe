@@ -1,24 +1,35 @@
 // Affari del giorno: logica pura, testabile.
+import { findDeals } from './deals.js';
 
-/**
- * Affari di un'espansione: carte singole in inglese, Near Mint o meglio, almeno il 25% sotto la tendenza
- * Cardmarket, con tendenza di almeno 10 € (sotto, gli scarti sono rumore).
- */
-export function dealsFromCards(cards) {
+// Criteri: carte singole in inglese, Near Mint o meglio, almeno il 30% sotto il prezzo tipico su CardTrader
+// (la mediana dei 5 annunci successivi, con almeno 3 annunci di confronto), da 5 € in su.
+// Il confronto è con CardTrader stesso: rispetto a Cardmarket CardTrader è di solito più caro.
+export const DAY_RULE = { minDiscount: 30, minPriceCents: 500, language: 'en', minCondition: 'Near Mint', zero: '' };
+
+/** cards: le carte dell'espansione (per nome, immagine e Cardmarket); products: annunci per blueprint. */
+export function dealsFromProducts(cards, products) {
+  const byId = new Map(cards.filter((c) => c.single).map((c) => [String(c.id), c]));
+  const singles = {};
+  for (const [bp, list] of Object.entries(products || {})) if (byId.has(String(bp))) singles[bp] = list;
+  const best = new Map();
+  for (const d of findDeals(singles, DAY_RULE)) {
+    const bp = String(d.product.blueprint_id);
+    if (!best.has(bp) || d.discount > best.get(bp).discount) best.set(bp, d);
+  }
   const out = [];
-  for (const c of cards) {
-    if (!c.single || !c.cm || !(c.cm.trend >= 10)) continue;
-    let best = null;
-    for (const [key, cell] of Object.entries(c.lc || {})) {
-      const [lang, rank] = key.split('|');
-      if (lang !== 'en' || Number(rank) < 5 || cell[0] == null) continue;
-      if (best == null || cell[0] < best) best = cell[0];
-    }
-    if (best == null || best < 300) continue;
-    const trend = Math.round(c.cm.trend * 100);
-    const discount = 1 - best / trend;
-    if (discount < 0.25) continue;
-    out.push({ id: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, cents: best, trendCents: trend, discount, currency: c.currency });
+  for (const [bp, d] of best) {
+    const c = byId.get(bp);
+    out.push({
+      id: c.id,
+      name: c.name + (c.version ? ` (${c.version})` : ''),
+      image: c.image,
+      cents: d.cents,
+      refCents: d.refCents,
+      discount: d.discount,
+      trendCents: c.cm && c.cm.trend ? Math.round(c.cm.trend * 100) : null,
+      currency: d.product.price.currency || 'EUR',
+      zero: !!(d.product.user && d.product.user.can_sell_via_hub),
+    });
   }
   return out.sort((a, b) => b.discount - a.discount).slice(0, 20);
 }

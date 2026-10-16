@@ -5,7 +5,7 @@ import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
-import { dealsFromCards } from './daydeals.js';
+import { dealsFromProducts } from './daydeals.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
@@ -1013,7 +1013,8 @@ export class Scanner extends DurableObject {
     if (!exps.length) return;
     const exp = exps[st.i % exps.length];
     const { cards } = await this.cardsFor(exp.id);
-    await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromCards(cards) });
+    const products = await this.productsFor(exp.id);
+    await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromProducts(cards, products) });
   }
 
   async dealsList() {
