@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS = {
   tz: 'Europe/Rome',
   scanEverySec: 10,
   summary: true, // riepilogo giornaliero alle 9
+  collZero: false, // valore della collezione con i soli prezzi CardTrader Zero
 };
 
 /** "07:30" -> 450 minuti dalla mezzanotte; null se non è un orario valido. */
@@ -61,5 +62,6 @@ export function cleanSettings(input, old = DEFAULT_SETTINGS) {
     tz: typeof b.tz === 'string' && validTz(b.tz) ? b.tz : old.tz,
     scanEverySec: SCAN_CHOICES.includes(scan) ? scan : old.scanEverySec,
     summary: b.summary === undefined ? old.summary !== false : !!b.summary,
+    collZero: b.collZero === undefined ? !!old.collZero : !!b.collZero,
   };
 }

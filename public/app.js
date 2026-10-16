@@ -318,6 +318,7 @@
 
   function renderCollection() {
     if (!coll) return;
+    $('collZero').checked = !!coll.zeroOnly;
     const { items, summary: sm, history } = coll;
     const hist = history || [];
     const old = hist.length > 1 ? hist[Math.max(0, hist.length - 31)] : null;
@@ -325,7 +326,7 @@
     const pct = (v) => `${v >= 0 ? '▲ +' : '▼ '}${(v * 100).toFixed(1).replace('.', ',')}%`;
     const gain = sm.paidPriced ? sm.value - sm.paidPriced : null;
     $('collHero').replaceChildren(...[
-      el('div', { class: 'cv-k', text: 'Valore attuale (prezzo più basso CardTrader)' }),
+      el('div', { class: 'cv-k', text: coll.zeroOnly ? 'Valore attuale (prezzo più basso CardTrader Zero)' : 'Valore attuale (prezzo più basso CardTrader)' }),
       el('div', { class: 'cv-row' },
         el('span', { class: 'cv-v', text: money(sm.value) }),
         ch != null ? el('span', { class: ch >= 0 ? 'up' : 'dn', text: `${pct(ch)} in ${Math.min(30, hist.length - 1)} giorni` }) : null,
@@ -337,7 +338,9 @@
         el('div', null, el('b', { text: sm.paid ? money(sm.paid) : '—' }), el('span', { text: 'spesi' })),
         el('div', null, el('b', { class: gain == null ? '' : gain >= 0 ? 'up' : 'dn', text: gain == null ? '—' : `${gain >= 0 ? '+' : ''}${money(gain)}` }), el('span', { text: 'guadagno teorico' })),
       ),
-      sm.missing ? el('p', { class: 'small muted', text: `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} ancora senza prezzo: arriva entro un'ora.` }) : null,
+      sm.missing ? el('p', { class: 'small muted', text: coll.zeroOnly
+        ? `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} senza un prezzo Zero: nessun venditore Zero la offre ora, oppure il prezzo arriva entro un'ora.`
+        : `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} ancora senza prezzo: arriva entro un'ora.` }) : null,
       coll.limit < coll.unlimited ? el('p', { class: 'small muted', text: `${items.length} su ${coll.limit} carte diverse incluse nel tuo piano.` }) : null,
     ].filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
     const sort = (document.querySelector('input[name="csort"]:checked') || {}).value || 'value';
@@ -406,6 +409,10 @@
   }
   document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
+  $('collZero').addEventListener('change', async () => {
+    await saveSettings({ collZero: $('collZero').checked });
+    loadCollection();
+  });
 
   /** "Ce l'ho": pulsante nel dettaglio carta e pannello per aggiungere copie. */
   const OWN_LANGS = [['en', 'EN'], ['jp', 'JP'], ['it', 'IT'], ['fr', 'FR'], ['de', 'DE'], ['es', 'ES'], ['pt', 'PT'], ['ko', 'KO'], ['zh', 'ZH']];

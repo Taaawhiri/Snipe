@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
 import { dealsFromProducts } from './daydeals.js';
-import { collKey, priceFor, summarize } from './collection.js';
+import { collKey, pickPrice, priceFor, summarize } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -292,26 +292,31 @@ export class Scanner extends DurableObject {
     }
     if (!changed) return;
     await this.ctx.storage.put('collPrices', prices);
-    const items = coll.map((c) => ({ ...c, price: prices[c.key] && prices[c.key].cents != null ? prices[c.key] : null }));
+    const base = (zeroOnly) => coll.map((c) => ({ ...c, price: prices[c.key] && prices[c.key].cents != null ? pickPrice(prices[c.key], zeroOnly) : null }));
+    const items = base(false);
     const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
     for (const it of items) { const e = it.cmId && cm.get(it.cmId); it.cmCents = e && e.trend ? Math.round(e.trend * 100) : null; }
     const sum = summarize(items);
+    const sumZero = summarize(base(true));
     const hist = await this.get('collHist', []);
     const d = new Date().toISOString().slice(0, 10);
-    const point = { d, value: sum.value, cm: sum.cm, qty: sum.qty };
+    const point = { d, value: sum.value, valueZero: sumZero.value, cm: sum.cm, qty: sum.qty };
     if (hist.length && hist[hist.length - 1].d === d) hist[hist.length - 1] = point; else hist.push(point);
     await this.ctx.storage.put('collHist', hist.slice(-400));
   }
 
   async collectionView() {
+    const zeroOnly = !!(await this.settings()).collZero;
     const coll = await this.get('coll', []);
+    // Prezzi salvati prima dell'opzione Zero: si ricalcolano con gli annunci già in memoria.
+    if (zeroOnly && Object.values(await this.get('collPrices', {})).some((p) => p && p.cents != null && !('zeroCents' in p))) await this.collectionPrices(true);
     const prices = await this.get('collPrices', {});
     const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
     const plan = await this.plan();
     const items = coll.map((c) => {
       const p = prices[c.key];
       const e = c.cmId && cm.get(c.cmId);
-      return { ...c, price: p && p.cents != null ? p : null, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
+      return { ...c, price: p && p.cents != null ? pickPrice(p, zeroOnly) : null, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
     });
     // Variazione a 7 giorni dallo storico prezzi della carta (prezzo più basso in assoluto).
     for (const it of items) {
@@ -320,8 +325,8 @@ export class Scanner extends DurableObject {
       const last = h[h.length - 1];
       it.change7 = old && last && old.min ? last.min / old.min - 1 : null;
     }
-    const hist = (await this.get('collHist', [])).slice(-plan.historyDays);
-    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited };
+    const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
+    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly };
   }
 
   /** Una volta al giorno segnala al catalogo le espansioni dei propri alert e desideri (interesse di fondo). */

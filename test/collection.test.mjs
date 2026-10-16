@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { priceFor, summarize } from '../src/collection.js';
 
-const L = (cents, lang, cond) => ({ quantity: 1, price: { cents }, properties_hash: { condition: cond, pokemon_language: lang }, user: {} });
+const L = (cents, lang, cond, zero = false) => ({ quantity: 1, price: { cents }, properties_hash: { condition: cond, pokemon_language: lang }, user: { can_sell_via_hub: zero } });
 
 test('prezzo: stessa lingua e condizione uguale o migliore', () => {
   const list = [L(500, 'en', 'Played'), L(900, 'jp', 'Near Mint'), L(1200, 'en', 'Near Mint'), L(1500, 'en', 'Mint')];
@@ -20,4 +20,15 @@ test('totali della collezione', () => {
     { qty: 1, price: null, paidCents: 0 },
   ]);
   assert.deepEqual(s, { value: 2000, paid: 1400, qty: 3, distinct: 2, missing: 1, cm: 1800, paidPriced: 1400 });
+});
+
+import { pickPrice } from '../src/collection.js';
+
+test('prezzo solo CardTrader Zero', () => {
+  const list = [L(1000, 'en', 'Near Mint'), L(1400, 'en', 'Near Mint', true), L(900, 'jp', 'Near Mint', true)];
+  const p = priceFor(list, 'en', 'Near Mint');
+  assert.equal(p.cents, 1000);
+  assert.equal(p.zeroCents, 1400);
+  assert.equal(pickPrice(p, true).cents, 1400);
+  assert.equal(pickPrice(priceFor([L(500, 'en', 'Near Mint')], 'en', 'Near Mint'), true), null);
 });
