@@ -688,3 +688,10 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .coll-zero { font-size: 14px; min-height: 40px; }
 .coll-opts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .coll-note { margin-top: -8px; }
+/* azioni della collezione: tre pulsanti uguali su desktop; su telefono due affiancati e il terzo a tutta larghezza */
+.coll-actions { grid-template-columns: 1fr 1fr; }
+.coll-actions > :last-child { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .coll-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .coll-actions > :last-child { grid-column: auto; }
+}
