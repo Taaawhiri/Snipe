@@ -403,10 +403,11 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/subscribe' && method === 'POST') {
-      const { endpoint } = await req.json();
+      const { endpoint, replaces, only } = await req.json();
       if (typeof endpoint !== 'string' || !/^https:\/\//.test(endpoint)) return json({ error: 'Endpoint non valido' }, 400);
       await this.ctx.storage.put('origin', url.origin); // serve come "subject" nelle notifiche push
-      const subs = await this.get('subs', []);
+      // "replaces": l'iscrizione precedente dello stesso dispositivo; "only": tieni solo questo dispositivo.
+      let subs = only ? [] : (await this.get('subs', [])).filter((e) => e !== replaces);
       if (!subs.includes(endpoint)) subs.push(endpoint);
       await this.ctx.storage.put('subs', subs.slice(-20));
       return json({ ok: true });

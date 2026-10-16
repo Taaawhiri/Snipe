@@ -264,7 +264,7 @@
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? st.lastError : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
       kvRow('Prezzi Cardmarket', sys.cm ? `aggiornati ${ago(sys.cm.ts)}` : sys.cmError ? `non disponibili: ${sys.cmError}` : 'in scaricamento…', !sys.cm && sys.cmError ? 'bad' : ''),
-      kvRow('Dispositivi con notifiche', String(state.pushDevices)),
+      kvRow('Iscrizioni alle notifiche', String(state.pushDevices)),
       kvRow('Versione', sys.build || '—'),
     ];
     if (sys.indexError) rows.push(kvRow('Errore indice', sys.indexError, 'bad'));
@@ -932,6 +932,15 @@
     return Uint8Array.from(b, (c) => c.charCodeAt(0));
   }
   let pushSynced = false;
+  // Ogni dispositivo ricorda la propria iscrizione: quando cambia, il server sostituisce quella vecchia invece di aggiungerne un'altra.
+  function subscribeOnServer(endpoint, only = false) {
+    let replaces = null;
+    try { replaces = localStorage.getItem('snipe.pushEndpoint'); } catch {}
+    return api('/api/subscribe', { method: 'POST', body: JSON.stringify({ endpoint, replaces, only }) }).then((r) => {
+      try { localStorage.setItem('snipe.pushEndpoint', endpoint); } catch {}
+      return r;
+    });
+  }
   let resubscribing = false;
 
   async function updatePushUI() {
@@ -970,14 +979,14 @@
       try {
         const reg = await navigator.serviceWorker.ready;
         sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(state.vapidPublic) });
-        await api('/api/subscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) });
+        await subscribeOnServer(sub.endpoint);
         pushSynced = true;
       } catch {} finally { resubscribing = false; }
     }
     if (sub && Notification.permission === 'granted') {
       if (!pushSynced) {
         pushSynced = true;
-        api('/api/subscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+        subscribeOnServer(sub.endpoint).catch(() => {});
       }
       setBadge('on', 'Attive');
       $('pushInfo').textContent = 'Questo dispositivo riceve una notifica quando un annuncio rispetta uno dei tuoi alert.';
@@ -1000,12 +1009,22 @@
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(state.vapidPublic) });
-      await api('/api/subscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) });
+      await subscribeOnServer(sub.endpoint);
       pushSynced = true;
       await refresh();
     } catch (e) {
       $('pushInfo').textContent = `Impossibile attivare le notifiche: ${e.message}`;
     }
+  });
+  $('pushOnly').addEventListener('click', async () => {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) { $('pushInfo').textContent = 'Attiva prima le notifiche su questo dispositivo.'; return; }
+      await subscribeOnServer(sub.endpoint, true);
+      await refresh();
+      $('pushInfo').textContent = 'Ora le notifiche arrivano solo a questo dispositivo.';
+    } catch (e) { $('pushInfo').textContent = e.message; }
   });
   $('pushTest').addEventListener('click', async () => {
     try {
