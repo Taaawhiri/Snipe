@@ -612,3 +612,23 @@ svg.spark .cm { stroke: var(--blue); stroke-dasharray: 5 4; stroke-width: 2; }
 .chip.lang { color: #ffe08a; background: rgba(255, 210, 58, 0.14); }
 .chip.zero { color: #c3caff; background: rgba(120, 134, 255, 0.2); }
 .chip.cond { color: #8ff0b8; background: rgba(85, 208, 138, 0.16); }
+
+/* ---------- Poké Ball: scansione ed errore ---------- */
+header.top .brand, header.top .status { cursor: pointer; }
+header.top .brand svg .ball-top, header.top .brand svg .ball-bottom, header.top .brand svg .ball-btn { transition: fill 0.4s; }
+header.top.ball-scan .brand svg { animation: catch 1.3s ease-in-out; transform-origin: 50% 85%; }
+header.top.ball-scan .brand svg .ball-btn { fill: #ffef9a; filter: drop-shadow(0 0 5px #ffd23a); }
+@keyframes catch {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(-22deg); }
+  35% { transform: rotate(0); }
+  55% { transform: rotate(18deg); }
+  75% { transform: rotate(0); }
+  88% { transform: rotate(-6deg); }
+}
+header.top.ball-err .brand svg { animation: none; }
+header.top.ball-err .brand svg .ball-top { fill: #5d6a8c; }
+header.top.ball-err .brand svg .ball-bottom { fill: #c9cfe3; }
+header.top.ball-err .brand svg .ball-btn { fill: #ff5a6e; }
+header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3da; }
+@media (prefers-reduced-motion: reduce) { header.top.ball-scan .brand svg { animation: none; } }
