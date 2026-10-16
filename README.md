@@ -80,8 +80,11 @@ Servono iOS 16.4 o successivo e l'app installata: Safari → Condividi → Aggiu
 npm install
 cp .dev.vars.example .dev.vars   # poi compila i valori
 npm run dev                      # http://localhost:8787
-npm test
+npm test            # logica (server e calcoli)
+npm run test:ui     # schermate: la pagina vera con API simulate, in Chromium headless
 ```
+
+`npm run test:ui` usa `playwright-core`; se il browser non è installato da Playwright, indica un Chromium con `CHROME_PATH=/percorso/chrome`.
 
 ## Da verificare
 
