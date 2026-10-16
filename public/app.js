@@ -177,6 +177,11 @@
               el('span', { class: 'price', text: money(a.cents, a.currency) }),
               el('span', { class: 'ref' }, money(a.refCents, a.currency), a.refKind === 'cardmarket' ? el('span', { class: 'cmtag', text: 'Cardmarket' }) : null),
             ),
+            a.test ? null : el('div', { class: 'ship', text: a.zero
+              ? 'Spedizione con CardTrader Zero: una sola per tutto l’ordine'
+              : a.ship
+                ? `+ ${money(a.ship.cents, a.currency)} spedizione${a.ship.tracked ? ' tracciata' : ''} → totale ${money(a.cents + a.ship.cents, a.currency)}`
+                : 'Spedizione non stimata' }),
           ),
           el('div', { class: 'side' },
             a.test ? chip('prova') : a.discount >= 0.01 ? el('span', { class: `badge ${lv}`, text: `−${Math.round(a.discount * 100)}%` }) : chip('Sotto soglia', 'zero'),

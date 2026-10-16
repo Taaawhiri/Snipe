@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
+import { cheapestShipping } from './shipping.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
@@ -932,6 +933,29 @@ export class Scanner extends DurableObject {
     return exp ? exp.data : null;
   }
 
+  /** Spedizione stimata del venditore (cache di un giorno). Gli annunci Zero passano dal magazzino CardTrader. */
+  async shippingFor(username) {
+    const key = `ship:${username}`;
+    const hit = await this.get(key, null);
+    if (hit && Date.now() - hit.ts < 24 * 3600_000) return hit.best;
+    const methods = await this.ct(`/shipping_methods?username=${encodeURIComponent(username)}`);
+    const best = cheapestShipping(methods);
+    await this.ctx.storage.put(key, { ts: Date.now(), best });
+    return best;
+  }
+
+  async addShipping(alerts) {
+    for (const a of alerts.slice(0, 8)) {
+      if (a.zero || !a.seller) continue;
+      try {
+        const s = await this.shippingFor(a.seller);
+        if (s) a.ship = s;
+      } catch {
+        // senza stima l'alert parte comunque
+      }
+    }
+  }
+
   async scanOnce(status) {
     if (!this.env.CARDTRADER_TOKEN) throw new Error('CARDTRADER_TOKEN non configurato');
     if ((await this.settings()).paused) return;
@@ -1004,6 +1028,7 @@ export class Scanner extends DurableObject {
     status.scans = (status.scans || 0) + 1;
 
     if (fresh.length) {
+      await this.addShipping(fresh);
       const alerts = await this.get('alerts', []);
       await this.ctx.storage.put('alerts', [...fresh.sort((a, b) => b.discount - a.discount), ...alerts].slice(0, MAX_ALERTS));
       await this.notify();
