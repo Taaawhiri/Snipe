@@ -665,3 +665,23 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .ci .trend { font-size: 11.5px; font-weight: 800; }
 .ci .trend.up { color: var(--green); }
 .ci .trend.dn { color: #ff8a9b; }
+
+/* ---------- scansione di più carte ---------- */
+#batchDialog { z-index: 46; }
+@media (min-width: 700px) { #batchDialog { width: min(860px, calc(100% - 24px)); } }
+.batch-sheet { gap: 12px; }
+.batch-drop { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 16px; border-radius: 18px; border: 2px dashed var(--line); background: var(--surface); text-align: center; transition: border-color 0.15s, background 0.15s; }
+.batch-drop.over { border-color: var(--yellow); background: rgba(255, 210, 58, 0.08); }
+.batch-progress { display: flex; flex-direction: column; gap: 6px; }
+.b-row { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.b-row.unsure { border-color: var(--yellow); box-shadow: 0 0 0 1px var(--yellow) inset; }
+.b-row.added { opacity: 0.7; }
+.b-head { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.b-photo { width: 44px; aspect-ratio: 5 / 7; object-fit: cover; border-radius: 6px; background: var(--surface-2); }
+.b-photo[src=""] { visibility: hidden; }
+.b-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.b-main select { min-height: 40px; font-size: 13.5px; }
+.b-check input { width: 22px; height: 22px; min-height: 0; accent-color: var(--green); }
+.b-opts { display: grid; grid-template-columns: 1fr 1fr 70px 1fr; gap: 6px; }
+.b-opts select, .b-opts input { min-height: 38px; font-size: 13.5px; padding: 0 8px; }
+.batch-foot { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0 4px; background: var(--bg); }

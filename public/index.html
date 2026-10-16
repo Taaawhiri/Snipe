@@ -94,6 +94,7 @@
         <p class="muted small">Aggiungi le carte dal loro dettaglio con <b>Ce l'ho</b>, oppure in automatico segnando un avviso come <b>Comprato</b>. Il valore usa il prezzo più basso su CardTrader nella lingua e condizione della tua copia, aggiornato ogni ora.</p>
         <div class="dlg-actions">
           <button class="btn act scan-btn" type="button" data-scan>📷 Scansiona</button>
+          <button class="btn act" type="button" id="batchOpen">🗂️ Più carte</button>
           <button class="btn act" type="button" data-go="cards">＋ Cerca carta</button>
         </div>
       </div>
@@ -395,6 +396,27 @@
   </div>
 </dialog>
 <input id="scanInput" type="file" accept="image/*" capture="environment" hidden>
+<input id="batchInput" type="file" accept="image/*" multiple hidden>
+<dialog id="batchDialog" class="sheet" aria-labelledby="batchTitle">
+  <form method="dialog" class="sheet-head">
+    <h2 id="batchTitle">Scansiona più carte</h2>
+    <button class="btn" aria-label="Chiudi">Chiudi</button>
+  </form>
+  <div class="sheet-body batch-sheet">
+    <div id="batchDrop" class="batch-drop">
+      <b>Trascina qui le foto delle carte</b>
+      <span class="muted small">oppure</span>
+      <button id="batchPick" class="btn" type="button">Scegli le foto</button>
+      <span id="batchQuota" class="muted small"></span>
+    </div>
+    <div id="batchProgress" class="batch-progress" hidden><div class="bar"><i></i></div><span id="batchProgressText" class="small muted"></span></div>
+    <div id="batchList" class="list"></div>
+    <div id="batchFoot" class="batch-foot" hidden>
+      <span id="batchSummary" class="small muted"></span>
+      <button id="batchAdd" class="btn primary" type="button">Aggiungi alla collezione</button>
+    </div>
+  </div>
+</dialog>
 <dialog id="scanDialog" class="sheet" aria-labelledby="scanTitle">
   <form method="dialog" class="sheet-head">
     <h2 id="scanTitle">Scansione</h2>
