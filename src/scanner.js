@@ -18,6 +18,13 @@ const MARKETPLACE_GAP_MS = 1200;
 const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
 const MARKET_PER_SCAN = 2;
+
+/** Toglie gli annunci dei venditori esclusi dall'utente. */
+function withoutSellers(data, blocked) {
+  const out = {};
+  for (const [bp, list] of Object.entries(data)) out[bp] = Array.isArray(list) ? list.filter((p) => !(p.user && blocked.has(p.user.username))) : list;
+  return out;
+}
 const CATALOG = 'main';
 const STUCK_MS = 15 * 60_000;
 const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
@@ -367,6 +374,7 @@ export class Scanner extends DurableObject {
         outOfPlan: ((inPlan) => rules.filter((r) => r.enabled && !inPlan.has(r.id)).map((r) => r.id))(rulesInPlan(rules, await this.plan())),
         account: { name: ((await this.get('account', null)) || {}).name || decodeURIComponent(req.headers.get('x-user-name') || ''), plan: await this.plan() },
         bought: await this.get('bought', []),
+        sellers: await this.get('sellers', { fav: [], block: [] }),
         settings: await this.settings(),
         system: await this.systemInfo(status),
         vapidPublic: (await this.vapid()).publicKey,
@@ -547,6 +555,54 @@ export class Scanner extends DurableObject {
       return json((await this.get(`h:${id}`, [])).slice(-days));
     }
 
+    if (path === '/api/sellers' && method === 'POST') {
+      // { username, action: 'fav' | 'block' | 'none', country }
+      const b = await req.json();
+      const username = String((b && b.username) || '').trim().slice(0, 60);
+      if (!username) return json({ error: 'Venditore mancante' }, 400);
+      const sel = await this.get('sellers', { fav: [], block: [] });
+      sel.fav = sel.fav.filter((f) => f.username !== username);
+      sel.block = sel.block.filter((u) => u !== username);
+      if (b.action === 'fav') sel.fav.unshift({ username, country: String(b.country || '').slice(0, 4), ts: Date.now() });
+      if (b.action === 'block') sel.block.unshift(username);
+      sel.fav = sel.fav.slice(0, 200);
+      sel.block = sel.block.slice(0, 500);
+      await this.ctx.storage.put('sellers', sel);
+      this.blockedSellers = null;
+      return json(sel);
+    }
+
+    if (path === '/api/seller' && method === 'GET') {
+      // Annunci del venditore tra quelli letti di recente (CardTrader non permette di chiederli tutti).
+      const username = url.searchParams.get('username') || '';
+      const seen = new Map();
+      for (const cache of [this.bpCache, this.productCache]) {
+        for (const { data } of cache.values()) {
+          for (const list of Object.values(data || {})) {
+            if (!Array.isArray(list)) continue;
+            for (const p of list) {
+              if (!p || !p.user || p.user.username !== username || !isListable(p) || seen.has(p.id)) continue;
+              const h = p.properties_hash || {};
+              seen.set(p.id, {
+                id: p.id,
+                blueprintId: p.blueprint_id,
+                name: p.name_en,
+                expansion: p.expansion && p.expansion.name_en,
+                cents: p.price.cents,
+                currency: p.price.currency || 'EUR',
+                condition: h.condition || null,
+                language: listingLang(p),
+                zero: isZero(p),
+                quantity: p.quantity,
+              });
+            }
+          }
+        }
+      }
+      const rows = [...seen.values()].sort((a, b) => b.cents - a.cents).slice(0, 200);
+      return json({ rows, sources: this.bpCache.size + this.productCache.size });
+    }
+
     if (path === '/api/wish' && method === 'GET') {
       return json(await this.get('wish', []));
     }
@@ -586,6 +642,7 @@ export class Scanner extends DurableObject {
           data = await this.productsFor(expId);
         }
         const wanted = normLang(url.searchParams.get('lang'));
+        const blockedSet = new Set((await this.get('sellers', { fav: [], block: [] })).block);
         const list = (data[id] || data[String(id)] || [])
           .filter(isListable)
           .filter((p) => !wanted || normLang(listingLang(p)) === wanted)
@@ -609,6 +666,7 @@ export class Scanner extends DurableObject {
               seller: p.user && p.user.username,
               country: p.user && p.user.country_code,
               quantity: p.quantity,
+              blocked: !!(p.user && blockedSet.has(p.user.username)),
             };
           }),
         );
@@ -1252,6 +1310,7 @@ export class Scanner extends DurableObject {
     const baselinedBefore = baselined.size;
     const fresh = [];
     const requests = await this.refreshSources(rules);
+    const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
 
     for (const rule of rules) {
       let evalRule = rule;
@@ -1263,8 +1322,9 @@ export class Scanner extends DurableObject {
         cmRef = e.trend;
         evalRule = { ...rule, maxPriceCents: max };
       }
-      const data = this.dataForRule(rule);
+      let data = this.dataForRule(rule);
       if (!data) continue; // nessun dato ancora: arriverà a uno dei prossimi giri
+      if (blocked.size) data = withoutSellers(data, blocked);
       let refKind = cmRef ? 'cardmarket' : null;
       let dropRef = null;
       if (rule.dropPct) {

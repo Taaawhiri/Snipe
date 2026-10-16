@@ -182,6 +182,12 @@
         <button class="btn primary" type="button" data-go="cards">Vai alle carte</button>
       </div>
       <div class="intro">
+        <h1>Venditori</h1>
+        <p class="muted">Salva un venditore con ★ o escludilo con ⛔ dagli annunci nel dettaglio di una carta. Gli esclusi non fanno più scattare alert.</p>
+      </div>
+      <div id="sellerList" class="list cols"></div>
+
+      <div class="intro">
         <h1>Lista dei desideri</h1>
         <p class="muted">Carte che segui senza alert: il prezzo si aggiorna ogni 15 minuti circa. Aggiungile dal dettaglio di una carta o con ♥ dai tuoi alert.</p>
       </div>
@@ -303,6 +309,16 @@
 </div>
 
 <div id="sheetBackdrop" class="backdrop" hidden></div>
+<dialog id="sellerDialog" class="sheet" aria-labelledby="slTitle">
+  <form method="dialog" class="sheet-head">
+    <h2 id="slTitle">Venditore</h2>
+    <button class="btn" aria-label="Chiudi">Chiudi</button>
+  </form>
+  <div class="sheet-body">
+    <p class="muted small">CardTrader non permette di leggere tutto il negozio di un venditore: qui trovi i suoi annunci tra le carte e le espansioni che Snipe ha letto di recente (i tuoi alert, le carte e i set che hai aperto).</p>
+    <div id="slList" class="list"></div>
+  </div>
+</dialog>
 <dialog id="editDialog" class="sheet" aria-labelledby="edTitle">
   <form method="dialog" class="sheet-head">
     <h2 id="edTitle">Modifica alert</h2>

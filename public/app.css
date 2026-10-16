@@ -499,3 +499,9 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
   .landing .login-plans { grid-area: plans; }
 }
 @media (min-width: 900px) { .landing .login-plans { justify-content: center; } }
+.lrow-wrap { display: flex; flex-direction: column; gap: 4px; }
+.lrow-wrap.blocked .lrow { opacity: 0.55; }
+.seller-acts { display: flex; gap: 6px; justify-content: flex-end; }
+.btn.mini.on-bad { background: var(--red-soft); border-color: var(--bad); color: var(--bad); }
+.lrow .d b { font-weight: 700; }
+#sellerList .rule .info { grid-column: 1 / -1; }
