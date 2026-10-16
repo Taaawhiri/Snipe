@@ -23,9 +23,10 @@
   <form id="loginForm" class="panel login-card">
     <div class="reticle"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg></div>
     <div class="logo">Snipe</div>
+    <p class="muted small">Accedi con il tuo token API di CardTrader: su CardTrader apri il profilo → <b>Impostazioni</b> → <b>API</b>, copia il token e incollalo qui. Snipe lo usa solo per leggere il marketplace e non acquista mai nulla.</p>
     <div class="field">
-      <label for="keyInput">Chiave</label>
-      <input id="keyInput" type="password" autocomplete="current-password" required>
+      <label for="keyInput">Token API CardTrader</label>
+      <input id="keyInput" type="password" autocomplete="off" spellcheck="false" required>
     </div>
     <p id="loginError" class="error" hidden></p>
     <button class="btn primary" type="submit">Entra</button>

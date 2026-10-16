@@ -6,9 +6,15 @@
   "keep_vars": true,
   "assets": { "directory": "./public" },
   "durable_objects": {
-    "bindings": [{ "name": "SCANNER", "class_name": "Scanner" }]
+    "bindings": [
+      { "name": "SCANNER", "class_name": "Scanner" },
+      { "name": "REGISTRY", "class_name": "Registry" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Scanner"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Scanner"] },
+    { "tag": "v2", "new_sqlite_classes": ["Registry"] }
+  ],
   // Ogni minuto rimette in moto lo scan se per qualsiasi motivo si fosse fermato.
   "triggers": { "crons": ["* * * * *"] }
 }

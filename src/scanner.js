@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
+import { planOf } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint } from './history.js';
 import { pickDue, pickData } from './sources.js';
@@ -23,7 +24,6 @@ const MKT_RESERVE = 3; // gettoni che lo scan lascia sempre all'utente
 const MKT_GAP_START = 3000; // un gettone ogni 3 s = 20 letture al minuto
 const MKT_GAP_MIN = 2000;
 const MKT_GAP_MAX = 15_000; // letture dal marketplace per giro di scan, qualunque sia il numero di alert
-const MAX_RULES = 30;
 const MAX_ALERTS = 200;
 const MAX_SEEN = 20_000;
 
@@ -65,6 +65,20 @@ export class Scanner extends DurableObject {
   mktGap = MKT_GAP_START;
   okStreak = 0;
   recent429 = [];
+
+  /** Token CardTrader dell'utente di questo server dati (il Secret vale solo per il vecchio account unico). */
+  async token() {
+    if (this.tokenCache === undefined) {
+      const acc = await this.get('account', null);
+      this.tokenCache = (acc && acc.token) || this.env.CARDTRADER_TOKEN || '';
+    }
+    return this.tokenCache;
+  }
+
+  async plan() {
+    if (!this.planCache) this.planCache = planOf(await this.get('plan', null));
+    return this.planCache;
+  }
 
   async settings() {
     return { ...DEFAULT_SETTINGS, ...(await this.get('settings', {})) };
@@ -166,7 +180,7 @@ export class Scanner extends DurableObject {
   async ct(path, background = false) {
     await this.throttle(path, background);
     const res = await fetch((this.env.CARDTRADER_API || API) + path, {
-      headers: { Authorization: `Bearer ${this.env.CARDTRADER_TOKEN}`, Accept: 'application/json' },
+      headers: { Authorization: `Bearer ${await this.token()}`, Accept: 'application/json' },
     });
     if (res.status === 429) {
       const retry = parseInt(res.headers.get('retry-after'), 10);
@@ -203,6 +217,25 @@ export class Scanner extends DurableObject {
     const url = new URL(req.url);
     const path = url.pathname;
     const method = req.method;
+
+    if (path === '/api/_account' && method === 'POST') {
+      const b = await req.json();
+      const prev = await this.get('account', null);
+      await this.ctx.storage.put('account', { token: String(b.token || ''), userId: String(b.userId || ''), name: String(b.name || ''), since: (prev && prev.since) || Date.now() });
+      await this.ctx.storage.put('plan', String(b.plan || ''));
+      this.tokenCache = undefined;
+      this.planCache = null;
+      if (prev && prev.token !== b.token) this.blockedUntil = 0;
+      await this.ensureAlarm();
+      return json({ ok: true });
+    }
+
+    // Il Worker indica il piano a ogni richiesta: lo teniamo anche per gli scan in background.
+    const planHeader = req.headers.get('x-plan');
+    if (planHeader && planHeader !== (await this.get('plan', null))) {
+      await this.ctx.storage.put('plan', planHeader);
+      this.planCache = null;
+    }
 
     if (path === '/api/latest' && method === 'GET') {
       const alerts = await this.get('alerts', []);
@@ -242,6 +275,7 @@ export class Scanner extends DurableObject {
         alerts: alerts.slice(0, 60),
         status,
         pushDevices: subs.length,
+        account: { name: ((await this.get('account', null)) || {}).name || decodeURIComponent(req.headers.get('x-user-name') || ''), plan: await this.plan() },
         bought: await this.get('bought', []),
         settings: await this.settings(),
         system: await this.systemInfo(status),
@@ -289,7 +323,7 @@ export class Scanner extends DurableObject {
       const rules = await this.get('rules', []);
       let added = 0;
       for (const raw of incoming) {
-        if (rules.length >= MAX_RULES) break;
+        if (rules.length >= (await this.plan()).maxRules) break;
         const rule = this.cleanRule({ ...raw, id: undefined }); // nuovo id: non sovrascrive quelli esistenti
         if (!rule) continue;
         rules.push(rule);
@@ -439,7 +473,7 @@ export class Scanner extends DurableObject {
           expansionId: parseInt(b.expansionId, 10) || null,
           expName: String(b.expName || '').slice(0, 80),
           ts: Date.now(),
-        }, ...wish].slice(0, 200);
+        }, ...wish].slice(0, (await this.plan()).maxWish);
       }
       await this.ctx.storage.put('wish', wish);
       return json(wish);
@@ -494,6 +528,9 @@ export class Scanner extends DurableObject {
       const rules = await this.get('rules', []);
       const rule = this.cleanRule(await req.json());
       if (!rule) return json({ error: 'Regola non valida' }, 400);
+      const plan = await this.plan();
+      if (!plan.priority) rule.priority = false;
+      if (!rule.blueprintId && !plan.setAlerts && !rules.some((r) => r.id === rule.id)) return json({ error: `Gli alert su un intero set non sono inclusi nel piano ${plan.label}.` }, 403);
       const i = rules.findIndex((r) => r.id === rule.id);
       if (i >= 0) {
         const old = rules[i];
@@ -501,7 +538,7 @@ export class Scanner extends DurableObject {
         // Se cambiano i criteri, gli annunci già visti vanno rivalutati con i criteri nuovi.
         const keys = ['maxPriceCents', 'minDiscount', 'minPriceCents', 'zero', 'language', 'minCondition', 'nameContains'];
         if (keys.some((k) => old[k] !== rule[k])) await this.resetRuleMemory(rule.id);
-      } else if (rules.length >= MAX_RULES) return json({ error: `Massimo ${MAX_RULES} regole` }, 400);
+      } else if (rules.length >= plan.maxRules) return json({ error: `Il piano ${plan.label} permette al massimo ${plan.maxRules} alert.` }, 403);
       else rules.push(rule);
       await this.ctx.storage.put('rules', rules);
       await this.ensureAlarm();
@@ -1069,7 +1106,7 @@ export class Scanner extends DurableObject {
   }
 
   async scanOnce(status) {
-    if (!this.env.CARDTRADER_TOKEN) throw new Error('CARDTRADER_TOKEN non configurato');
+    if (!(await this.token())) throw new Error('Token CardTrader mancante: esci e rientra');
     if ((await this.settings()).paused) return;
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
     const baselined = new Set(await this.get('baselined', []));

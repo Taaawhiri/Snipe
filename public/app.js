@@ -1,8 +1,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
-  const KEY_STORE = 'snipe.key';
-  let key = '';
-  try { key = localStorage.getItem(KEY_STORE) || ''; } catch {}
+  // L'accesso è un cookie di sessione (HttpOnly): il token CardTrader resta sul server.
+  try { localStorage.removeItem('snipe.key'); } catch {}
 
   let state = null;
   let expansions = [];
@@ -13,10 +12,11 @@
   async function api(path, opts = {}) {
     const res = await fetch(path, {
       ...opts,
-      headers: { 'x-app-key': key, ...(opts.body ? { 'content-type': 'application/json' } : {}) },
+      credentials: 'same-origin',
+      headers: opts.body ? { 'content-type': 'application/json' } : {},
     });
     if (res.status === 401) {
-      showLogin('Chiave non valida.');
+      showLogin('');
       throw new Error('401');
     }
     const data = await res.json().catch(() => ({}));
@@ -105,18 +105,22 @@
   }
   $('loginForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    key = $('keyInput').value.trim();
+    const btn = ev.submitter || $('loginForm').querySelector('button');
+    btn.disabled = true;
     try {
-      await api('/api/state');
-      try { localStorage.setItem(KEY_STORE, key); } catch {}
+      const res = await fetch('/api/login', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: $('keyInput').value.trim() }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Errore ${res.status}`);
+      $('keyInput').value = '';
       start();
     } catch (e) {
-      if (e.message !== '401') showLogin(e.message);
+      showLogin(e.message);
+    } finally {
+      btn.disabled = false;
     }
   });
-  $('logout').addEventListener('click', () => {
-    try { localStorage.removeItem(KEY_STORE); } catch {}
-    key = '';
+  $('logout').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => null);
     showLogin('');
   });
 
@@ -395,6 +399,7 @@
 
     const idx = sys.index;
     const rows = [
+      kvRow('Account', state.account ? `${state.account.name || '—'} · piano ${state.account.plan.label}` : '—'),
       kvRow('Scansione', s.paused ? 'In pausa' : active ? (st.lastScan ? `ultimo controllo ${ago(st.lastScan)}` : 'in avvio…') : 'nessun alert attivo'),
       kvRow('Alert attivi', `${active} su ${state.rules.length}`),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? st.lastError : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
@@ -1204,9 +1209,14 @@
 
   // ---------- avvio ----------
   async function start() {
+    state = null;
+    await refresh();
+    if (!state) { // nessuna sessione (compare l'accesso) o server non raggiungibile
+      if ($('login').hidden) showLogin('Connessione non riuscita: riprova.');
+      return;
+    }
     $('login').hidden = true;
     $('app').hidden = false;
-    await refresh();
     api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); }).catch((e) => {
       $('cardsMsg').textContent = `Elenco espansioni non disponibile: ${e.message}`;
       $('cardsMsg').hidden = false;
@@ -1216,5 +1226,5 @@
   }
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-  if (key) start(); else showLogin('');
+  start(); // senza sessione valida la prima richiesta risponde 401 e compare l'accesso
 })();

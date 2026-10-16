@@ -31,16 +31,14 @@ Gli alert su una carta valutano subito anche gli annunci già in vendita, poi av
    - Production branch: `main`
    - Build command: vuoto
    - Deploy command: `npx wrangler deploy`
-3. **Secret** (Workers → snipe → Settings → Variables and Secrets, nella parte del Worker e non sotto "Build"; tipo Secret):
+3. **Secret** (facoltativo, Workers → snipe → Settings → Variables and Secrets, tipo Secret): `CARDTRADER_TOKEN` con il token del proprietario. Chi accede con quello stesso token ritrova i dati del vecchio account unico e ha il piano "Proprietario".
+4. Apri l'URL `*.workers.dev` e accedi con il tuo token API di CardTrader. Ogni utente accede con il proprio token: ha alert, lista dei desideri, storico e notifiche separati, e consuma il limite di richieste del suo token.
 
-   | Nome | Valore |
-   | --- | --- |
-   | `CARDTRADER_TOKEN` | il token del punto 1 |
-   | `APP_KEY` | una password a tua scelta, la digiti all'apertura dell'app |
+## Account e piani
 
-   Le chiavi per le notifiche push le genera il server da solo alla prima necessità: non serve fare altro.
-4. Controlla che l'app veda i Secret aprendo `/api/health`: `APP_KEY` e `CARDTRADER_TOKEN` devono essere `true`.
-5. Apri l'URL `*.workers.dev`, inserisci `APP_KEY`, crea un alert dalla scheda Carte e attiva le notifiche dalla scheda Impostazioni.
+- L'accesso è un cookie di sessione firmato. Il token CardTrader resta nel server dati dell'utente e non torna mai al telefono.
+- `src/registry.js` tiene l'elenco degli utenti, il loro piano e la chiave che firma le sessioni.
+- `src/plans.js` definisce i piani (`free`, `pro`, `owner`) e cosa include ciascuno. Per ora il piano gratuito include tutto: per mettere a pagamento una funzione basta toglierla da `free`.
 
 Da qui ogni push su `main` va in produzione da solo.
 
@@ -65,5 +63,5 @@ npm test
 
 ## Stato
 
-Se l'app mostra "APP_KEY non configurata", apri `/api/health`: elenca quali Secret il Worker riesce a leggere.
+`/api/health` mostra la versione in esecuzione.
 
