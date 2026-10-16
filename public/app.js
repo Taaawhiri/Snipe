@@ -607,7 +607,7 @@
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
             el('div', { class: 'sub', text: [c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ') || ' ' }),
             c.expName ? el('div', { class: 'sub', text: c.expName }) : null,
-            c.cm ? el('div', { class: 'cmtxt', text: `Cardmarket da ${money(Math.round((c.cm.low ?? c.cm.trend) * 100), c.currency)}${$('cardLang').value ? ' (tutte le lingue)' : ''}` }) : null,
+            c.cm ? el('div', { class: 'cmtxt', text: `Cardmarket da ${money(Math.round((c.cm.low ?? c.cm.trend) * 100), c.currency)}} · tutte le lingue e condizioni` }) : null,
           ),
           ),
         );
@@ -806,10 +806,10 @@
     box.hidden = false;
     const cell = (label, cents) => (cents == null ? null : el('div', { class: 'cmcell' }, el('span', { text: label }), el('b', { text: money(Math.round(cents * 100), c.currency) })));
     const parts = [
-      el('div', { class: 'cmtitle', text: 'Cardmarket · tutte le lingue' }),
+      el('div', { class: 'cmtitle', text: 'Cardmarket · tutte le lingue e condizioni' }),
       el('div', { class: 'cmrow' }, ...[cell('tendenza', c.cm.trend), cell('media 30 giorni', c.cm.avg30), cell('più basso', c.cm.low)].filter(Boolean)),
       d == null ? null : el('div', { class: 'delta ' + (d >= 0.05 ? 'good' : d <= -0.05 ? 'bad' : ''), text: d >= 0 ? `Su CardTrader costa il ${Math.round(d * 100)}% in meno della tendenza` : `Su CardTrader costa il ${Math.round(-d * 100)}% in più della tendenza` }),
-      $('cardLang').value ? el('div', { class: 'cmwarn', text: 'Il listino Cardmarket non distingue le lingue: con un filtro lingua il confronto è solo indicativo.' }) : null,
+      el('div', { class: 'cmwarn', text: 'Il listino pubblico di Cardmarket non distingue lingue e condizioni: il "più basso" può essere una copia rovinata o in un’altra lingua, quindi il confronto è solo indicativo.' }),
       el('a', { href: cmSearchUrl(c), target: '_blank', rel: 'noopener noreferrer', text: 'Cerca su Cardmarket ↗' }),
     ];
     box.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
@@ -820,7 +820,7 @@
   function updateCmHint() {
     $('alertCmLabel').textContent = `${$('alertCmPct').value}%`;
     const c = current;
-    if (c && c.cm) $('alertCmHint').textContent = `Scatta sotto ${money(Math.floor(c.cm.trend * 100 * (1 - Number($('alertCmPct').value) / 100)), c.currency)} (tendenza ${money(Math.round(c.cm.trend * 100), c.currency)}, tutte le lingue insieme). Se segui una lingua precisa, "Sconto in %" confronta solo annunci della stessa lingua.`;
+    if (c && c.cm) $('alertCmHint').textContent = `Scatta sotto ${money(Math.floor(c.cm.trend * 100 * (1 - Number($('alertCmPct').value) / 100)), c.currency)} (tendenza ${money(Math.round(c.cm.trend * 100), c.currency)}, tutte le lingue e condizioni insieme). Se segui una lingua o una condizione precisa, "Sconto in %" confronta solo annunci con gli stessi filtri.`;
   }
 
   async function openCard(c) {
