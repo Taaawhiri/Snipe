@@ -127,7 +127,7 @@
     // affari del giorno
     'Affari del giorno': 'Deals of the day',
     'Annunci delle espansioni più recenti e più ricercate su Snipe che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest and most searched expansions on Snipe at least 25% cheaper than the typical price of the same card on CardTrader, compared only with listings in the same language. Near Mint or better, from €5. Updates by itself during the day.',
-    'Carico gli affari…': 'Loading deals…',
+    'Carico gli affari…': 'Loading deals…', 'Cerca un Pokémon (es. Charizard)': 'Search a Pokémon (e.g. Charizard)',
     'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 10 minuti. Riprova più tardi.': 'Collecting the first data: one expansion is checked every 10 minutes. Try again later.',
 
     // regole, venditori, desideri
@@ -246,6 +246,7 @@
   };
 
   const R = [
+    [/^Nessun affare per “(.+)” tra quelli di oggi\.$/, 'No deals for “$1” today.'],
     [/^Disdetto: attivo fino al (.+)$/, 'Cancelled: active until $1'], [/^Si rinnova il (.+)$/, 'Renews on $1'],
     [/^(\d+)s fa$/, '$1s ago'], [/^(\d+)m fa$/, '$1m ago'], [/^(\d+)h fa$/, '$1h ago'], [/^(\d+)g fa$/, '$1d ago'], [/^adesso$/, 'just now'],
     [/^Ultimo scan (.+) fa$/, 'Last scan $1 ago'], [/^ultimo controllo (.+) fa$/, 'last check $1 ago'], [/^scan (.+) fa$/, 'scan $1 ago'],
