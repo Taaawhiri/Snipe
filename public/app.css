@@ -559,3 +559,30 @@ svg.spark .cm { stroke: var(--blue); stroke-dasharray: 5 4; stroke-width: 2; }
 .own[open] > summary::before { content: '－ '; }
 .own-list { display: flex; flex-direction: column; gap: 6px; }
 .own-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+
+/* ---------- Ce l'ho ---------- */
+.dlg-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn.act { min-height: 50px; border-radius: 16px; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn.act.on { background: var(--yellow); color: var(--yellow-ink); border-color: var(--yellow); box-shadow: 0 3px 0 #b38f00; }
+.btn.own-btn.on { background: var(--green); color: #062a17; border-color: var(--green); box-shadow: 0 3px 0 #1f7a4a; }
+#ownDialog { z-index: 45; }
+.own-sheet { gap: 18px; }
+.own-card { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; align-items: start; padding: 12px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.own-card img { width: 84px; height: auto; aspect-ratio: 5 / 7; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); background: var(--surface-2); }
+.own-card .t { font: 600 17px var(--display); line-height: 1.2; overflow-wrap: anywhere; }
+.own-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.own-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-radius: 999px; background: var(--green-soft); color: var(--green); font-size: 13px; font-weight: 700; }
+.own-chip button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, 0.25); color: inherit; font-size: 11px; cursor: pointer; }
+.own-field { display: flex; flex-direction: column; gap: 8px; }
+.own-field .lbl { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stepper { display: inline-flex; align-items: center; align-self: flex-start; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.stepper button { width: 52px; height: 48px; border: 0; background: transparent; color: var(--text); font: 600 24px var(--display); cursor: pointer; }
+.stepper button:active { background: var(--surface-2); }
+.stepper output { min-width: 48px; text-align: center; font: 600 22px var(--display); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { min-width: 52px; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: 700 14px var(--sans); cursor: pointer; transition: background 0.12s, border-color 0.12s; }
+.pill.on { background: var(--red); border-color: var(--red); color: #fff; }
+.money-in { display: flex; align-items: center; gap: 0; border-radius: 14px; background: var(--surface-2); border: 2px solid var(--line); }
+.money-in input { border: 0; background: transparent; min-height: 48px; }
+.money-in input:focus { box-shadow: none; }
+.money-in span { padding: 0 14px; font: 600 18px var(--display); color: var(--muted); }

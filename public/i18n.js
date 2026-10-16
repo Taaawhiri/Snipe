@@ -217,6 +217,7 @@
     'Aggiungi alla collezione': 'Add to collection', 'Una copia in più': 'One more copy', 'Una copia in meno': 'One less copy', '≈ altra lingua': '≈ other language',
     'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto': 'No listings in your language and condition: lowest overall price',
     'Carta mancante': 'Card missing',
+    '☆ Desideri': '☆ Wishlist', '★ Nei desideri': '★ In wishlist', "＋ Ce l'ho": '＋ I own it', 'Prezzo pagato per copia': 'Price paid per copy', 'facoltativo': 'optional', 'Togli': 'Remove',
     'Bloccate': 'Blocked', 'Attive': 'On', 'Non attive': 'Off', 'Non disponibili': 'Unavailable', 'Disattivate': 'Off', 'Non supportate': 'Not supported', 'Da attivare': 'To enable',
   };
 
@@ -279,6 +280,7 @@
     [/^(\d+) su (\d+) carte diverse incluse nel tuo piano\.$/, '$1 of $2 unique cards included in your plan.'],
     [/^(.+) su (.+) carte diverse$/, '$1 of $2 unique cards'], [/^(\d+) carte diverse$/, '$1 unique cards'],
     [/^pagata (.+)$/, 'paid $1'], [/^pagate (.+) l'una$/, 'paid $1 each'], [/^(.+) l'una$/, '$1 each'],
+    [/^✓ Ce l'ho · (\d+)$/, '✓ I own it · $1'],
     [/^Ce l'ho · (\d+) (copia|copie)$/, (m, n) => `I own it · ${n} ${n === '1' ? 'copy' : 'copies'}`],
     [/^Togliere (.+) dalla collezione\?$/, 'Remove $1 from the collection?'],
     [/^Il piano (.+) include (\d+) carte diverse nella collezione\.$/, (m, p, n) => `The ${D[p] || p} plan includes ${n} unique cards in the collection.`],

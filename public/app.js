@@ -63,7 +63,7 @@
   }
 
   // ---------- pannelli a comparsa ----------
-  const sheets = ['cardDialog', 'editDialog', 'explainDialog'].map((id) => $(id));
+  const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'sellerDialog', 'ownDialog'].map((id) => $(id));
   function openSheet(d) {
     if (!d.open) d.show(); // non modale: il browser non usa il livello superiore
     $('sheetBackdrop').hidden = false;
@@ -219,7 +219,9 @@
   function updateWishBtn() {
     if (!current) return;
     const inWish = (state.wish || []).some((w) => w.id === current.id);
-    $('dlgWish').textContent = inWish ? '★ Nella lista dei desideri (tocca per togliere)' : '☆ Aggiungi alla lista dei desideri';
+    $('dlgWish').textContent = inWish ? '★ Nei desideri' : '☆ Desideri';
+    $('dlgWish').classList.toggle('on', inWish);
+    $('dlgWish').title = inWish ? 'Togli dalla lista dei desideri' : 'Aggiungi alla lista dei desideri';
   }
   $('wishFromRules').addEventListener('click', wishAllFromRules);
   $('dlgWish').addEventListener('click', () => current && toggleWish(current, (state.wish || []).some((w) => w.id === current.id)));
@@ -390,17 +392,50 @@
   document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
 
-  /** "Ce l'ho" nel dettaglio carta: copie già in collezione e modulo per aggiungerne. */
+  /** "Ce l'ho": pulsante nel dettaglio carta e pannello per aggiungere copie. */
+  const OWN_LANGS = [['en', 'EN'], ['jp', 'JP'], ['it', 'IT'], ['fr', 'FR'], ['de', 'DE'], ['es', 'ES'], ['pt', 'PT'], ['ko', 'KO'], ['zh', 'ZH']];
+  const OWN_CONDS = [['Mint', 'M'], ['Near Mint', 'NM'], ['Slightly Played', 'SP'], ['Moderately Played', 'MP'], ['Played', 'PL'], ['Heavily Played', 'HP'], ['Poor', 'PO']];
+  const own = { qty: 1, lang: 'en', cond: 'Near Mint' };
+
+  function pills(box, items, value, onPick) {
+    box.replaceChildren(...items.map(([v, label]) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(v === value), class: 'pill' + (v === value ? ' on' : ''), text: label, onclick: () => onPick(v) })));
+  }
+
+  function renderOwnSheet() {
+    $('ownQtyOut').textContent = String(own.qty);
+    pills($('ownLangs'), OWN_LANGS, own.lang, (v) => { own.lang = v; renderOwnSheet(); });
+    pills($('ownConds'), OWN_CONDS, own.cond, (v) => { own.cond = v; renderOwnSheet(); });
+  }
+
   function renderOwnBox() {
     if (!current) return;
     const mine = ((coll && coll.items) || []).filter((it) => it.bp === current.id);
     const n = mine.reduce((t, it) => t + it.qty, 0);
-    $('ownTitle').textContent = n ? `Ce l'ho · ${n} ${n === 1 ? 'copia' : 'copie'}` : "Ce l'ho";
-    $('ownList').replaceChildren(...mine.map((it) => el('div', { class: 'own-row' },
-      el('span', { text: `${it.qty}× ${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents ? ` · pagata ${money(it.paidCents)}` : ''}` }),
-      el('button', { class: 'btn mini danger', type: 'button', text: 'Togli', onclick: () => saveOwn({ ...it, qty: 0 }) }),
+    $('ownTitle').textContent = n ? `✓ Ce l'ho · ${n}` : "＋ Ce l'ho";
+    $('ownOpen').classList.toggle('on', n > 0);
+    $('ownList').replaceChildren(...mine.map((it) => el('span', { class: 'own-chip' },
+      el('b', { text: `${it.qty}×` }),
+      document.createTextNode(` ${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents ? ` · ${money(it.paidCents)}` : ''}`),
+      el('button', { type: 'button', 'aria-label': 'Togli', text: '✕', onclick: () => saveOwn({ ...it, qty: 0 }) }),
     )));
   }
+
+  $('ownOpen').addEventListener('click', () => {
+    if (!current) return;
+    $('ownName').textContent = "Ce l'ho";
+    $('ownCardName').textContent = current.name + (current.version ? ` (${current.version})` : '');
+    $('ownCardSet').textContent = current.expName || (dlgExp && dlgExp.name) || '';
+    $('ownImg').src = current.image || '';
+    $('ownError').hidden = true;
+    own.qty = 1;
+    const lf = $('cardLang').value;
+    if (lf && OWN_LANGS.some(([v]) => v === lf)) own.lang = lf;
+    renderOwnSheet();
+    renderOwnBox();
+    openSheet($('ownDialog'));
+  });
+  $('ownMinus').addEventListener('click', () => { own.qty = Math.max(1, own.qty - 1); renderOwnSheet(); });
+  $('ownPlus').addEventListener('click', () => { own.qty = Math.min(999, own.qty + 1); renderOwnSheet(); });
 
   $('ownAdd').addEventListener('click', async () => {
     if (!current) return;
@@ -410,11 +445,11 @@
       await saveOwn({
         bp: current.id, name: current.name + (current.version ? ` (${current.version})` : ''), image: current.image,
         expansionId: current.expansionId || (dlgExp && dlgExp.id), expName: current.expName || (dlgExp && dlgExp.name), cmId: current.cmId,
-        lang: $('ownLang').value, cond: $('ownCond').value, qty: Number($('ownQty').value) || 1, add: true,
+        lang: own.lang, cond: own.cond, qty: own.qty, add: true,
         paidCents: paid > 0 ? Math.round(paid * 100) : null,
       });
       $('ownPaid').value = '';
-      $('ownQty').value = '1';
+      $('ownDialog').close();
     } catch (e) {
       $('ownError').textContent = e.message;
       $('ownError').hidden = false;
@@ -1477,10 +1512,6 @@
     if (c.cm) renderCmBox(c); else { $('dlgCm').hidden = true; $('amodeCmLabel').hidden = true; }
     renderHistory(c);
     updateWishBtn();
-    $('ownBox').open = false;
-    $('ownError').hidden = true;
-    const lf = $('cardLang').value;
-    if (lf && [...$('ownLang').options].some((o) => o.value === lf)) $('ownLang').value = lf;
     if (!coll) api('/api/collection').then((d) => { coll = d; renderOwnBox(); }).catch(() => null); else renderOwnBox();
     $('dlgLink').href = cardUrl(c.id);
     $('dlgMeta').textContent = [dlgExp && dlgExp.name, c.number && '#' + c.number, c.rarity].filter(Boolean).join(' · ');

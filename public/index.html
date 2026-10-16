@@ -347,6 +347,44 @@
 </div>
 
 <div id="sheetBackdrop" class="backdrop" hidden></div>
+<dialog id="ownDialog" class="sheet" aria-labelledby="ownName">
+  <form method="dialog" class="sheet-head">
+    <h2 id="ownName">Ce l'ho</h2>
+    <button class="btn" aria-label="Chiudi">Chiudi</button>
+  </form>
+  <div class="sheet-body own-sheet">
+    <div class="own-card">
+      <img id="ownImg" alt="" width="84" height="117">
+      <div>
+        <div id="ownCardName" class="t"></div>
+        <div id="ownCardSet" class="muted small"></div>
+        <div id="ownList" class="own-list"></div>
+      </div>
+    </div>
+    <div class="own-field">
+      <span class="lbl">Copie</span>
+      <div class="stepper">
+        <button type="button" id="ownMinus" aria-label="Una copia in meno">−</button>
+        <output id="ownQtyOut">1</output>
+        <button type="button" id="ownPlus" aria-label="Una copia in più">+</button>
+      </div>
+    </div>
+    <div class="own-field">
+      <span class="lbl">Lingua</span>
+      <div id="ownLangs" class="pills" role="radiogroup" aria-label="Lingua"></div>
+    </div>
+    <div class="own-field">
+      <span class="lbl">Condizione</span>
+      <div id="ownConds" class="pills" role="radiogroup" aria-label="Condizione"></div>
+    </div>
+    <div class="own-field">
+      <label class="lbl" for="ownPaid">Prezzo pagato per copia</label>
+      <div class="money-in"><input id="ownPaid" type="number" min="0" step="0.01" inputmode="decimal" placeholder="facoltativo"><span>€</span></div>
+    </div>
+    <p id="ownError" class="error" hidden></p>
+    <button id="ownAdd" class="btn primary wide" type="button">Aggiungi alla collezione</button>
+  </div>
+</dialog>
 <dialog id="sellerDialog" class="sheet" aria-labelledby="slTitle">
   <form method="dialog" class="sheet-head">
     <h2 id="slTitle">Venditore</h2>
@@ -453,23 +491,10 @@
     </div>
     <div id="dlgCm" class="cmbox" hidden></div>
     <div id="dlgHist" class="hist" hidden></div>
-    <button id="dlgWish" class="btn wide" type="button">☆ Aggiungi alla lista dei desideri</button>
-    <details id="ownBox" class="card own">
-      <summary><span id="ownTitle">Ce l'ho</span></summary>
-      <div id="ownList" class="own-list"></div>
-      <div class="row">
-        <div><label for="ownQty">Copie</label><input id="ownQty" type="number" min="1" max="999" value="1" inputmode="numeric"></div>
-        <div><label for="ownPaid">Pagata (€ l'una, facoltativo)</label><input id="ownPaid" type="number" min="0" step="0.01" inputmode="decimal"></div>
-      </div>
-      <div class="row">
-        <div><label for="ownLang">Lingua</label>
-          <select id="ownLang"><option value="en">Inglese</option><option value="it">Italiano</option><option value="jp">Giapponese</option><option value="fr">Francese</option><option value="de">Tedesco</option><option value="es">Spagnolo</option><option value="pt">Portoghese</option><option value="ko">Coreano</option><option value="zh">Cinese</option></select></div>
-        <div><label for="ownCond">Condizione</label>
-          <select id="ownCond"><option>Mint</option><option selected>Near Mint</option><option>Slightly Played</option><option>Moderately Played</option><option>Played</option><option>Heavily Played</option><option>Poor</option></select></div>
-      </div>
-      <p id="ownError" class="error" hidden></p>
-      <button id="ownAdd" class="btn primary" type="button">Aggiungi alla collezione</button>
-    </details>
+    <div class="dlg-actions">
+      <button id="dlgWish" class="btn act" type="button">☆ Desideri</button>
+      <button id="ownOpen" class="btn act own-btn" type="button"><span id="ownTitle">＋ Ce l'ho</span></button>
+    </div>
     <a id="dlgLink" class="btn primary wide" href="#" target="_blank" rel="noopener noreferrer">Apri su CardTrader ↗</a>
 
     <h2 class="section">Annunci più economici</h2>
