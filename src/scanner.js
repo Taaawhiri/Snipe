@@ -41,6 +41,7 @@ const prop = (list, re) => {
 export class Scanner extends DurableObject {
   cardCache = new Map();
   productCache = new Map(); // espansione -> { ts, data }: annunci letti da CardTrader, condivisi da scan e pagine
+  bpCache = new Map(); // carta -> { ts, data }: tutti gli annunci di una carta (la lettura per espansione ne dà solo i più economici)
   cmCache = new Map();
   cmFailedAt = 0;
   queue = Promise.resolve();
@@ -250,7 +251,7 @@ export class Scanner extends DurableObject {
           cmTrend = e.trend;
           rule = { ...rule, maxPriceCents: maxCentsBelow(e.trend, rule.cmDiscount) };
         }
-        const data = await this.productsFor(rule.expansionId, 60_000);
+        const data = rule.blueprintId ? await this.productsForCard(rule.blueprintId, 60_000) : await this.productsFor(rule.expansionId, 60_000);
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const rows = all
           .filter((p) => p && p.price)
@@ -342,7 +343,10 @@ export class Scanner extends DurableObject {
       const expId = parseInt(url.searchParams.get('expansion_id'), 10);
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
       try {
-        const data = Number.isInteger(expId) && expId > 0 ? await this.productsFor(expId) : await this.ct(`/marketplace/products?blueprint_id=${id}`);
+        const bpHit = this.bpCache.get(id);
+        const data = bpHit && Date.now() - bpHit.ts < 5 * 60_000
+          ? bpHit.data
+          : Number.isInteger(expId) && expId > 0 ? await this.productsFor(expId) : await this.ct(`/marketplace/products?blueprint_id=${id}`);
         const wanted = normLang(url.searchParams.get('lang'));
         const list = (data[id] || data[String(id)] || [])
           .filter(isListable)
@@ -538,6 +542,20 @@ export class Scanner extends DurableObject {
     try {
       const data = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
       this.productCache.set(expansionId, { ts: Date.now(), data });
+      return data;
+    } catch (e) {
+      if (hit) return hit.data;
+      throw e;
+    }
+  }
+
+  /** Tutti gli annunci di una carta: la lettura per espansione restituisce solo i più economici di ogni carta. */
+  async productsForCard(blueprintId, maxAgeMs = 5 * 60_000) {
+    const hit = this.bpCache.get(blueprintId);
+    if (hit && Date.now() - hit.ts < maxAgeMs) return hit.data;
+    try {
+      const data = await this.ct(`/marketplace/products?blueprint_id=${blueprintId}`);
+      this.bpCache.set(blueprintId, { ts: Date.now(), data });
       return data;
     } catch (e) {
       if (hit) return hit.data;
@@ -823,10 +841,18 @@ export class Scanner extends DurableObject {
         cmRef = e.trend;
         evalRule = { ...rule, maxPriceCents: max };
       }
-      const key = String(rule.expansionId);
+      // Gli alert su una carta leggono tutti i suoi annunci: per espansione CardTrader dà solo i più
+      // economici di ogni carta, e un annuncio Zero o in una certa lingua può restarne fuori.
+      const key = rule.blueprintId ? `bp:${rule.blueprintId}` : String(rule.expansionId);
       if (!cache.has(key)) {
-        const fresh = await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`);
-        this.productCache.set(rule.expansionId, { ts: Date.now(), data: fresh });
+        let fresh;
+        if (rule.blueprintId) {
+          fresh = await this.ct(`/marketplace/products?blueprint_id=${rule.blueprintId}`);
+          this.bpCache.set(rule.blueprintId, { ts: Date.now(), data: fresh });
+        } else {
+          fresh = await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`);
+          this.productCache.set(rule.expansionId, { ts: Date.now(), data: fresh });
+        }
         cache.set(key, fresh);
         requests++;
       }
