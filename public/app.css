@@ -323,7 +323,7 @@ select.open option { padding: 8px 10px; border-radius: 8px; }
 @media (prefers-color-scheme: dark) { :root { --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45); } }
 
 /* testata: gradiente bordeaux → blu notte con riflesso */
-.top { background: linear-gradient(120deg, #7e1427 0%, var(--red) 38%, #3a1f4f 78%, #1b2350 100%); border-bottom: 0; box-shadow: 0 6px 20px rgba(15, 21, 48, 0.35); }
+.top { background: linear-gradient(180deg, #9b1c31 0%, rgba(155, 28, 49, 0.85) 30%, rgba(155, 28, 49, 0) 100%), linear-gradient(110deg, #9b1c31 0%, #9b1c31 30%, #4a1d48 75%, #1b2350 100%); border-bottom: 0; box-shadow: 0 6px 20px rgba(15, 21, 48, 0.35); }
 .top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--yellow), #ff8a3d 50%, var(--yellow)); opacity: 0.9; }
 .brand svg { animation: wobble 6s ease-in-out infinite; transform-origin: 50% 70%; }
 @keyframes wobble { 0%, 86%, 100% { transform: rotate(0); } 89% { transform: rotate(-14deg); } 92% { transform: rotate(12deg); } 95% { transform: rotate(-6deg); } }
