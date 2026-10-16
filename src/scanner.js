@@ -13,7 +13,12 @@ const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le rispos
 const MARKETPLACE_GAP_MS = 1200;
 const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
-const MARKET_PER_SCAN = 2; // letture dal marketplace per giro di scan, qualunque sia il numero di alert
+const MARKET_PER_SCAN = 2;
+const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
+const MKT_RESERVE = 3; // gettoni che lo scan lascia sempre all'utente
+const MKT_GAP_START = 3000; // un gettone ogni 3 s = 20 letture al minuto
+const MKT_GAP_MIN = 2000;
+const MKT_GAP_MAX = 15_000; // letture dal marketplace per giro di scan, qualunque sia il numero di alert
 const MAX_RULES = 30;
 const MAX_ALERTS = 200;
 const MAX_SEEN = 20_000;
@@ -48,6 +53,13 @@ export class Scanner extends DurableObject {
   queue = Promise.resolve();
   lastCall = 0;
   blockedUntil = 0;
+  // Secchiello per il marketplace: ogni lettura consuma un gettone, che si ricarica ogni mktGap ms.
+  // Dopo un 429 la ricarica rallenta, dopo molte risposte buone accelera di nuovo (mai sotto MKT_GAP_MIN).
+  tokens = MKT_BUCKET;
+  tokensAt = Date.now();
+  mktGap = MKT_GAP_START;
+  okStreak = 0;
+  recent429 = [];
 
   async settings() {
     return { ...DEFAULT_SETTINGS, ...(await this.get('settings', {})) };
@@ -59,7 +71,41 @@ export class Scanner extends DurableObject {
   }
 
   /** Mette in fila le chiamate a CardTrader e rispetta la pausa dopo un 429. */
-  async throttle(path) {
+  refill() {
+    const now = Date.now();
+    const add = (now - this.tokensAt) / this.mktGap;
+    if (add > 0) {
+      this.tokens = Math.min(MKT_BUCKET, this.tokens + add);
+      this.tokensAt = now;
+    }
+  }
+
+  /**
+   * Prende un gettone del marketplace. Le richieste in background (lo scan) non aspettano e
+   * lasciano sempre MKT_RESERVE gettoni a quelle aperte dall'utente, che invece attendono il loro turno.
+   */
+  async takeToken(background) {
+    if (!this.gapLoaded) {
+      this.gapLoaded = true;
+      this.mktGap = await this.get('mktGap', MKT_GAP_START);
+    }
+    for (;;) {
+      this.refill();
+      const floor = background ? MKT_RESERVE + 1 : 1;
+      if (this.tokens >= floor) {
+        this.tokens -= 1;
+        return;
+      }
+      if (background) {
+        const err = new Error('budget di richieste esaurito per questo giro');
+        err.budget = true;
+        throw err;
+      }
+      await sleep(Math.ceil((1 - this.tokens) * this.mktGap) + 20);
+    }
+  }
+
+  async throttle(path, background = false) {
     const prev = this.queue;
     let release;
     this.queue = new Promise((r) => (release = r));
@@ -71,6 +117,7 @@ export class Scanner extends DurableObject {
         err.rateLimited = true;
         throw err;
       }
+      if (path.startsWith('/marketplace')) await this.takeToken(background);
       const gap = path.startsWith('/marketplace') ? MARKETPLACE_GAP_MS : OTHER_GAP_MS;
       const wait = this.lastCall + gap - now;
       if (wait > 0) await sleep(wait);
@@ -89,6 +136,7 @@ export class Scanner extends DurableObject {
       cm: await this.get('cmmeta', null),
       cmError: (status && status.cmError) || null,
       limitUntil: this.blockedUntil > Date.now() ? this.blockedUntil : null,
+      market: { gapMs: this.mktGap, tokens: Math.floor(this.tokens), recent429: this.recent429 },
     };
   }
 
@@ -110,8 +158,8 @@ export class Scanner extends DurableObject {
     return { ...keys, subject: configured || origin || 'https://workers.dev' };
   }
 
-  async ct(path) {
-    await this.throttle(path);
+  async ct(path, background = false) {
+    await this.throttle(path, background);
     const res = await fetch((this.env.CARDTRADER_API || API) + path, {
       headers: { Authorization: `Bearer ${this.env.CARDTRADER_TOKEN}`, Accept: 'application/json' },
     });
@@ -119,6 +167,13 @@ export class Scanner extends DurableObject {
       const retry = parseInt(res.headers.get('retry-after'), 10);
       // 429 di fila: la pausa raddoppia (30s, 1, 2, 4 min, poi massimo 5) finché CardTrader non risponde di nuovo.
       this.strikes = (this.strikes || 0) + 1;
+      if (path.startsWith('/marketplace')) {
+        this.mktGap = Math.min(MKT_GAP_MAX, Math.round(this.mktGap * 1.5));
+        this.okStreak = 0;
+        this.tokens = 0;
+        this.recent429 = [...this.recent429, { ts: Date.now(), path: path.split('&')[0] }].slice(-10);
+        await this.ctx.storage.put('mktGap', this.mktGap);
+      }
       const backoff = Math.min(MIN_BACKOFF_MS * 2 ** (this.strikes - 1), 5 * 60_000);
       const pause = Math.max(backoff, Number.isFinite(retry) ? retry * 1000 : 0);
       this.blockedUntil = Date.now() + pause;
@@ -127,6 +182,11 @@ export class Scanner extends DurableObject {
       throw err;
     }
     this.strikes = 0;
+    if (path.startsWith('/marketplace') && ++this.okStreak >= 40 && this.mktGap > MKT_GAP_MIN) {
+      this.mktGap = Math.max(MKT_GAP_MIN, this.mktGap - 500);
+      this.okStreak = 0;
+      await this.ctx.storage.put('mktGap', this.mktGap);
+    }
     if (!res.ok) throw new Error(`CardTrader ${path.split('?')[0]} → HTTP ${res.status}`);
     return res.json();
   }
@@ -545,11 +605,11 @@ export class Scanner extends DurableObject {
    * Annunci di un'espansione. Le pagine non chiamano CardTrader a ogni apertura: usano la copia in memoria
    * (aggiornata anche dallo scan) e la rinnovano al massimo ogni 5 minuti. Se CardTrader limita, si usa la copia vecchia.
    */
-  async productsFor(expansionId, maxAgeMs = 5 * 60_000) {
+  async productsFor(expansionId, maxAgeMs = 5 * 60_000, background = false) {
     const hit = this.productCache.get(expansionId);
     if (hit && Date.now() - hit.ts < maxAgeMs) return hit.data;
     try {
-      const data = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
+      const data = await this.ct(`/marketplace/products?expansion_id=${expansionId}`, background);
       this.productCache.set(expansionId, { ts: Date.now(), data });
       return data;
     } catch (e) {
@@ -559,11 +619,11 @@ export class Scanner extends DurableObject {
   }
 
   /** Tutti gli annunci di una carta: la lettura per espansione restituisce solo i più economici di ogni carta. */
-  async productsForCard(blueprintId, maxAgeMs = 5 * 60_000) {
+  async productsForCard(blueprintId, maxAgeMs = 5 * 60_000, background = false) {
     const hit = this.bpCache.get(blueprintId);
     if (hit && Date.now() - hit.ts < maxAgeMs) return hit.data;
     try {
-      const data = await this.ct(`/marketplace/products?blueprint_id=${blueprintId}`);
+      const data = await this.ct(`/marketplace/products?blueprint_id=${blueprintId}`, background);
       this.bpCache.set(blueprintId, { ts: Date.now(), data });
       return data;
     } catch (e) {
@@ -851,14 +911,15 @@ export class Scanner extends DurableObject {
     let error = null;
     for (const src of due) {
       try {
-        if (src.kind === 'b') await this.productsForCard(src.id, 0);
-        else await this.productsFor(src.id, 0);
+        if (src.kind === 'b') await this.productsForCard(src.id, 0, true);
+        else await this.productsFor(src.id, 0, true);
         n++;
       } catch (e) {
         error = e; // i dati già letti restano validi: le regole si valutano comunque
-        if (e.rateLimited) break;
+        if (e.rateLimited || e.budget) break;
       }
     }
+    if (error && error.budget) error = null; // budget finito: non è un errore, si riprende al giro dopo
     if (error && !n && ![...sources.values()].some((src) => age(src))) throw error;
     return n;
   }
