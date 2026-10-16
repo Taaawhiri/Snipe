@@ -932,6 +932,7 @@
     return Uint8Array.from(b, (c) => c.charCodeAt(0));
   }
   let pushSynced = false;
+  let resubscribing = false;
 
   async function updatePushUI() {
     const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -962,6 +963,17 @@
       const reg = await navigator.serviceWorker.ready;
       sub = await reg.pushManager.getSubscription();
     } catch {}
+    // Il telefono a volte cancella l'iscrizione (risparmio energetico, permessi revocati per inattività):
+    // se il permesso c'è ancora ma l'iscrizione no, la rifacciamo da soli senza chiedere nulla.
+    if (!sub && Notification.permission === 'granted' && state && state.vapidPublic && !resubscribing) {
+      resubscribing = true;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(state.vapidPublic) });
+        await api('/api/subscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) });
+        pushSynced = true;
+      } catch {} finally { resubscribing = false; }
+    }
     if (sub && Notification.permission === 'granted') {
       if (!pushSynced) {
         pushSynced = true;
@@ -1001,18 +1013,6 @@
       $('pushInfo').textContent = r.sent ? 'Notifica di prova inviata: dovrebbe arrivare entro pochi secondi.' : 'Non è stato possibile inviarla: riattiva le notifiche su questo dispositivo.';
       await refresh();
     } catch (e) { $('pushInfo').textContent = e.message; }
-  });
-  $('runDebug').addEventListener('click', async () => {
-    const out = $('debugOut');
-    out.hidden = false;
-    out.textContent = 'Controllo…';
-    try {
-      const id = $('cardExp').value;
-      const r = await api('/api/debug' + (id ? `?expansion_id=${id}` : ''));
-      out.textContent = JSON.stringify(r, null, 2);
-    } catch (e) {
-      out.textContent = 'Errore: ' + e.message;
-    }
   });
   $('clearAlerts').addEventListener('click', async () => { await api('/api/alerts', { method: 'DELETE' }); knownTop = null; refresh(); });
 
