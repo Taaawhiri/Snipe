@@ -5,7 +5,7 @@ import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
-import { dealsFromProducts } from './daydeals.js';
+import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
 import { collKey, pickPrice, priceFor, summarize } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
@@ -1262,20 +1262,23 @@ export class Scanner extends DurableObject {
     const exp = exps[st.i % exps.length];
     const { cards } = await this.cardsFor(exp.id);
     const products = await this.productsFor(exp.id);
-    await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromProducts(cards, products) });
+    await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromProducts(cards, products), itemsZero: zeroDealsFromProducts(cards, products) });
   }
 
   async dealsList() {
     const exps = await this.recentExpansions();
     const got = await this.ctx.storage.get(exps.map((e) => `dd:${e.id}`));
     const items = [];
+    const itemsZero = [];
     let ts = 0;
     for (const v of got.values()) {
       ts = Math.max(ts, v.ts);
       for (const it of v.items) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
+      for (const it of v.itemsZero || []) itemsZero.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
     }
     items.sort((a, b) => b.discount - a.discount);
-    return { items: items.slice(0, 80), ts, sets: exps.map((e) => e.name), popular: exps.filter((e) => e.popular).map((e) => e.name) };
+    itemsZero.sort((a, b) => b.discount - a.discount);
+    return { items: items.slice(0, 80), itemsZero: itemsZero.slice(0, 80), ts, sets: exps.map((e) => e.name), popular: exps.filter((e) => e.popular).map((e) => e.name) };
   }
 
   // ---------- Prezzi Cardmarket (listino pubblico giornaliero) ----------

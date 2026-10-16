@@ -25,3 +25,15 @@ test('ogni lingua si confronta con sé stessa', () => {
   const products = { 1: [L(1, 1000, 'jp'), L(2, 1020, 'jp'), L(3, 1050, 'jp'), L(4, 1080, 'jp'), L(5, 2000), L(6, 2050), L(7, 2100), L(8, 2150)] };
   assert.equal(dealsFromProducts(cards, products).length, 0);
 });
+
+import { zeroDealsFromProducts } from '../src/daydeals.js';
+
+test('affari solo Zero: annuncio Zero molto sotto gli altri annunci', () => {
+  const cards = [{ id: 1, single: true, name: 'X', cm: null }];
+  const Z = (id, cents) => ({ ...L(id, cents), user: { username: 'z' + id, can_sell_via_hub: true } });
+  const products = { 1: [L(1, 900), Z(2, 1000), L(3, 1900), L(4, 2000), L(5, 2100), L(6, 2200)] };
+  const out = zeroDealsFromProducts(cards, products);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].cents, 1000);
+  assert.equal(out[0].zero, true);
+});

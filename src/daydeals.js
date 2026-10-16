@@ -1,5 +1,5 @@
 // Affari del giorno: logica pura, testabile.
-import { findDeals, listingLang, normLang } from './deals.js';
+import { condRank, findDeals, isListable, isZero, listingLang, median, normLang } from './deals.js';
 
 // Criteri: carte singole Near Mint o meglio, almeno il 25% sotto il prezzo tipico su CardTrader
 // (la mediana dei 5 annunci successivi, con almeno 3 annunci di confronto), da 5 € in su.
@@ -34,6 +34,54 @@ export function dealsFromProducts(cards, products) {
       currency: d.product.price.currency || 'EUR',
       zero: !!(d.product.user && d.product.user.can_sell_via_hub),
       language: normLang(listingLang(d.product)) || null,
+    });
+  }
+  return out.sort((a, b) => b.discount - a.discount).slice(0, 20);
+}
+
+/**
+ * Affari solo CardTrader Zero: il primo annuncio Zero di ogni carta (per lingua, NM o meglio) confrontato
+ * con il prezzo tipico di tutti gli annunci successivi nella stessa lingua, non solo Zero.
+ */
+export function zeroDealsFromProducts(cards, products) {
+  const byId = new Map(cards.filter((c) => c.single).map((c) => [String(c.id), c]));
+  const minRank = condRank(DAY_RULE.minCondition);
+  const out = [];
+  for (const [bp, list] of Object.entries(products || {})) {
+    const c = byId.get(String(bp));
+    if (!c || !Array.isArray(list)) continue;
+    const ok = list.filter((p) => isListable(p) && condRank(p.properties_hash && p.properties_hash.condition) >= minRank);
+    const byLang = new Map();
+    for (const p of ok) {
+      const l = normLang(listingLang(p)) || '?';
+      if (!byLang.has(l)) byLang.set(l, []);
+      byLang.get(l).push(p);
+    }
+    let best = null;
+    for (const [lang, arr] of byLang) {
+      arr.sort((a, b) => a.price.cents - b.price.cents);
+      const i = arr.findIndex(isZero);
+      if (i < 0) continue;
+      const z = arr[i];
+      const refs = arr.filter((p) => p !== z).slice(i, i + 5).map((p) => p.price.cents);
+      if (refs.length < 3 || z.price.cents < DAY_RULE.minPriceCents) continue;
+      const ref = median(refs);
+      const discount = 1 - z.price.cents / ref;
+      if (discount < DAY_RULE.minDiscount / 100) continue;
+      if (!best || discount > best.discount) best = { z, ref, discount, lang };
+    }
+    if (!best) continue;
+    out.push({
+      id: c.id,
+      name: c.name + (c.version ? ` (${c.version})` : ''),
+      image: c.image,
+      cents: best.z.price.cents,
+      refCents: Math.round(best.ref),
+      discount: best.discount,
+      trendCents: c.cm && c.cm.trend ? Math.round(c.cm.trend * 100) : null,
+      currency: best.z.price.currency || 'EUR',
+      zero: true,
+      language: best.lang === '?' ? null : best.lang,
     });
   }
   return out.sort((a, b) => b.discount - a.discount).slice(0, 20);
