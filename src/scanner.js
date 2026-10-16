@@ -13,6 +13,7 @@ const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le rispos
 const MARKETPLACE_GAP_MS = 1200;
 const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
+const MARKET_PER_SCAN = 2; // letture dal marketplace per giro di scan, qualunque sia il numero di alert
 const MAX_RULES = 30;
 const MAX_ALERTS = 200;
 const MAX_SEEN = 20_000;
@@ -347,10 +348,14 @@ export class Scanner extends DurableObject {
       const expId = parseInt(url.searchParams.get('expansion_id'), 10);
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
       try {
-        const bpHit = this.bpCache.get(id);
-        const data = bpHit && Date.now() - bpHit.ts < 5 * 60_000
-          ? bpHit.data
-          : Number.isInteger(expId) && expId > 0 ? await this.productsFor(expId) : await this.ct(`/marketplace/products?blueprint_id=${id}`);
+        // Aprire una carta legge tutti i suoi annunci (una richiesta), se non sono già freschi.
+        let data;
+        try {
+          data = await this.productsForCard(id, 2 * 60_000);
+        } catch (e) {
+          if (!(Number.isInteger(expId) && expId > 0)) throw e;
+          data = await this.productsFor(expId);
+        }
         const wanted = normLang(url.searchParams.get('lang'));
         const list = (data[id] || data[String(id)] || [])
           .filter(isListable)
@@ -825,6 +830,47 @@ export class Scanner extends DurableObject {
     }
   }
 
+  /**
+   * Aggiorna al massimo MARKET_PER_SCAN letture dal marketplace per giro, scegliendo le più vecchie:
+   * le espansioni delle regole e, per gli alert su una carta, tutti gli annunci di quella carta
+   * (la lettura per espansione dà solo i più economici di ogni carta). Così le richieste restano
+   * costanti anche con molti alert, e ogni fonte si aggiorna a turno.
+   */
+  async refreshSources(rules) {
+    const sources = new Map();
+    for (const r of rules) {
+      sources.set(`e:${r.expansionId}`, { kind: 'e', id: r.expansionId });
+      if (r.blueprintId) sources.set(`b:${r.blueprintId}`, { kind: 'b', id: r.blueprintId });
+    }
+    const age = (src) => {
+      const hit = (src.kind === 'b' ? this.bpCache : this.productCache).get(src.id);
+      return hit ? hit.ts : 0;
+    };
+    const due = [...sources.values()].sort((a, b) => age(a) - age(b)).slice(0, MARKET_PER_SCAN);
+    let n = 0;
+    let error = null;
+    for (const src of due) {
+      try {
+        if (src.kind === 'b') await this.productsForCard(src.id, 0);
+        else await this.productsFor(src.id, 0);
+        n++;
+      } catch (e) {
+        error = e; // i dati già letti restano validi: le regole si valutano comunque
+        if (e.rateLimited) break;
+      }
+    }
+    if (error && !n && ![...sources.values()].some((src) => age(src))) throw error;
+    return n;
+  }
+
+  /** Annunci più recenti disponibili per una regola: quelli della carta o quelli dell'espansione. */
+  dataForRule(rule) {
+    const exp = this.productCache.get(rule.expansionId);
+    const bp = rule.blueprintId && this.bpCache.get(rule.blueprintId);
+    if (bp && (!exp || bp.ts >= exp.ts || Date.now() - bp.ts < 3 * 60_000)) return bp.data;
+    return exp ? exp.data : null;
+  }
+
   async scanOnce(status) {
     if (!this.env.CARDTRADER_TOKEN) throw new Error('CARDTRADER_TOKEN non configurato');
     if ((await this.settings()).paused) return;
@@ -832,8 +878,7 @@ export class Scanner extends DurableObject {
     const baselined = new Set(await this.get('baselined', []));
     const seen = await this.get('seen', {});
     const fresh = [];
-    const cache = new Map();
-    let requests = 0;
+    const requests = await this.refreshSources(rules);
 
     for (const rule of rules) {
       let evalRule = rule;
@@ -845,22 +890,9 @@ export class Scanner extends DurableObject {
         cmRef = e.trend;
         evalRule = { ...rule, maxPriceCents: max };
       }
-      // Gli alert su una carta leggono tutti i suoi annunci: per espansione CardTrader dà solo i più
-      // economici di ogni carta, e un annuncio Zero o in una certa lingua può restarne fuori.
-      const key = rule.blueprintId ? `bp:${rule.blueprintId}` : String(rule.expansionId);
-      if (!cache.has(key)) {
-        let fresh;
-        if (rule.blueprintId) {
-          fresh = await this.ct(`/marketplace/products?blueprint_id=${rule.blueprintId}`);
-          this.bpCache.set(rule.blueprintId, { ts: Date.now(), data: fresh });
-        } else {
-          fresh = await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`);
-          this.productCache.set(rule.expansionId, { ts: Date.now(), data: fresh });
-        }
-        cache.set(key, fresh);
-        requests++;
-      }
-      const deals = findDeals(cache.get(key), evalRule).map((d) =>
+      const data = this.dataForRule(rule);
+      if (!data) continue; // nessun dato ancora: arriverà a uno dei prossimi giri
+      const deals = findDeals(data, evalRule).map((d) =>
         cmRef ? { ...d, refCents: Math.round(cmRef * 100), discount: Math.max(0, 1 - d.cents / (cmRef * 100)) } : d,
       );
       // Gli alert su una carta valutano subito anche gli annunci già in vendita. Solo le vecchie regole
