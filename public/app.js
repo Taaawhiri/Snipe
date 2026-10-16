@@ -1767,9 +1767,25 @@
       renderCards();
     } catch (e) {
       $('cardsMsg').hidden = false;
+      // CardTrader ha chiesto una pausa: riproviamo da soli allo scadere, con il conto alla rovescia.
+      const m = /riprovo tra (\d+)s/.exec(e.message);
+      if (m) {
+        const exp = currentExp;
+        let left = Number(m[1]) + 2;
+        clearInterval(cardsRetry);
+        cardsRetry = setInterval(() => {
+          if (currentExp !== exp) { clearInterval(cardsRetry); return; }
+          left--;
+          $('cardsMsg').textContent = `CardTrader chiede una pausa: riprovo da solo tra ${Math.max(0, left)}s…`;
+          if (left <= 0) { clearInterval(cardsRetry); loadCards(); }
+        }, 1000);
+        $('cardsMsg').textContent = `CardTrader chiede una pausa: riprovo da solo tra ${left}s…`;
+        return;
+      }
       $('cardsMsg').textContent = `Impossibile caricare le carte: ${e.message}`;
     }
   }
+  let cardsRetry = null;
   $('cardExp').addEventListener('change', loadCards);
   let typing = null;
   $('cardSearch').addEventListener('input', () => {

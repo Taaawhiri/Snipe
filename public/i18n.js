@@ -256,6 +256,7 @@
     [/^Utente CardTrader (\d+)$/, 'CardTrader user $1'],
     [/^(.+) · (\d+)\/(\d+) scansioni questo mese$/, (m, e, a, b) => `${D[e] || e} · ${a}/${b} scans this month`],
     [/^N\. (.+)$/, 'No. $1'],
+    [/^CardTrader chiede una pausa: riprovo da solo tra (\d+)s…$/, 'CardTrader asked for a pause: retrying by itself in $1s…'],
     [/^Riconosco (\d+) di (\d+)…$/, 'Recognising $1 of $2…'],
     [/^Fatto: (\d+) riconosciute su (\d+)\. Controlla le righe gialle\.$/, 'Done: $1 recognised out of $2. Check the yellow rows.'],
     [/^(\d+) da aggiungere( · alcune da controllare \(in giallo\))?$/, (m, n, x) => `${n} to add${x ? ' · some to check (in yellow)' : ''}`],

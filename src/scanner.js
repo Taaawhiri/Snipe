@@ -171,7 +171,12 @@ export class Scanner extends DurableObject {
     this.queue = new Promise((r) => (release = r));
     await prev;
     try {
-      const now = Date.now();
+      let now = Date.now();
+      // Richieste aperte dall'utente: se la pausa chiesta da CardTrader è breve, aspettiamo invece di fallire.
+      if (!background && this.blockedUntil > now && this.blockedUntil - now <= 45_000) {
+        await sleep(this.blockedUntil - now + 200);
+        now = Date.now();
+      }
       if (this.blockedUntil > now) {
         const err = new Error(`CardTrader sta limitando le richieste: riprovo tra ${Math.ceil((this.blockedUntil - now) / 1000)}s`);
         err.rateLimited = true;
@@ -263,6 +268,8 @@ export class Scanner extends DurableObject {
       if (!prev) this.bumpExpansion(item.expansionId, 2);
     }
     await this.ctx.storage.put('coll', coll);
+    // Carta appena aggiunta senza prezzo: leggiamo subito i suoi annunci (una richiesta) invece di aspettare il giro orario.
+    if (qty && !(await this.get('collPrices', {}))[key]) await this.productsForCard(bp, 10 * 60_000).catch(() => null);
     await this.collectionPrices(true);
     await this.ensureAlarm();
     return { ok: true };
