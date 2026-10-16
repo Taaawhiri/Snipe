@@ -19,6 +19,12 @@ const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le rispos
 const MARKETPLACE_GAP_MS = 1200;
 const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
+/** Numero della versione ("#024 Arbok · ..." -> 24). */
+function buildNumber(b) {
+  const m = /#(\d+)/.exec(String(b || ''));
+  return m ? Number(m[1]) : 0;
+}
+
 const MARKET_PER_SCAN = 2;
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
 const DEALS_POPULAR = 10; // più le più ricercate del momento dagli utenti di Snipe
@@ -383,6 +389,14 @@ export class Scanner extends DurableObject {
     const url = new URL(req.url);
     const path = url.pathname;
     const method = req.method;
+
+    // Se il Worker è più nuovo di questo server dati (deploy appena fatto), ci riavviamo per caricare
+    // il codice nuovo: la richiesta risponde 503 e il Worker la ripete subito.
+    const wb = buildNumber(req.headers.get('x-build'));
+    if (wb && wb > buildNumber(BUILD)) {
+      setTimeout(() => this.ctx.abort('nuova versione'), 50);
+      return new Response(JSON.stringify({ error: 'Aggiornamento in corso: riprova tra qualche secondo.' }), { status: 503, headers: { 'content-type': 'application/json', 'x-stale': '1' } });
+    }
 
     if (path === '/api/_account' && method === 'POST') {
       const b = await req.json();

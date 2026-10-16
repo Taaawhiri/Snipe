@@ -98,6 +98,18 @@ async function admin(req, env, url, me) {
   return json({ error: 'not found' }, 404);
 }
 
+/** Inoltra al server dati; se si sta riavviando per una versione nuova, riprova una volta. */
+async function forward(env, doName, req, headers) {
+  const body = req.method === 'GET' || req.method === 'HEAD' ? null : await req.arrayBuffer();
+  const send = () => scanner(env, doName).fetch(new Request(req.url, { method: req.method, headers, body }));
+  let res = await send().catch(() => null);
+  for (let i = 0; i < 3 && (!res || res.headers.get('x-stale')); i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    res = await send().catch(() => null);
+  }
+  return res || json({ error: 'Server dati non raggiungibile: riprova.' }, 503);
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -126,15 +138,16 @@ export default {
     headers.set('x-user', user.id);
     headers.set('x-plan', user.plan);
     headers.set('x-do', user.doName);
+    headers.set('x-build', BUILD);
     headers.set('x-user-name', encodeURIComponent(user.name || ''));
     // Ricerca per nome e rinnovo dell'indice usano il catalogo condiviso (server dati 'main').
-    if (url.pathname === '/api/search') return scanner(env, 'main').fetch(new Request(req, { headers }));
-    if (url.pathname === '/api/deals') return scanner(env, 'main').fetch(new Request(req, { headers }));
+    if (url.pathname === '/api/search') return forward(env, 'main', req, headers);
+    if (url.pathname === '/api/deals') return forward(env, 'main', req, headers);
     if (url.pathname === '/api/index/refresh') {
       if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può rinnovare l’indice.' }, 403);
-      return scanner(env, 'main').fetch(new Request(req, { headers }));
+      return forward(env, 'main', req, headers);
     }
-    return scanner(env, user.doName).fetch(new Request(req, { headers }));
+    return forward(env, user.doName, req, headers);
   },
 
   async scheduled(_event, env, ctx) {
