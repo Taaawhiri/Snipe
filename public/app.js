@@ -735,6 +735,30 @@
   const dateIt = (ts) => (ts ? new Date(ts).toLocaleDateString(document.documentElement.lang === 'en' ? 'en-GB' : 'it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
   $('adminReload').addEventListener('click', loadAdmin);
 
+  /** Icone a tratto (stesso stile della barra in basso). */
+  const ICONS = {
+    star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+    starFill: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+    heart: 'M12 20s-7-4.4-9-9a4.6 4.6 0 0 1 9-2.3A4.6 4.6 0 0 1 21 11c-2 4.6-9 9-9 9z',
+    heartFill: 'M12 20s-7-4.4-9-9a4.6 4.6 0 0 1 9-2.3A4.6 4.6 0 0 1 21 11c-2 4.6-9 9-9 9z',
+    search: 'M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zM15.5 15.5 20 20',
+    edit: 'M3.5 20.5h4.2L20 8.2 15.8 4 3.5 16.3v4.2zM13.6 6.2l4.2 4.2',
+    pause: 'M8 5v14M16 5v14',
+    play: 'M7 5l12 7-12 7V5z',
+    trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  };
+  function ico(name) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('class', 'ico' + (/Fill$/.test(name) ? ' fill' : ''));
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', ICONS[name]);
+    svg.append(path);
+    return svg;
+  }
+
   // ---------- render ----------
   function render() {
     if (!state) return;
@@ -846,24 +870,26 @@
               (state.outOfPlan || []).includes(r.id) ? chip('Fermo: oltre il limite del piano', 'warn') : null,
             ),
           ),
-          el('div', { class: 'acts' },
-            !(state.account && state.account.plan.priority) ? null : el('button', { class: 'btn star' + (r.priority ? ' on' : ''), type: 'button', title: 'Controlla più spesso', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', text: r.priority ? '★' : '☆',
-              onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, priority: !r.priority }) }),
+          el('div', { class: 'rule-side' },
+            !(state.account && state.account.plan.priority) ? null : el('button', { class: 'icon-tog star' + (r.priority ? ' on' : ''), type: 'button', title: r.priority ? 'Priorità: controllato più spesso' : 'Dai priorità (controlla più spesso)', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', 'aria-pressed': String(!!r.priority),
+              onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, priority: !r.priority }) }, ico(r.priority ? 'starFill' : 'star')),
             r.blueprintId ? (() => {
               const inWish = (state.wish || []).some((w) => w.id === r.blueprintId);
-              return el('button', { class: 'btn star' + (inWish ? ' on' : ''), type: 'button', title: inWish ? 'Nella lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-label': inWish ? 'Togli dalla lista dei desideri' : 'Aggiungi alla lista dei desideri', text: '♥',
-                onclick: () => toggleWish(wishFromRule(r), inWish) });
+              return el('button', { class: 'icon-tog heart' + (inWish ? ' on' : ''), type: 'button', title: inWish ? 'Nella lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-label': inWish ? 'Togli dalla lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-pressed': String(inWish),
+                onclick: () => toggleWish(wishFromRule(r), inWish) }, ico(inWish ? 'heartFill' : 'heart'));
             })() : null,
-            el('button', { class: 'btn', type: 'button', text: 'Verifica', onclick: () => explainRule(r) }),
-            el('button', { class: 'btn', type: 'button', text: 'Modifica', onclick: () => openEdit(r) }),
-            el('button', { class: 'btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva', text: r.enabled ? 'Pausa' : 'Riattiva',
-              onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }),
-            el('button', { class: 'btn danger', type: 'button', 'aria-label': 'Elimina alert', text: 'Elimina',
+          ),
+          el('div', { class: 'acts' },
+            el('button', { class: 'act-btn', type: 'button', onclick: () => explainRule(r) }, ico('search'), el('span', { text: 'Verifica' })),
+            el('button', { class: 'act-btn', type: 'button', onclick: () => openEdit(r) }, ico('edit'), el('span', { text: 'Modifica' })),
+            el('button', { class: 'act-btn', type: 'button', 'aria-label': r.enabled ? 'Metti in pausa' : 'Riattiva',
+              onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }, ico(r.enabled ? 'pause' : 'play'), el('span', { text: r.enabled ? 'Pausa' : 'Riattiva' })),
+            el('button', { class: 'act-btn del', type: 'button', 'aria-label': 'Elimina alert', title: 'Elimina',
               onclick: async () => {
                 if (!confirmDelete(r)) return;
                 await api(`/api/rules/${r.id}`, { method: 'DELETE' });
                 refresh();
-              } }),
+              } }, ico('trash')),
           ),
         );
       }),

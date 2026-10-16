@@ -586,3 +586,23 @@ svg.spark .cm { stroke: var(--blue); stroke-dasharray: 5 4; stroke-width: 2; }
 .money-in input { border: 0; background: transparent; min-height: 48px; }
 .money-in input:focus { box-shadow: none; }
 .money-in span { padding: 0 14px; font: 600 18px var(--display); color: var(--muted); }
+
+/* ---------- schede alert: icone e azioni ---------- */
+.rule { grid-template-columns: auto minmax(0, 1fr) auto; border: 1px solid var(--line); box-shadow: var(--shadow-soft); border-radius: 22px; padding: 14px 14px 12px; }
+#sellerList .rule { grid-template-columns: minmax(0, 1fr); }
+.rule .thumbimg { width: 64px; border: 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
+.rule-side { display: flex; flex-direction: column; gap: 8px; }
+.icon-tog { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.1s; }
+.icon-tog:active { transform: scale(0.92); }
+.icon-tog.star.on { background: rgba(255, 210, 58, 0.16); border-color: var(--yellow); color: var(--yellow); }
+.icon-tog.heart.on { background: rgba(255, 90, 110, 0.16); border-color: #ff5a6e; color: #ff5a6e; }
+.ico { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ico.fill { fill: currentColor; }
+.rule .acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 48px; gap: 8px; margin-top: 2px; padding-top: 12px; border-top: 1px solid var(--line); }
+.act-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: 700 14px var(--sans); cursor: pointer; transition: background 0.15s; }
+.act-btn:hover { background: var(--line); }
+.act-btn .ico { width: 18px; height: 18px; color: var(--muted); }
+.act-btn.del { color: var(--bad); }
+.act-btn.del .ico { color: var(--bad); }
+.act-btn.del:hover { background: rgba(255, 122, 110, 0.14); }
+@media (max-width: 360px) { .act-btn span { display: none; } }
