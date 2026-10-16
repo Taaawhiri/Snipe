@@ -40,6 +40,7 @@ const prop = (list, re) => {
 
 export class Scanner extends DurableObject {
   cardCache = new Map();
+  productCache = new Map(); // espansione -> { ts, data }: annunci letti da CardTrader, condivisi da scan e pagine
   cmCache = new Map();
   cmFailedAt = 0;
   queue = Promise.resolve();
@@ -249,7 +250,7 @@ export class Scanner extends DurableObject {
           cmTrend = e.trend;
           rule = { ...rule, maxPriceCents: maxCentsBelow(e.trend, rule.cmDiscount) };
         }
-        const data = await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`);
+        const data = await this.productsFor(rule.expansionId, 60_000);
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const rows = all
           .filter((p) => p && p.price)
@@ -338,9 +339,10 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/listings' && method === 'GET') {
       const id = parseInt(url.searchParams.get('blueprint_id'), 10);
+      const expId = parseInt(url.searchParams.get('expansion_id'), 10);
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
       try {
-        const data = await this.ct(`/marketplace/products?blueprint_id=${id}`);
+        const data = Number.isInteger(expId) && expId > 0 ? await this.productsFor(expId) : await this.ct(`/marketplace/products?blueprint_id=${id}`);
         const wanted = normLang(url.searchParams.get('lang'));
         const list = (data[id] || data[String(id)] || [])
           .filter(isListable)
@@ -525,10 +527,28 @@ export class Scanner extends DurableObject {
     }
   }
 
+  /**
+   * Annunci di un'espansione. Le pagine non chiamano CardTrader a ogni apertura: usano la copia in memoria
+   * (aggiornata anche dallo scan) e la rinnovano al massimo ogni 5 minuti. Se CardTrader limita, si usa la copia vecchia.
+   */
+  async productsFor(expansionId, maxAgeMs = 5 * 60_000) {
+    const hit = this.productCache.get(expansionId);
+    if (hit && Date.now() - hit.ts < maxAgeMs) return hit.data;
+    try {
+      const data = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
+      this.productCache.set(expansionId, { ts: Date.now(), data });
+      return data;
+    } catch (e) {
+      if (hit) return hit.data;
+      throw e;
+    }
+  }
+
   /** Carte di un'espansione con immagine e prezzo più basso (in totale e con CardTrader Zero). */
   async cardsFor(expansionId) {
     const hit = this.cardCache.get(expansionId);
-    if (hit && Date.now() - hit.ts < 30_000) return hit.data;
+    const prodHit = this.productCache.get(expansionId);
+    if (hit && prodHit && hit.ts >= prodHit.ts) return hit.data; // calcolate sugli annunci più recenti
 
     const singleIds = await this.singleCategoryIds();
     const bpKey = `bp4:${expansionId}`;
@@ -542,7 +562,7 @@ export class Scanner extends DurableObject {
       blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url, category_id: b.category_id, fp: b.fixed_properties || {}, cm: Array.isArray(b.card_market_ids) ? b.card_market_ids[0] || null : null }));
       await this.ctx.storage.put(bpKey, { ts: Date.now(), list: blueprints });
     }
-    const products = await this.ct(`/marketplace/products?expansion_id=${expansionId}`);
+    const products = await this.productsFor(expansionId);
 
     const cmMap = await this.cmLookup(blueprints.map((b) => b.cm).filter(Boolean));
     const langCount = {};
@@ -804,7 +824,9 @@ export class Scanner extends DurableObject {
       }
       const key = String(rule.expansionId);
       if (!cache.has(key)) {
-        cache.set(key, await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`));
+        const fresh = await this.ct(`/marketplace/products?expansion_id=${rule.expansionId}`);
+        this.productCache.set(rule.expansionId, { ts: Date.now(), data: fresh });
+        cache.set(key, fresh);
         requests++;
       }
       const deals = findDeals(cache.get(key), evalRule).map((d) =>

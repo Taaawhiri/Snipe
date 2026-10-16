@@ -857,7 +857,7 @@
     const d = $('cardDialog');
     openSheet(d);
     try {
-      const rows = await api(`/api/listings?blueprint_id=${c.id}${lang ? `&lang=${lang}` : ''}${minRank !== '' ? `&minrank=${minRank}` : ''}`);
+      const rows = await api(`/api/listings?blueprint_id=${c.id}${dlgExp ? `&expansion_id=${dlgExp.id}` : ''}${lang ? `&lang=${lang}` : ''}${minRank !== '' ? `&minrank=${minRank}` : ''}`);
       if (current !== c) return;
       $('dlgListings').replaceChildren(
         ...(rows.length
