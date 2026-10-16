@@ -20,6 +20,7 @@ const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
 const MARKET_PER_SCAN = 2;
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
+const DEALS_POPULAR = 10; // più le più ricercate del momento dagli utenti di Snipe
 
 
 
@@ -178,6 +179,29 @@ export class Scanner extends DurableObject {
     }
   }
 
+  /**
+   * Interesse per un'espansione (set aperto, alert creato, carta nei desideri): il catalogo ne tiene un punteggio
+   * che si dimezza ogni giorno, così "le più ricercate" sono quelle del momento. Non blocca mai la richiesta.
+   */
+  bumpExpansion(expansionId, weight = 1) {
+    const id = parseInt(expansionId, 10);
+    if (!Number.isInteger(id) || id <= 0) return;
+    this.ctx.waitUntil(
+      this.catalog().fetch('https://do.internal/api/_pop', { method: 'POST', body: JSON.stringify({ id, weight }) }).catch(() => null),
+    );
+  }
+
+  /** Una volta al giorno segnala al catalogo le espansioni dei propri alert e desideri (interesse di fondo). */
+  async reportInterest() {
+    const today = new Date().toISOString().slice(0, 10);
+    if ((await this.get('popDay', null)) === today) return;
+    await this.ctx.storage.put('popDay', today);
+    const ids = new Set();
+    for (const r of await this.get('rules', [])) if (r.enabled) ids.add(r.expansionId);
+    for (const w of await this.get('wish', [])) if (w.expansionId) ids.add(w.expansionId);
+    for (const id of ids) this.bumpExpansion(id, 1);
+  }
+
   /** Il catalogo condiviso (indice dei nomi e listino Cardmarket) vive nel server dati 'main'. */
   async isCatalog() {
     return (await this.get('doName', CATALOG)) === CATALOG;
@@ -291,6 +315,21 @@ export class Scanner extends DurableObject {
       }
     }
 
+    if (path === '/api/_pop' && method === 'POST') {
+      const { id, weight } = await req.json();
+      const pop = await this.get('pop', { ts: Date.now(), s: {} });
+      const days = (Date.now() - pop.ts) / 86400_000;
+      if (days >= 1) {
+        // Dimezza i punteggi per ogni giorno passato e scarta quelli ormai trascurabili.
+        const f = 0.5 ** Math.floor(days);
+        for (const k of Object.keys(pop.s)) { pop.s[k] *= f; if (pop.s[k] < 0.1) delete pop.s[k]; }
+        pop.ts = Date.now();
+      }
+      pop.s[id] = (pop.s[id] || 0) + Math.min(5, Math.max(0, Number(weight) || 1));
+      await this.ctx.storage.put('pop', pop);
+      return json({ ok: true });
+    }
+
     if (path === '/api/_catinfo') return json(await this.catalogInfo(await this.status()));
 
     if (path === '/api/_cm' && method === 'POST') {
@@ -364,6 +403,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/_tick' && method === 'POST') {
       await this.maybeSummary().catch(() => null);
+      await this.reportInterest().catch(() => null);
       const b = await req.json().catch(() => ({}));
       if (b.doName && b.doName !== (await this.get('doName', null))) await this.ctx.storage.put('doName', b.doName);
       if (b.plan && b.plan !== (await this.get('plan', null))) {
@@ -413,6 +453,7 @@ export class Scanner extends DurableObject {
       const id = parseInt(url.searchParams.get('expansion_id'), 10);
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'expansion_id mancante' }, 400);
       try {
+        this.bumpExpansion(id, 1);
         return json(await this.cardsFor(id));
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
@@ -628,6 +669,7 @@ export class Scanner extends DurableObject {
       if (!Number.isInteger(id) || id <= 0) return json({ error: 'id mancante' }, 400);
       let wish = (await this.get('wish', [])).filter((w) => w.id !== id);
       if (b.remove !== true) {
+        this.bumpExpansion(b.expansionId, 2);
         const plan = await this.plan();
         if (wish.length >= plan.maxWish) return json({ error: `Il piano ${plan.label} include ${plan.maxWish} carte nella lista dei desideri.`, upgrade: true }, 403);
         wish = [{
@@ -709,7 +751,10 @@ export class Scanner extends DurableObject {
         // Se cambiano i criteri, gli annunci già visti vanno rivalutati con i criteri nuovi.
         const keys = ['dropPct', 'stock', 'maxPriceCents', 'minDiscount', 'minPriceCents', 'zero', 'language', 'minCondition', 'nameContains'];
         if (keys.some((k) => old[k] !== rule[k])) await this.resetRuleMemory(rule.id);
-      } else rules.push(rule);
+      } else {
+        rules.push(rule);
+        this.bumpExpansion(rule.expansionId, 3);
+      }
       await this.ctx.storage.put('rules', rules);
       await this.ensureAlarm();
       return json(rule);
@@ -991,18 +1036,28 @@ export class Scanner extends DurableObject {
 
   // ---------- Affari del giorno (solo nel catalogo condiviso) ----------
 
-  /** Ogni 15 minuti si rilegge un'espansione recente; ogni espansione circa ogni 2 ore e mezza. */
+  /** Ogni 10 minuti si rilegge un'espansione (10 recenti + fino a 10 più ricercate): ognuna circa ogni 3 ore. */
   async dealsDue() {
     if (!(await this.isCatalog())) return false;
     const st = await this.get('ddState', { i: 0, ts: 0 });
-    return Date.now() - st.ts > 15 * 60_000;
+    return Date.now() - st.ts > 10 * 60_000;
   }
 
   async recentExpansions() {
     const meta = await this.get('ixmeta', null);
     const have = new Set(meta ? meta.have : []);
     const exps = await this.pokemonExpansions();
-    return exps.filter((e) => !have.size || have.has(e.id)).sort((a, b) => b.id - a.id).slice(0, DEALS_SETS);
+    const usable = exps.filter((e) => !have.size || have.has(e.id));
+    const recent = [...usable].sort((a, b) => b.id - a.id).slice(0, DEALS_SETS);
+    // Più le più ricercate del momento dagli utenti di Snipe, escluse quelle già tra le recenti.
+    const pop = (await this.get('pop', { s: {} })).s;
+    const taken = new Set(recent.map((e) => e.id));
+    const popular = usable
+      .filter((e) => !taken.has(e.id) && pop[e.id] > 0)
+      .sort((a, b) => pop[b.id] - pop[a.id])
+      .slice(0, DEALS_POPULAR)
+      .map((e) => ({ ...e, popular: true }));
+    return [...recent, ...popular];
   }
 
   async dealsStep() {
@@ -1027,7 +1082,7 @@ export class Scanner extends DurableObject {
       for (const it of v.items) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
     }
     items.sort((a, b) => b.discount - a.discount);
-    return { items: items.slice(0, 60), ts, sets: exps.map((e) => e.name) };
+    return { items: items.slice(0, 80), ts, sets: exps.map((e) => e.name), popular: exps.filter((e) => e.popular).map((e) => e.name) };
   }
 
   // ---------- Prezzi Cardmarket (listino pubblico giornaliero) ----------
@@ -1246,8 +1301,8 @@ export class Scanner extends DurableObject {
     const busy = (await this.indexPending()) || (await this.cmDue());
     if (scanning || busy || (await this.isCatalog())) {
       // La frequenza scelta in Impostazioni, ma mai più veloce di quella del piano.
-      // Il catalogo senza altro da fare si sveglia solo per gli affari del giorno (ogni 15 minuti).
-      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : 15 * 60_000;
+      // Il catalogo senza altro da fare si sveglia solo per gli affari del giorno (ogni 10 minuti).
+      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : 10 * 60_000;
       await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
     }
   }

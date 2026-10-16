@@ -126,9 +126,9 @@
 
     // affari del giorno
     'Affari del giorno': 'Deals of the day',
-    'Annunci delle espansioni più recenti che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest expansions at least 25% cheaper than the typical price of the same card on CardTrader, compared only with listings in the same language. Near Mint or better, from €5. Updates by itself during the day.',
+    'Annunci delle espansioni più recenti e più ricercate su Snipe che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest and most searched expansions on Snipe at least 25% cheaper than the typical price of the same card on CardTrader, compared only with listings in the same language. Near Mint or better, from €5. Updates by itself during the day.',
     'Carico gli affari…': 'Loading deals…',
-    'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 15 minuti. Riprova più tardi.': "Collecting the first data: one expansion is checked every 15 minutes. Try again later.",
+    'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 10 minuti. Riprova più tardi.': 'Collecting the first data: one expansion is checked every 10 minutes. Try again later.',
 
     // regole, venditori, desideri
     'I tuoi alert': 'Your alerts', 'Per crearne uno apri': 'To create one open',
@@ -216,7 +216,7 @@
     [/^Da (.+)$/, 'From $1'], [/^(.) (.+) in 7 giorni$/, '$1 $2 in 7 days'],
     [/^ultimi (\d+) giorni$/, 'last $1 days'], [/^Prezzo più basso · ultimi (\d+) giorni$/, 'Lowest price · last $1 days'],
     [/^Più basso (.+)$/, 'Lowest $1'], [/^Con Zero (.+)$/, 'With Zero $1'], [/^dal (.+)$/, 'since $1'],
-    [/^(\d+) affari · aggiornati (.+) · (\d+) espansioni controllate$/, '$1 deals · updated $2 · $3 expansions checked'],
+    [/^(\d+) affari · aggiornati (.+) · (\d+) espansioni controllate( \((\d+) tra le più ricercate\))?$/, (m, a, b, c, x, d) => `${a} deals · updated ${b} · ${c} expansions checked${d ? ` (${d} among the most searched)` : ''}`],
     [/^Cardmarket tendenza (.+)$/, 'Cardmarket trend $1'],
     [/^Prezzo tipico CardTrader (.+)$/, 'Typical CardTrader price $1'],
     [/^Cardmarket da (.+) · tutte le lingue e condizioni$/, 'Cardmarket from $1 · all languages and conditions'],

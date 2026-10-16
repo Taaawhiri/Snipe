@@ -287,8 +287,8 @@
     try {
       const d = await api('/api/deals');
       $('dealsMsg').textContent = d.items.length
-        ? `${d.items.length} affari · aggiornati ${ago(d.ts)} · ${d.sets.length} espansioni controllate`
-        : 'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 15 minuti. Riprova più tardi.';
+        ? `${d.items.length} affari · aggiornati ${ago(d.ts)} · ${d.sets.length} espansioni controllate${d.popular && d.popular.length ? ` (${d.popular.length} tra le più ricercate)` : ''}`
+        : 'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 10 minuti. Riprova più tardi.';
       $('dealsGrid').replaceChildren(
         ...d.items.map((it, i) => el('div', { class: 'tile', style: `--i:${Math.min(i, 24)}` },
           el('button', { class: 'tile-main', type: 'button', onclick: () => openCard({ id: it.id, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: it.currency, lowest: it.cents, cm: { trend: it.trendCents / 100 } }) },
