@@ -1,2 +1,2 @@
 // Cambia a ogni modifica del server: /api/health mostra se Worker e server dati sono allineati.
-export const BUILD = '2026-10-15-sfondo-blu';
+export const BUILD = '2026-10-16-cm-lingua';

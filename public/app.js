@@ -529,6 +529,7 @@
 
   /** Quanto il prezzo mostrato è sotto la tendenza Cardmarket (0,25 = 25% in meno). null se manca uno dei due. */
   function cmDelta(c) {
+    if ($('cardLang').value) return null; // il listino Cardmarket mescola le lingue: con un filtro lingua il confronto sarebbe sbagliato
     const p = $('cardPriceMode').value === 'zero' ? view(c).lowestZero : view(c).lowest;
     if (p == null || !c.cm || !(c.cm.trend > 0)) return null;
     return 1 - p / (c.cm.trend * 100);
