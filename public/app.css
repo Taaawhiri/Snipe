@@ -695,3 +695,15 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
   .coll-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .coll-actions > :last-child { grid-column: auto; }
 }
+
+/* ---------- Opzioni: piano e stato a riquadri ---------- */
+.kv.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 10px; }
+.kv.tiles > .kv-item { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); position: relative; min-width: 0; }
+.kv.tiles .k { font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.kv.tiles .v { text-align: left; font: 600 16px var(--display); line-height: 1.25; overflow-wrap: anywhere; }
+.kv.tiles > .kv-item.bad { border-color: rgba(255, 90, 110, 0.55); background: rgba(255, 90, 110, 0.08); }
+.kv.tiles .v.bad { color: #ffb3be; }
+.meter { width: 100%; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin-top: 4px; }
+.meter > i { display: block; height: 100%; border-radius: 999px; background: var(--green); transition: width 0.4s; }
+.meter.high > i { background: var(--yellow); }
+.meter.full > i { background: #ff5a6e; }

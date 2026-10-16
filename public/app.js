@@ -860,12 +860,13 @@
     const cards = state.rules.filter((r) => r.blueprintId).length;
     const sets = state.rules.length - cards;
     const lim = (n, max) => (max >= p.unlimited ? `${n}` : `${n} su ${max}`);
+    const ratio = (n, max) => (max >= p.unlimited || !max ? null : n / max);
     const out = (state.outOfPlan || []).length;
     $('planUsage').replaceChildren(
-      kvRow('Alert su una carta', lim(cards, p.maxRules), cards > p.maxRules ? 'bad' : ''),
-      kvRow('Alert su un set', p.maxSetRules ? lim(sets, p.maxSetRules) : sets ? `${sets} (non inclusi)` : 'non inclusi', sets > p.maxSetRules ? 'bad' : ''),
-      kvRow('Lista dei desideri', lim((state.wish || []).length, p.maxWish)),
-      kvRow('Collezione', coll ? `${lim(coll.items.length, p.maxColl)} carte diverse` : lim('—', p.maxColl)),
+      kvRow('Alert su una carta', lim(cards, p.maxRules), cards > p.maxRules ? 'bad' : '', ratio(cards, p.maxRules)),
+      kvRow('Alert su un set', p.maxSetRules ? lim(sets, p.maxSetRules) : sets ? `${sets} (non inclusi)` : 'non inclusi', sets > p.maxSetRules ? 'bad' : '', p.maxSetRules ? ratio(sets, p.maxSetRules) : null),
+      kvRow('Lista dei desideri', lim((state.wish || []).length, p.maxWish), '', ratio((state.wish || []).length, p.maxWish)),
+      kvRow('Collezione', coll ? `${lim(coll.items.length, p.maxColl)} carte diverse` : lim('—', p.maxColl), '', coll ? ratio(coll.items.length, p.maxColl) : null),
       kvRow('Velocità degli alert', p.scanSec >= 60 ? `ogni ${p.scanSec / 60} minuti` : `fino a ogni ${p.scanSec} secondi`),
       kvRow('Storico prezzi', `${p.historyDays} giorni`),
       ...(out ? [kvRow('Alert fermi', `${out} oltre il limite del piano`, 'bad')] : []),
@@ -1206,8 +1207,13 @@
   // ---------- impostazioni ----------
   const hhmmss = (ts) => new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-  function kvRow(k, v, cls = '') {
-    return el('div', null, el('span', { class: 'k', text: k }), el('span', { class: ('v ' + cls).trim(), text: v }));
+  /** Riga chiave/valore; con meter (0–1) mostra anche una barra di utilizzo. */
+  function kvRow(k, v, cls = '', meter = null) {
+    return el('div', { class: ('kv-item ' + cls).trim() },
+      el('span', { class: 'k', text: k }),
+      el('span', { class: ('v ' + cls).trim(), text: v }),
+      meter == null ? null : el('div', { class: 'meter' + (meter >= 0.9 ? ' full' : meter >= 0.7 ? ' high' : '') }, el('i', { style: `width:${Math.round(Math.min(1, meter) * 100)}%` })),
+    );
   }
 
   function renderSettings() {
