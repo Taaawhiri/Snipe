@@ -144,6 +144,7 @@ async function scanCard(req, env, user) {
   try {
     result = await recognizeCard(env, bytes, m[1]);
   } catch (e) {
+    await scanner(env, user.doName).fetch('https://do.internal/api/_scanquota', { method: 'POST', body: JSON.stringify({ refund: true }) }).catch(() => null);
     return json({ error: `Riconoscimento non riuscito: ${String(e.message || e)}` }, 502);
   }
   const scan = result.scan;

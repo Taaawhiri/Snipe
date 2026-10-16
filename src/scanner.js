@@ -474,6 +474,12 @@ export class Scanner extends DurableObject {
       const month = new Date().toISOString().slice(0, 7);
       const q = await this.get('scanQuota', { month, used: 0 });
       if (q.month !== month) Object.assign(q, { month, used: 0 });
+      if ((await req.json().catch(() => ({}))).refund) {
+        // Scansione non riuscita: non conta.
+        q.used = Math.max(0, q.used - 1);
+        await this.ctx.storage.put('scanQuota', q);
+        return json({ ok: true, used: q.used, limit: plan.maxScans });
+      }
       if (q.used >= plan.maxScans) return json({ ok: false, used: q.used, limit: plan.maxScans, plan: plan.label });
       q.used++;
       await this.ctx.storage.put('scanQuota', q);

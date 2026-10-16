@@ -12,23 +12,42 @@ function toBase64(bytes) {
   return btoa(s);
 }
 
-async function withWorkersAI(env, bytes) {
+async function withWorkersAI(env, bytes, mime) {
   if (!env.AI) throw new Error('Workers AI non collegato al Worker');
-  const run = () => env.AI.run(CF_MODEL, {
-    messages: [{ role: 'user', content: SCAN_PROMPT }],
+  const dataUrl = `data:${mime};base64,${toBase64(bytes)}`;
+  // Formato attuale: immagine dentro il messaggio, come parte del contenuto.
+  const inMessage = () => env.AI.run(CF_MODEL, {
+    messages: [{ role: 'user', content: [{ type: 'text', text: SCAN_PROMPT }, { type: 'image_url', image_url: { url: dataUrl } }] }],
+    max_tokens: 300,
+  });
+  // Formato precedente: messaggio di testo e immagine a parte (byte).
+  const separate = () => env.AI.run(CF_MODEL, {
+    messages: [{ role: 'system', content: 'You read Pokémon cards and answer only with JSON.' }, { role: 'user', content: SCAN_PROMPT }],
     image: [...bytes],
     max_tokens: 300,
   });
+  const attempt = async (fn) => {
+    try {
+      return await fn();
+    } catch (e) {
+      // Il modello di Meta chiede di accettare la licenza con una prima richiesta "agree".
+      if (!/agree|licen/i.test(String(e && e.message))) throw e;
+      await env.AI.run(CF_MODEL, { prompt: 'agree' }).catch(() => null);
+      return fn();
+    }
+  };
   let out;
   try {
-    out = await run();
-  } catch (e) {
-    // Il modello di Meta chiede di accettare la licenza con una prima richiesta "agree".
-    if (!/agree|licen/i.test(String(e && e.message))) throw e;
-    await env.AI.run(CF_MODEL, { prompt: 'agree' }).catch(() => null);
-    out = await run();
+    out = await attempt(inMessage);
+  } catch (first) {
+    try {
+      out = await attempt(separate);
+    } catch {
+      throw first;
+    }
   }
-  return { scan: parseScan(out && (out.response ?? out.result ?? out)), engine: 'workers-ai' };
+  const text = out && (out.response ?? out.result ?? out);
+  return { scan: parseScan(typeof text === 'string' ? text : JSON.stringify(text)), engine: 'workers-ai' };
 }
 
 async function askClaude(client, model, b64, mime, opus) {
@@ -69,5 +88,5 @@ async function withClaude(env, bytes, mime) {
 /** bytes: Uint8Array dell'immagine (JPEG/PNG/WebP). */
 export async function recognizeCard(env, bytes, mime = 'image/jpeg') {
   const provider = String(env.SCAN_PROVIDER || 'workers-ai').toLowerCase();
-  return provider === 'claude' ? withClaude(env, bytes, mime) : withWorkersAI(env, bytes);
+  return provider === 'claude' ? withClaude(env, bytes, mime) : withWorkersAI(env, bytes, mime);
 }
