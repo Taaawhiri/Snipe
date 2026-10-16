@@ -299,7 +299,7 @@
             ),
             el('div', { class: 'info' },
               el('div', { class: 'nm', text: it.name }),
-              el('div', { class: 'sub', text: it.expName }),
+              el('div', { class: 'sub', text: [it.expName, it.language && it.language.toUpperCase()].filter(Boolean).join(' · ') }),
               it.refCents ? el('div', { class: 'sub', text: `Prezzo tipico CardTrader ${money(it.refCents, it.currency)}` }) : null,
               it.trendCents ? el('div', { class: 'cmtxt', text: `Cardmarket tendenza ${money(it.trendCents, it.currency)}` }) : null,
             ),

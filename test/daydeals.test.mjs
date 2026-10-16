@@ -18,3 +18,10 @@ test('niente affari se il prezzo è in linea', () => {
   const cards = [{ id: 1, single: true, name: 'X', cm: null }];
   assert.equal(dealsFromProducts(cards, { 1: [L(1, 2000), L(2, 2050), L(3, 2100), L(4, 2200)] }).length, 0);
 });
+
+test('ogni lingua si confronta con sé stessa', () => {
+  const cards = [{ id: 1, single: true, name: 'X', cm: null }];
+  // Le giapponesi costano la metà delle inglesi, ma tra loro sono in linea: nessun affare.
+  const products = { 1: [L(1, 1000, 'jp'), L(2, 1020, 'jp'), L(3, 1050, 'jp'), L(4, 1080, 'jp'), L(5, 2000), L(6, 2050), L(7, 2100), L(8, 2150)] };
+  assert.equal(dealsFromProducts(cards, products).length, 0);
+});

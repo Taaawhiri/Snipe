@@ -126,7 +126,7 @@
 
     // affari del giorno
     'Affari del giorno': 'Deals of the day',
-    'Annunci delle espansioni più recenti che costano almeno il 30% meno del prezzo tipico della stessa carta su CardTrader (la mediana degli annunci successivi). Solo inglese, Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest expansions at least 30% cheaper than the typical price of the same card on CardTrader (the median of the next listings). English only, Near Mint or better, from €5. Updates by itself during the day.',
+    'Annunci delle espansioni più recenti che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest expansions at least 25% cheaper than the typical price of the same card on CardTrader, compared only with listings in the same language. Near Mint or better, from €5. Updates by itself during the day.',
     'Carico gli affari…': 'Loading deals…',
     'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 15 minuti. Riprova più tardi.': "Collecting the first data: one expansion is checked every 15 minutes. Try again later.",
 
