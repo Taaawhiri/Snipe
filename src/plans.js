@@ -18,7 +18,7 @@ export const PLANS = {
   },
   owner: {
     label: 'Proprietario', price: null,
-    maxRules: 200, maxSetRules: UNLIMITED, maxWish: UNLIMITED, maxColl: UNLIMITED, maxScans: UNLIMITED, batchScan: true, scanSec: 10, historyDays: 120, shipping: true, priority: true,
+    maxRules: UNLIMITED, maxSetRules: UNLIMITED, maxWish: UNLIMITED, maxColl: UNLIMITED, maxScans: UNLIMITED, batchScan: true, scanSec: 10, historyDays: 120, shipping: true, priority: true,
   },
 };
 
