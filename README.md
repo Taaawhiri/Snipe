@@ -70,6 +70,10 @@ Da qui ogni push su `main` va in produzione da solo.
 
 Servono iOS 16.4 o successivo e l'app installata: Safari → Condividi → Aggiungi a Home, poi apri l'icona dalla Home e attiva le notifiche da Impostazioni.
 
+## Struttura della pagina
+
+`public/app.js` è generato: il codice della pagina sta in `ui/`, una parte per sezione (rete, collezione, scanner, carte, notifiche…), e `npm run build` (o `npm run app`) le ricompone in ordine di nome. Un test controlla che `public/app.js` sia allineato con `ui/`.
+
 ## Sviluppo in locale
 
 ```bash
