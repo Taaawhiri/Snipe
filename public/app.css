@@ -508,3 +508,10 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .tile .zeropill.deal { background: var(--red); font-size: 13px; }
 .tabs button span { white-space: nowrap; }
 @media (max-width: 400px) { .tabs button { font-size: 11px; } }
+.admin-stats { display: flex; flex-direction: column; gap: 6px; }
+.admin-ticker b { font-size: 22px; }
+.signups { display: flex; align-items: flex-end; gap: 3px; height: 70px; padding: 6px 0 0; border-bottom: 1px solid var(--line); }
+.signups i { flex: 1; border-radius: 3px 3px 0 0; background: var(--line); min-height: 3px; }
+.signups i.on { background: var(--yellow); }
+.signups-legend { display: flex; justify-content: space-between; }
+.legal-links a { color: var(--blue); font-weight: 700; }

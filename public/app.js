@@ -469,6 +469,7 @@
         el('span', { class: 'small', text: `Oggi finora: ${today.toLocaleString('it-IT')} giri di scan (si azzera a mezzanotte UTC, cioè alle ${utcMidnightLocal()} ora italiana).` }),
       ),
     );
+    $('adminStats').replaceChildren(...adminStats(users));
     $('adminList').replaceChildren(
       ...users.map((u) => {
         const st = u.stats || {};
@@ -504,6 +505,34 @@
         );
       }),
     );
+  }
+
+  /** Statistiche per il proprietario: iscritti negli ultimi 30 giorni, attivi, paganti. */
+  function adminStats(users) {
+    const day = 86400_000;
+    const now = Date.now();
+    const keyOf = (ts) => new Date(ts).toLocaleDateString('en-CA', { timeZone: 'Europe/Rome' });
+    const days = Array.from({ length: 30 }, (_, i) => keyOf(now - (29 - i) * day));
+    const perDay = Object.fromEntries(days.map((d) => [d, 0]));
+    for (const u of users) { const k = keyOf(u.created || 0); if (k in perDay) perDay[k]++; }
+    const max = Math.max(1, ...Object.values(perDay));
+    const active7 = users.filter((u) => (u.lastLogin && now - u.lastLogin < 7 * day) || (u.stats && u.stats.lastScan && now - u.stats.lastScan < day)).length;
+    const new7 = users.filter((u) => u.created && now - u.created < 7 * day).length;
+    const paid = users.filter((u) => u.plan === 'pro' || u.plan === 'sniper').length;
+    const free = users.filter((u) => u.plan === 'free').length;
+    const conv = paid + free ? Math.round((paid / (paid + free)) * 100) : 0;
+    const box = (n, label) => el('div', null, el('b', { text: String(n) }), el('span', { text: label }));
+    return [
+      el('div', { class: 'ticker admin-ticker' },
+        box(new7, 'nuovi in 7 giorni'),
+        box(active7, 'attivi in 7 giorni'),
+        box(`${paid}`, `Pro o Sniper (${conv}%)`),
+      ),
+      el('div', { class: 'signups', role: 'img', 'aria-label': 'Iscritti al giorno negli ultimi 30 giorni' },
+        ...days.map((d) => el('i', { title: `${d.slice(8, 10)}/${d.slice(5, 7)}: ${perDay[d]} iscritti`, style: `height:${Math.max(4, (perDay[d] / max) * 100)}%`, class: perDay[d] ? 'on' : '' })),
+      ),
+      el('div', { class: 'small muted signups-legend' }, el('span', { text: `iscritti al giorno · 30 giorni fa` }), el('span', { text: 'oggi' })),
+    ];
   }
 
   async function adminUpdate(u, patch) {
