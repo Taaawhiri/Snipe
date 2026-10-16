@@ -686,3 +686,5 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .b-opts select, .b-opts input { min-height: 38px; font-size: 13.5px; padding: 0 8px; }
 .batch-foot { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0 4px; background: var(--bg); }
 .coll-zero { font-size: 14px; min-height: 40px; }
+.coll-opts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.coll-note { margin-top: -8px; }

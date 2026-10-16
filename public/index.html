@@ -84,7 +84,11 @@
       </div>
       <div id="collView">
         <div id="collHero" class="cv-hero"></div>
-        <label class="switch coll-zero"><input id="collZero" type="checkbox"><span>Valuta solo con prezzi CardTrader Zero</span></label>
+        <div class="coll-opts">
+          <label class="switch coll-zero"><input id="collZero" type="checkbox"><span>Solo venditori CardTrader Zero</span></label>
+          <label class="switch coll-zero"><input id="collTypical" type="checkbox"><span>Prezzo tipico invece del più basso</span></label>
+        </div>
+        <p class="muted small coll-note">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori che hai escluso con ⛔ non contano mai.</p>
         <div class="seg seg-sm" role="radiogroup" aria-label="Ordina la collezione">
           <label><input type="radio" name="csort" value="value" checked> Valore</label>
           <label><input type="radio" name="csort" value="gain"> Guadagno</label>

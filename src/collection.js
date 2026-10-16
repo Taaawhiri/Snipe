@@ -11,33 +11,51 @@ export function collKey(bp, lang, cond) {
  * Valore di una copia: il prezzo più basso tra gli annunci nella stessa lingua e in condizione
  * uguale o migliore. Se non ce ne sono, il più basso in assoluto, segnato come approssimato.
  */
-export function priceFor(list, lang, cond) {
-  const ok = (list || []).filter(isListable).sort((a, b) => a.price.cents - b.price.cents);
+const TYPICAL_N = 5; // il prezzo "tipico" è la mediana dei 5 annunci adatti più economici
+
+function median(nums) {
+  const m = nums.length >> 1;
+  return nums.length % 2 ? nums[m] : Math.round((nums[m - 1] + nums[m]) / 2);
+}
+
+/**
+ * opts.blocked: venditori esclusi dall'utente (Set di username), ignorati anche qui.
+ * Restituisce per tutti i venditori e per i soli Zero sia il più basso sia il tipico.
+ */
+export function priceFor(list, lang, cond, opts = {}) {
+  const blocked = opts.blocked || new Set();
+  const ok = (list || []).filter((p) => isListable(p) && !(p.user && blocked.has(p.user.username))).sort((a, b) => a.price.cents - b.price.cents);
   if (!ok.length) return null;
   const want = normLang(lang);
   const min = condRank(cond);
   const fits = (p) => (!want || normLang(listingLang(p)) === want) && (min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);
-  const match = ok.find(fits);
-  const pick = match || ok[0];
-  // Stesso criterio ma solo tra i venditori CardTrader Zero (null se nessuno vende la carta con Zero).
-  const zeros = ok.filter(isZero);
-  const zMatch = zeros.find(fits);
-  const zPick = zMatch || zeros[0] || null;
+  const pickSet = (arr) => {
+    const m = arr.filter(fits);
+    const base = m.length ? m : arr; // nessun annuncio nella lingua/condizione: tutti, segnato come approssimato
+    if (!base.length) return null;
+    return { low: base[0].price.cents, typ: median(base.slice(0, TYPICAL_N).map((p) => p.price.cents)), approx: !m.length, n: Math.min(TYPICAL_N, base.length) };
+  };
+  const all = pickSet(ok);
+  const zero = pickSet(ok.filter(isZero));
   return {
-    cents: pick.price.cents,
-    zero: isZero(pick),
-    approx: !match,
+    cents: all.low,
+    typCents: all.typ,
+    approx: all.approx,
     listings: ok.length,
-    zeroCents: zPick ? zPick.price.cents : null,
-    zeroApprox: zPick ? !zMatch : null,
+    zeroCents: zero ? zero.low : null,
+    zeroTypCents: zero ? zero.typ : null,
+    zeroApprox: zero ? zero.approx : null,
   };
 }
 
-/** Prezzo da usare: tutti gli annunci o solo CardTrader Zero. */
-export function pickPrice(p, zeroOnly) {
+/** Prezzo da usare: tutti gli annunci o solo Zero; il più basso o il tipico. */
+export function pickPrice(p, zeroOnly, typical = false) {
   if (!p) return null;
-  if (!zeroOnly) return p;
-  return p.zeroCents != null ? { ...p, cents: p.zeroCents, approx: p.zeroApprox } : null;
+  if (zeroOnly) {
+    if (p.zeroCents == null) return null;
+    return { ...p, cents: typical && p.zeroTypCents != null ? p.zeroTypCents : p.zeroCents, approx: p.zeroApprox };
+  }
+  return typical && p.typCents != null ? { ...p, cents: p.typCents } : p;
 }
 
 /** Totali: valore, speso, quantità, copie senza prezzo. */

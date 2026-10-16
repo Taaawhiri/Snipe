@@ -319,6 +319,7 @@
   function renderCollection() {
     if (!coll) return;
     $('collZero').checked = !!coll.zeroOnly;
+    $('collTypical').checked = !!coll.typical;
     const { items, summary: sm, history } = coll;
     const hist = history || [];
     const old = hist.length > 1 ? hist[Math.max(0, hist.length - 31)] : null;
@@ -326,7 +327,7 @@
     const pct = (v) => `${v >= 0 ? '▲ +' : '▼ '}${(v * 100).toFixed(1).replace('.', ',')}%`;
     const gain = sm.paidPriced ? sm.value - sm.paidPriced : null;
     $('collHero').replaceChildren(...[
-      el('div', { class: 'cv-k', text: coll.zeroOnly ? 'Valore attuale (prezzo più basso CardTrader Zero)' : 'Valore attuale (prezzo più basso CardTrader)' }),
+      el('div', { class: 'cv-k', text: `Valore attuale (prezzo ${coll.typical ? 'tipico' : 'più basso'} CardTrader${coll.zeroOnly ? ' Zero' : ''})` }),
       el('div', { class: 'cv-row' },
         el('span', { class: 'cv-v', text: money(sm.value) }),
         ch != null ? el('span', { class: ch >= 0 ? 'up' : 'dn', text: `${pct(ch)} in ${Math.min(30, hist.length - 1)} giorni` }) : null,
@@ -409,6 +410,10 @@
   }
   document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
+  $('collTypical').addEventListener('change', async () => {
+    await saveSettings({ collTypical: $('collTypical').checked });
+    loadCollection();
+  });
   $('collZero').addEventListener('change', async () => {
     await saveSettings({ collZero: $('collZero').checked });
     loadCollection();

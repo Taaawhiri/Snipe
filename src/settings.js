@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS = {
   scanEverySec: 10,
   summary: true, // riepilogo giornaliero alle 9
   collZero: false, // valore della collezione con i soli prezzi CardTrader Zero
+  collTypical: false, // valore con il prezzo tipico (mediana dei 5 più economici) invece del più basso
 };
 
 /** "07:30" -> 450 minuti dalla mezzanotte; null se non è un orario valido. */
@@ -63,5 +64,6 @@ export function cleanSettings(input, old = DEFAULT_SETTINGS) {
     scanEverySec: SCAN_CHOICES.includes(scan) ? scan : old.scanEverySec,
     summary: b.summary === undefined ? old.summary !== false : !!b.summary,
     collZero: b.collZero === undefined ? !!old.collZero : !!b.collZero,
+    collTypical: b.collTypical === undefined ? !!old.collTypical : !!b.collTypical,
   };
 }
