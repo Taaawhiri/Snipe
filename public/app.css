@@ -477,3 +477,12 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
   .login-plans .pt-head b { font-size: 13px; }
   .login-plans .muted.small { font-size: 12px; margin: 0; }
 }
+/* desktop: due colonne uguali, stesso inizio e stessa fine */
+@media (min-width: 900px) {
+  .landing { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 24px; }
+  .land-left { position: static; gap: 12px; }
+  .land-left, .land-right { height: 100%; }
+  .land-left .login-card, .land-right .login-plans { flex: 1; }
+  .land-left .login-card { justify-content: center; }
+  .login-plans { display: flex; flex-direction: column; justify-content: space-between; }
+}
