@@ -772,6 +772,7 @@ export class Scanner extends DurableObject {
               language: listingLang(p),
               zero: isZero(p),
               seller: p.user && p.user.username,
+              url: `https://www.cardtrader.com/cards/${p.blueprint_id}`,
               reasons,
             };
           });

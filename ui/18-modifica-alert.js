@@ -123,7 +123,7 @@
         : 'CardTrader non mostra annunci per questa carta.';
       $('exRows').replaceChildren(
         ...data.rows.map((x) =>
-          el('div', { class: 'lrow' },
+          el('a', { class: 'lrow', href: x.url, target: '_blank', rel: 'noopener', title: 'Apri su CardTrader' },
             el('span', { class: 'p', text: money(x.cents, x.currency) }),
             el('span', { class: 'd', text: [x.condition, x.language, x.seller].filter(Boolean).join(' · ') + (x.zero ? ' · Zero' : '') }),
             el('span', x.reasons.length ? { class: 'why', text: x.reasons.join(', ') } : { class: 'zero-tag', text: 'Valido' }),
