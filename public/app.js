@@ -935,9 +935,15 @@
     if (sys.indexError) rows.push(kvRow('Errore indice', sys.indexError, 'bad'));
     if (sys.market) {
       const m = sys.market;
-      rows.push(kvRow('Ritmo richieste CardTrader', `una ogni ${(m.gapMs / 1000).toFixed(1)} s · ${m.tokens} pronte`));
-      const last = (m.recent429 || []).slice().reverse();
-      rows.push(kvRow('Ultimi 429', last.length ? last.map((x) => `${hhmmss(x.ts)} ${x.path.includes('blueprint_id') ? 'carta' : 'espansione'}`).join(', ') : 'nessuno', last.length ? 'bad' : ''));
+      const secs = m.gapMs / 1000;
+      rows.push(kvRow('Velocità verso CardTrader', `una richiesta ogni ${secs % 1 ? secs.toFixed(1).replace('.', ',') : secs} secondi`));
+      // "Rallentamenti": le volte in cui CardTrader ha chiesto di aspettare (risposta 429), dall'ultimo riavvio.
+      const hits = (m.recent429 || []).filter((x) => Date.now() - x.ts < 24 * 3600_000);
+      const lastHit = hits[hits.length - 1];
+      rows.push(kvRow('Rallentamenti di CardTrader',
+        !hits.length ? 'nessuno, tutto fluido'
+        : `${hits.length} ${hits.length === 1 ? 'volta' : 'volte'}, l'ultima ${ago(lastHit.ts)}`,
+        hits.length >= 5 ? 'bad' : ''));
     }
     $('sysList').replaceChildren(...rows);
     const bar = $('indexBar');
