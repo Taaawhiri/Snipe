@@ -607,3 +607,8 @@ svg.spark .cm { stroke: var(--blue); stroke-dasharray: 5 4; stroke-width: 2; }
 .act-btn.del:hover { background: rgba(255, 122, 110, 0.14); }
 @media (max-width: 360px) { .act-btn span { display: none; } }
 .inline-save { display: flex; gap: 8px; } .inline-save input { flex: 1; min-width: 0; } .name-field { max-width: 420px; }
+/* etichette più leggibili sul fondo scuro (il rosso pieno su bordeaux aveva poco contrasto) */
+.chip.on { color: #ffc2cb; background: rgba(255, 90, 110, 0.2); border-color: rgba(255, 120, 135, 0.45); font-weight: 800; }
+.chip.lang { color: #ffe08a; background: rgba(255, 210, 58, 0.14); }
+.chip.zero { color: #c3caff; background: rgba(120, 134, 255, 0.2); }
+.chip.cond { color: #8ff0b8; background: rgba(85, 208, 138, 0.16); }
