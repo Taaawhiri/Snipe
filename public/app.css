@@ -505,3 +505,6 @@ dialog.sheet { border: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35); }
 .btn.mini.on-bad { background: var(--red-soft); border-color: var(--bad); color: var(--bad); }
 .lrow .d b { font-weight: 700; }
 #sellerList .rule .info { grid-column: 1 / -1; }
+.tile .zeropill.deal { background: var(--red); font-size: 13px; }
+.tabs button span { white-space: nowrap; }
+@media (max-width: 400px) { .tabs button { font-size: 11px; } }

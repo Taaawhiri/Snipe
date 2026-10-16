@@ -5,6 +5,7 @@ import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData } from './sources.js';
+import { dealsFromCards } from './daydeals.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
@@ -18,6 +19,9 @@ const MARKETPLACE_GAP_MS = 1200;
 const OTHER_GAP_MS = 400;
 const MIN_BACKOFF_MS = 30_000;
 const MARKET_PER_SCAN = 2;
+const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
+
+
 
 /** Toglie gli annunci dei venditori esclusi dall'utente. */
 function withoutSellers(data, blocked) {
@@ -277,6 +281,16 @@ export class Scanner extends DurableObject {
       return json({ ok: true });
     }
 
+    if (path === '/api/deals' && method === 'GET') {
+      if (!(await this.isCatalog())) return json({ error: 'not found' }, 404);
+      await this.ensureAlarm();
+      try {
+        return json(await this.dealsList());
+      } catch (e) {
+        return json({ error: String(e.message || e) }, 502);
+      }
+    }
+
     if (path === '/api/_catinfo') return json(await this.catalogInfo(await this.status()));
 
     if (path === '/api/_cm' && method === 'POST') {
@@ -319,7 +333,7 @@ export class Scanner extends DurableObject {
     // x-do = server dati dell'utente che fa la richiesta. La ricerca passa dal catalogo ('main'):
     // lì il piano di chi cerca non deve sostituire quello del proprietario.
     const xdo = req.headers.get('x-do');
-    if (xdo && path !== '/api/search' && path !== '/api/index/refresh' && !(await this.ctx.storage.get('doName'))) await this.ctx.storage.put('doName', xdo);
+    if (xdo && !['/api/search', '/api/index/refresh', '/api/deals'].includes(path) && !(await this.ctx.storage.get('doName'))) await this.ctx.storage.put('doName', xdo);
     const mine = !xdo || xdo === (await this.get('doName', CATALOG));
     const planHeader = mine ? req.headers.get('x-plan') : null;
     if (planHeader && planHeader !== (await this.get('plan', null))) {
@@ -975,6 +989,46 @@ export class Scanner extends DurableObject {
     return data;
   }
 
+  // ---------- Affari del giorno (solo nel catalogo condiviso) ----------
+
+  /** Ogni 15 minuti si rilegge un'espansione recente; ogni espansione circa ogni 2 ore e mezza. */
+  async dealsDue() {
+    if (!(await this.isCatalog())) return false;
+    const st = await this.get('ddState', { i: 0, ts: 0 });
+    return Date.now() - st.ts > 15 * 60_000;
+  }
+
+  async recentExpansions() {
+    const meta = await this.get('ixmeta', null);
+    const have = new Set(meta ? meta.have : []);
+    const exps = await this.pokemonExpansions();
+    return exps.filter((e) => !have.size || have.has(e.id)).sort((a, b) => b.id - a.id).slice(0, DEALS_SETS);
+  }
+
+  async dealsStep() {
+    if (!(await this.dealsDue())) return;
+    const st = await this.get('ddState', { i: 0, ts: 0 });
+    await this.ctx.storage.put('ddState', { i: st.i + 1, ts: Date.now() });
+    const exps = await this.recentExpansions();
+    if (!exps.length) return;
+    const exp = exps[st.i % exps.length];
+    const { cards } = await this.cardsFor(exp.id);
+    await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromCards(cards) });
+  }
+
+  async dealsList() {
+    const exps = await this.recentExpansions();
+    const got = await this.ctx.storage.get(exps.map((e) => `dd:${e.id}`));
+    const items = [];
+    let ts = 0;
+    for (const v of got.values()) {
+      ts = Math.max(ts, v.ts);
+      for (const it of v.items) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
+    }
+    items.sort((a, b) => b.discount - a.discount);
+    return { items: items.slice(0, 60), ts, sets: exps.map((e) => e.name) };
+  }
+
   // ---------- Prezzi Cardmarket (listino pubblico giornaliero) ----------
 
   /** Il listino va scaricato se manca o ha più di 20 ore; dopo un errore si aspettano 30 minuti. */
@@ -1147,7 +1201,7 @@ export class Scanner extends DurableObject {
     if (await this.get('suspended', false)) return;
     const rules = (await this.get('rules', [])).filter((r) => r.enabled);
     const paused = (await this.settings()).paused;
-    if ((paused || !rules.length) && !(await this.indexPending()) && !(await this.cmDue())) return;
+    if ((paused || !rules.length) && !(await this.indexPending()) && !(await this.cmDue()) && !(await this.dealsDue())) return;
     const current = await this.ctx.storage.getAlarm();
     if (current === null) await this.ctx.storage.setAlarm(Date.now() + 1000);
   }
@@ -1172,6 +1226,11 @@ export class Scanner extends DurableObject {
       status.cmError = String(e.message || e);
     }
     try {
+      await this.dealsStep();
+    } catch (e) {
+      status.dealsError = String(e.message || e);
+    }
+    try {
       await this.indexStep();
       status.indexError = null;
     } catch (e) {
@@ -1183,9 +1242,11 @@ export class Scanner extends DurableObject {
 
     const settings = await this.settings();
     const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
-    if (scanning || (await this.indexPending()) || (await this.cmDue())) {
+    const busy = (await this.indexPending()) || (await this.cmDue());
+    if (scanning || busy || (await this.isCatalog())) {
       // La frequenza scelta in Impostazioni, ma mai più veloce di quella del piano.
-      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : SCAN_EVERY_MS;
+      // Il catalogo senza altro da fare si sveglia solo per gli affari del giorno (ogni 15 minuti).
+      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : 15 * 60_000;
       await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
     }
   }

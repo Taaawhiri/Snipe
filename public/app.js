@@ -128,7 +128,8 @@
   // ---------- tab ----------
   function goTab(name) {
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
-    for (const t of ['alerts', 'cards', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
+    for (const t of ['alerts', 'cards', 'deals', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
+    if (name === 'deals') loadDeals();
     if (name === 'settings' && isOwner()) loadAdmin();
     window.scrollTo({ top: 0 });
   }
@@ -275,6 +276,38 @@
         h.length > 1 ? el('span', { class: 'muted', text: `dal ${first.d.slice(8, 10)}/${first.d.slice(5, 7)}` }) : null,
       ),
     );
+  }
+
+  // ---------- affari del giorno ----------
+  let dealsAt = 0;
+  async function loadDeals() {
+    if (Date.now() - dealsAt < 5 * 60_000 && $('dealsGrid').childElementCount) return;
+    dealsAt = Date.now();
+    $('dealsMsg').textContent = 'Carico gli affari…';
+    try {
+      const d = await api('/api/deals');
+      $('dealsMsg').textContent = d.items.length
+        ? `${d.items.length} affari · aggiornati ${ago(d.ts)} · ${d.sets.length} espansioni controllate`
+        : 'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 15 minuti. Riprova più tardi.';
+      $('dealsGrid').replaceChildren(
+        ...d.items.map((it, i) => el('div', { class: 'tile', style: `--i:${Math.min(i, 24)}` },
+          el('button', { class: 'tile-main', type: 'button', onclick: () => openCard({ id: it.id, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: it.currency, lowest: it.cents, cm: { trend: it.trendCents / 100 } }) },
+            el('div', { class: 'art' },
+              it.image ? el('img', { src: it.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
+              el('span', { class: 'pricepill', text: money(it.cents, it.currency) }),
+              el('span', { class: 'zeropill deal', text: `−${Math.round(it.discount * 100)}%` }),
+            ),
+            el('div', { class: 'info' },
+              el('div', { class: 'nm', text: it.name }),
+              el('div', { class: 'sub', text: it.expName }),
+              el('div', { class: 'cmtxt', text: `Cardmarket tendenza ${money(it.trendCents, it.currency)}` }),
+            ),
+          ),
+        )),
+      );
+    } catch (e) {
+      $('dealsMsg').textContent = e.message;
+    }
   }
 
   // ---------- venditori ----------

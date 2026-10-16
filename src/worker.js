@@ -129,6 +129,7 @@ export default {
     headers.set('x-user-name', encodeURIComponent(user.name || ''));
     // Ricerca per nome e rinnovo dell'indice usano il catalogo condiviso (server dati 'main').
     if (url.pathname === '/api/search') return scanner(env, 'main').fetch(new Request(req, { headers }));
+    if (url.pathname === '/api/deals') return scanner(env, 'main').fetch(new Request(req, { headers }));
     if (url.pathname === '/api/index/refresh') {
       if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può rinnovare l’indice.' }, 403);
       return scanner(env, 'main').fetch(new Request(req, { headers }));
