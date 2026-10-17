@@ -2034,6 +2034,10 @@ export class Scanner extends DurableObject {
       }
       let data = this.dataForRule(rule);
       if (!data) continue; // nessun dato ancora: arriverà a uno dei prossimi giri
+      // Prezzi troppo vecchi (es. ricaricati dal disco dopo un aggiornamento): si aspetta una lettura nuova,
+      // altrimenti un annuncio già venduto potrebbe far scattare l'alert.
+      const srcHit = rule.blueprintId ? this.bpCache.get(rule.blueprintId) : this.productCache.get(rule.expansionId);
+      if (srcHit && Date.now() - srcHit.ts > 15 * 60_000) continue;
       if (blocked.size) data = withoutSellers(data, blocked);
       {
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
@@ -2066,6 +2070,17 @@ export class Scanner extends DurableObject {
       // su un'intera espansione, che potrebbero produrre decine di alert, alla prima scansione
       // memorizzano soltanto ciò che c'è.
       const firstRun = !baselined.has(rule.id) && !rule.blueprintId;
+
+      // Prima di avvisare: se i prezzi hanno più di un minuto, si rilegge la carta e si tengono solo
+      // gli annunci ancora in vendita allo stesso prezzo. Succede di rado (solo quando c'è un affare).
+      if (deals.length && rule.blueprintId && srcHit && Date.now() - srcHit.ts > 60_000) {
+        const fresh = await this.productsForCard(rule.blueprintId, 0).catch(() => null);
+        const still = fresh && (fresh[rule.blueprintId] || fresh[String(rule.blueprintId)]);
+        if (Array.isArray(still)) {
+          const live = new Map(still.filter((p) => p && p.price && p.quantity > 0).map((p) => [p.id, p.price.cents]));
+          deals = deals.filter((d) => live.get(d.product.id) === d.cents);
+        }
+      }
 
       for (const d of deals) {
         const sid = `${rule.id}:${d.product.id}:${d.cents}`; // per regola: due alert sulla stessa carta non si oscurano
