@@ -963,7 +963,12 @@ export class Scanner extends DurableObject {
         const scanTs = Math.max(expHit ? expHit.ts : 0, bpHit ? bpHit.ts : 0) || null;
         const seenMap = await this.get('seen', {});
         const seenCount = Object.keys(seenMap).filter((k) => k.startsWith(`${rule.id}:`)).length;
-        const data = rule.blueprintId ? await this.productsForCard(rule.blueprintId, 60_000) : await this.productsFor(rule.expansionId, 60_000);
+        // Verifica veloce: se lo scan ha letto gli annunci da poco (meno di 5 minuti) si usano quelli, senza chiedere
+        // di nuovo a CardTrader. Così passare da un alert all'altro è immediato e non consuma il limite di richieste.
+        const recent = rule.blueprintId ? (bpHit && !bpHit.slim ? bpHit : null) : expHit;
+        const data = recent && Date.now() - recent.ts < 5 * 60_000 ? recent.data
+          : await (rule.blueprintId ? this.productsForCard(rule.blueprintId, 60_000) : this.productsFor(rule.expansionId, 60_000))
+            .catch((e) => { const old = rule.blueprintId ? bpHit : expHit; if (old) return old.data; throw e; }); // pausa di CardTrader: dati già letti
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const rows = all
           .filter((p) => p && p.price)
