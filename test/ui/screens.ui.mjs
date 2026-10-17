@@ -72,3 +72,13 @@ test('inglese: l\'interfaccia è tradotta', async () => {
   assert.ok((await page.textContent('#collHero')).includes('Current value'));
   assert.deepEqual(errors, []);
 });
+
+test('benvenuto: alla prima apertura senza alert compaiono i tre passi', async () => {
+  const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': baseState({ rules: [] }) }, { welcome: true });
+  await page.waitForSelector('.wl');
+  assert.ok((await page.textContent('.wl')).includes('Crea il primo alert'));
+  await page.click('.wl .btn.primary');
+  assert.equal(await page.$('.wl'), null);
+  assert.deepEqual(errors, []);
+  await page.close();
+});

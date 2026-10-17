@@ -462,7 +462,6 @@
             gainPill(it),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
-            it.cmCents ? el('span', { class: 's', text: `CM ${money(it.cmCents)}` }) : null,
           ),
         );
       }),
@@ -1384,6 +1383,8 @@
     return row;
   }
 
+  const dur = (ms) => (ms < 90_000 ? `${Math.max(1, Math.round(ms / 1000))} s` : ms < 90 * 60_000 ? `${Math.round(ms / 60_000)} min` : `${(ms / 3600_000).toFixed(1).replace('.', ',')} ore`);
+
   function renderSettings() {
     if (!state || !state.settings) return;
     const s = state.settings;
@@ -1403,6 +1404,7 @@
       kvRow('Account', state.account ? `${state.account.name || '—'} · piano ${state.account.plan.label}` : '—'),
       kvRow('Scansione', s.paused ? 'In pausa' : active ? (st.lastScan ? `ultimo controllo ${ago(st.lastScan)}` : 'in avvio…') : 'nessun alert attivo'),
       kvRow('Alert attivi', `${active} su ${state.rules.length}`),
+      ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'bad' : '')] : []),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? st.lastError : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
       kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
@@ -2352,6 +2354,29 @@
   });
   $('clearAlerts').addEventListener('click', async () => { if (!(await askConfirm('Gli alert restano attivi: cambia solo l’elenco degli avvisi già ricevuti.', { title: 'Cancellare lo storico avvisi?', ok: 'Cancella', danger: true }))) return; await api('/api/alerts', { method: 'DELETE' }); knownTop = null; refresh(); });
 
+  // ---------- benvenuto ----------
+  // Alla prima apertura (nessun alert): tre passi per partire. Si mostra una volta sola per dispositivo.
+  function maybeWelcome() {
+    let seen = false;
+    try { seen = localStorage.getItem('snipe.welcome') === '1'; } catch {}
+    if (seen || !state || state.rules.length) return;
+    const close = () => { try { localStorage.setItem('snipe.welcome', '1'); } catch {} ov.remove(); };
+    const step = (n, title, text, label, action) => el('div', { class: 'wl-step' },
+      el('span', { class: 'wl-n', text: String(n) }),
+      el('div', { class: 'wl-txt' }, el('b', { text: title }), el('span', { text })),
+      el('button', { class: 'btn mini', type: 'button', text: label, onclick: () => { close(); action(); } }));
+    const ov = el('div', { class: 'cs-overlay' },
+      el('div', { class: 'cs-sheet cs-dialog wl', role: 'dialog', 'aria-label': 'Benvenuto in Snipe' },
+        el('div', { class: 'cs-grab' }),
+        el('div', { class: 'cs-title', text: 'Benvenuto in Snipe' }),
+        el('p', { class: 'cs-text', text: 'Snipe controlla CardTrader al posto tuo e ti avvisa appena una carta scende sotto il prezzo che vuoi. Si parte in tre passi:' }),
+        el('div', { class: 'wl-steps' },
+          step(1, 'Crea il primo alert', 'Cerca una carta, tocca “Alert” e scegli il prezzo.', 'Cerca', () => goTab('cards')),
+          step(2, 'Attiva le notifiche', 'Così l’avviso ti arriva anche ad app chiusa.', 'Attiva', () => { goTab('settings'); $('pushEnable').click(); }),
+          step(3, 'Aggiungi la tua collezione', 'Con “Ce l’ho” o scansionando le carte: vedi quanto vale.', 'Scansiona', () => { goTab('cards'); const b = document.querySelector('[data-scan]'); if (b) b.click(); })),
+        el('div', { class: 'cs-actions' }, el('button', { class: 'btn primary', type: 'button', text: 'Ho capito', onclick: close }))));
+    document.body.append(ov);
+  }
   // ---------- avvio ----------
   async function start() {
     state = null;
@@ -2362,6 +2387,7 @@
     }
     $('login').hidden = true;
     $('app').hidden = false;
+    maybeWelcome();
     api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); }).catch((e) => {
       $('cardsMsg').textContent = `Elenco espansioni non disponibile: ${e.message}`;
       $('cardsMsg').hidden = false;

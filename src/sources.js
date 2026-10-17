@@ -18,3 +18,27 @@ export function pickData(exp, bp, now) {
   if (bp && (!exp || bp.ts >= exp.ts || now - bp.ts < 3 * 60_000)) return bp.data;
   return exp ? exp.data : null;
 }
+
+/**
+ * Versione leggera degli annunci di una carta, da salvare su disco: i più economici acquistabili,
+ * solo con i campi che servono agli alert (filtri, Zero, venditore, spedizione).
+ */
+export function slimProducts(list, max = 20) {
+  return (list || [])
+    .filter((p) => p && p.price && p.price.cents > 0 && p.quantity > 0 && !p.graded && !p.on_vacation)
+    .sort((a, b) => a.price.cents - b.price.cents)
+    .slice(0, max)
+    .map((p) => ({
+      id: p.id,
+      blueprint_id: p.blueprint_id,
+      name_en: p.name_en,
+      price: { cents: p.price.cents, currency: p.price.currency },
+      quantity: p.quantity,
+      properties_hash: p.properties_hash,
+      user: p.user ? { username: p.user.username, country_code: p.user.country_code, can_sell_via_hub: p.user.can_sell_via_hub } : null,
+      expansion: p.expansion ? { name_en: p.expansion.name_en } : null,
+    }));
+}
+
+/** Firma degli annunci: se non cambia, non serve riscrivere su disco. */
+export const slimSig = (slim) => slim.map((p) => `${p.id}:${p.price.cents}:${p.quantity}`).join('|');

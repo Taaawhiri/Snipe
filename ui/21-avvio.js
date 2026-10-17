@@ -8,6 +8,7 @@
     }
     $('login').hidden = true;
     $('app').hidden = false;
+    maybeWelcome();
     api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); }).catch((e) => {
       $('cardsMsg').textContent = `Elenco espansioni non disponibile: ${e.message}`;
       $('cardsMsg').hidden = false;

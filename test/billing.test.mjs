@@ -37,3 +37,12 @@ test('regola con più lingue: accetta una qualsiasi', () => {
   assert.equal(rejectReasons(p, { language: 'it,en' }).filter((x) => x.startsWith('lingua')).length, 0);
   assert.equal(rejectReasons(p, { language: 'ja,fr' }).filter((x) => x.startsWith('lingua')).length, 1);
 });
+
+import { slimProducts, slimSig } from '../src/sources.js';
+test('annunci leggeri da salvare: solo i più economici acquistabili', () => {
+  const mk = (id, cents, extra = {}) => ({ id, blueprint_id: 9, name_en: 'X', price: { cents, currency: 'EUR' }, quantity: 1, properties_hash: { condition: 'Near Mint' }, user: { username: 'u', country_code: 'IT', can_sell_via_hub: true, extra: 1 }, ...extra });
+  const slim = slimProducts([mk(1, 500), mk(2, 300), mk(3, 100, { graded: true }), mk(4, 200, { quantity: 0 })]);
+  assert.deepEqual(slim.map((p) => p.id), [2, 1]);
+  assert.equal(slim[0].user.extra, undefined);
+  assert.equal(slimSig(slim), '2:300:1|1:500:1');
+});

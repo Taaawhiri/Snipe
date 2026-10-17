@@ -58,8 +58,10 @@ export const COLLECTION = {
  * Apre la pagina con le API simulate. api: { 'GET /api/state': body | (req) => body, ... }.
  * loggedIn=false: /api/state risponde 401 finché non arriva un /api/login.
  */
-export async function openApp(browser, url, api = {}, { loggedIn = true, lang = 'it', viewport = { width: 390, height: 844 } } = {}) {
+export async function openApp(browser, url, api = {}, { loggedIn = true, lang = 'it', viewport = { width: 390, height: 844 }, welcome = false } = {}) {
   const page = await browser.newPage({ viewport });
+  // Il benvenuto della prima apertura si prova a parte: qui risulta già visto.
+  if (!welcome) await page.addInitScript(() => { try { localStorage.setItem('snipe.welcome', '1'); } catch {} });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   let logged = loggedIn;

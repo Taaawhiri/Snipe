@@ -4,7 +4,7 @@ import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
-import { pickDue, pickData } from './sources.js';
+import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
 import { collKey, pickPrice, priceFor, summarize } from './collection.js';
 import { scoreRow } from './cardid.js';
@@ -1255,11 +1255,45 @@ export class Scanner extends DurableObject {
     try {
       const data = await this.ct(`/marketplace/products?blueprint_id=${blueprintId}`, background);
       this.bpCache.set(blueprintId, { ts: Date.now(), data });
+      await this.persistCard(blueprintId, data);
       await this.recordHistory(blueprintId, data[blueprintId] || data[String(blueprintId)]);
       return data;
     } catch (e) {
       if (hit) return hit.data;
       throw e;
+    }
+  }
+
+  /**
+   * Gli annunci delle carte con un alert si salvano anche su disco (versione leggera), così dopo un
+   * riavvio del server (es. un aggiornamento) lo scan riparte con i prezzi già letti invece che da zero.
+   * Si scrive solo quando gli annunci più economici cambiano: le scritture restano poche.
+   */
+  async persistCard(blueprintId, data) {
+    if (!this.ruleCards || !this.ruleCards.has(Number(blueprintId))) return;
+    const slim = slimProducts(data[blueprintId] || data[String(blueprintId)]);
+    const sig = slimSig(slim);
+    this.cardSigs = this.cardSigs || new Map();
+    if (this.cardSigs.get(blueprintId) === sig) return;
+    this.cardSigs.set(blueprintId, sig);
+    await this.ctx.storage.put(`pc:${blueprintId}`, { ts: Date.now(), data: { [blueprintId]: slim } });
+  }
+
+  /** Al primo giro dopo un riavvio: ricarica dal disco gli annunci salvati delle carte con un alert. */
+  async warmCards(ids) {
+    if (this.warmed) return;
+    this.warmed = true;
+    const missing = ids.filter((id) => !this.bpCache.has(id));
+    for (let i = 0; i < missing.length; i += 100) {
+      const got = await this.ctx.storage.get(missing.slice(i, i + 100).map((id) => `pc:${id}`));
+      for (const [k, v] of got) {
+        const id = Number(k.slice(3));
+        if (v && v.data && !this.bpCache.has(id)) {
+          this.bpCache.set(id, { ts: v.ts, data: v.data });
+          this.cardSigs = this.cardSigs || new Map();
+          this.cardSigs.set(id, slimSig(Object.values(v.data)[0] || []));
+        }
+      }
     }
   }
 
@@ -1671,7 +1705,9 @@ export class Scanner extends DurableObject {
    * (la lettura per espansione dà solo i più economici di ogni carta). Così le richieste restano
    * costanti anche con molti alert, e ogni fonte si aggiorna a turno.
    */
-  async refreshSources(rules) {
+  async refreshSources(rules, status) {
+    this.ruleCards = new Set(rules.filter((r) => r.blueprintId).map((r) => Number(r.blueprintId)));
+    await this.warmCards([...this.ruleCards]);
     const sources = new Map();
     const add = (k, src) => {
       const prev = sources.get(k);
@@ -1709,6 +1745,12 @@ export class Scanner extends DurableObject {
         error = e; // i dati già letti restano validi: le regole si valutano comunque
         if (e.rateLimited || e.budget) break;
       }
+    }
+    // Giro completo: da quanto tempo non si rilegge la carta (o il set) di alert più "vecchia".
+    if (status) {
+      const ruleSrc = [...sources.values()].filter((src) => src.prio >= 2);
+      const ages = ruleSrc.map(age);
+      status.cycle = ruleSrc.length && ages.every((t) => t) ? { ms: Date.now() - Math.min(...ages), n: ruleSrc.length, ts: Date.now() } : null;
     }
     if (error && error.budget) error = null; // budget finito: non è un errore, si riprende al giro dopo
     if (error && !n && ![...sources.values()].some((src) => age(src))) throw error;
@@ -1824,7 +1866,7 @@ export class Scanner extends DurableObject {
     const seenBefore = Object.keys(seen).length;
     const baselinedBefore = baselined.size;
     const fresh = [];
-    const requests = await this.refreshSources(rules);
+    const requests = await this.refreshSources(rules, status);
     await this.collectionPrices();
     const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
 
