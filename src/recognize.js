@@ -1,6 +1,6 @@
 // Riconoscimento della carta da una foto. Motore scelto con la variabile SCAN_PROVIDER:
 // - "workers-ai" (predefinito): modello per immagini di Cloudflare Workers AI, nessuna chiave esterna.
-// - "claude": Claude Haiku 5.5, e Claude Opus 5.5 come riserva quando Haiku non è sicuro (serve ANTHROPIC_API_KEY).
+// - "claude": Claude Haiku 5.5, e Claude Sonnet 5.5 come riserva quando Haiku non è sicuro (serve ANTHROPIC_API_KEY).
 import Anthropic from '@anthropic-ai/sdk';
 import { SCAN_PROMPT, parseScan } from './cardid.js';
 
@@ -77,10 +77,11 @@ async function withClaude(env, bytes, mime) {
   const b64 = toBase64(bytes);
   let scan = await askClaude(client, env.SCAN_CLAUDE_MODEL || 'claude-haiku-5-5', b64, mime, false);
   let engine = 'claude-haiku';
-  // Riserva: se Haiku non è sicuro, la stessa foto va a Opus.
-  if ((!scan || !scan.name || (scan.confidence ?? 0) < 0.6) && env.SCAN_CLAUDE_FALLBACK !== 'off') {
-    const better = await askClaude(client, 'claude-opus-5-5', b64, mime, true).catch(() => null);
-    if (better && better.name) { scan = better; engine = 'claude-opus'; }
+  // Riserva: se Haiku non è sicuro, la stessa foto va a Sonnet (SCAN_CLAUDE_FALLBACK sceglie un altro modello, "off" la toglie).
+  const fallback = env.SCAN_CLAUDE_FALLBACK || 'claude-sonnet-5-5';
+  if ((!scan || !scan.name || (scan.confidence ?? 0) < 0.6) && fallback !== 'off') {
+    const better = await askClaude(client, fallback, b64, mime, true).catch(() => null);
+    if (better && better.name) { scan = better; engine = fallback.includes('opus') ? 'claude-opus' : fallback.includes('sonnet') ? 'claude-sonnet' : 'claude-fallback'; }
   }
   return { scan, engine };
 }

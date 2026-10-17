@@ -80,7 +80,7 @@ Gli alert su una carta valutano subito anche gli annunci già in vendita, poi av
 Il pulsante "Scansiona" fotografa una carta: il Worker la manda al riconoscimento, che restituisce nome (in inglese), numero, codice del set e lingua; poi `src/cardid.js` cerca le carte corrispondenti nell'indice. Il motore si sceglie con la variabile `SCAN_PROVIDER` del Worker:
 
 - `workers-ai` (predefinito): Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`), nessuna chiave esterna.
-- `claude`: Claude Haiku 5.5, con Claude Opus 5.5 di riserva quando Haiku non è sicuro. Serve il Secret `ANTHROPIC_API_KEY`; `SCAN_CLAUDE_MODEL` cambia il modello principale, `SCAN_CLAUDE_FALLBACK=off` toglie la riserva.
+- `claude`: Claude Haiku 5.5, con Claude Sonnet 5.5 di riserva quando Haiku non è sicuro. Serve il Secret `ANTHROPIC_API_KEY`; `SCAN_CLAUDE_MODEL` cambia il modello principale, `SCAN_CLAUDE_FALLBACK` cambia il modello di riserva (es. `claude-opus-5-5`), `off` la toglie.
 
 Scansioni al mese per piano: Gratuito 5, Pro 200, Sniper 1000.
 

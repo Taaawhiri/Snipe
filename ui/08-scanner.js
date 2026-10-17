@@ -73,7 +73,7 @@
         sc.setCode ? chip(sc.setCode) : null,
         sc.variant ? chip(sc.variant, 'zero') : null,
       ),
-      el('div', { class: 'small muted', text: `${r.engine === 'workers-ai' ? 'Riconoscimento Cloudflare' : r.engine === 'claude-opus' ? 'Riconoscimento Claude Opus' : 'Riconoscimento Claude'}${r.limit < 100000 ? ` · ${r.used}/${r.limit} scansioni questo mese` : ''}` }),
+      el('div', { class: 'small muted', text: `${r.engine === 'workers-ai' ? 'Riconoscimento Cloudflare' : r.engine === 'claude-opus' ? 'Riconoscimento Claude Opus' : r.engine === 'claude-sonnet' ? 'Riconoscimento Claude Sonnet' : 'Riconoscimento Claude'}${r.limit < 100000 ? ` · ${r.used}/${r.limit} scansioni questo mese` : ''}` }),
     );
     const cands = r.candidates || [];
     $('scanMsg').textContent = !sc.name && !sc.number
