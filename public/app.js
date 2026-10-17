@@ -425,6 +425,7 @@
   }
   // ---------- collezione ----------
   let coll = null;
+  let collPaid = 'all'; // filtro provenienza: acquistate (prezzo > 0), trovate (0 €), senza prezzo pagato
   let collEra = 'all'; // filtro epoca: moderne o vintage (WOTC ed EX, come nel selettore delle espansioni)
   let collType = 'all'; // filtro per tipo: Pokémon, allenatori, energie
   let collKind = 'all'; // filtro rapido: tutte, non gradate, gradate
@@ -755,6 +756,16 @@
     $('collEra').replaceChildren(...[['all', 'Tutte le epoche'], ['modern', `Moderne (${nE.modern})`], ['vintage', `🕰️ Vintage (${nE.vintage})`]].map(([v, l]) =>
       el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collEra === v), text: l, onclick: () => { collEra = v; renderCollection(); } })));
     const eraOk = (it) => collEra === 'all' || eraOf(it) === collEra;
+    // Provenienza: dal prezzo pagato (0 € = trovata, in una busta o regalata).
+    const paidOf = (it) => (it.paidCents == null ? 'none' : it.paidCents === 0 ? 'found' : 'bought');
+    const nP = { bought: 0, found: 0, none: 0 };
+    items.forEach((it) => { nP[paidOf(it)]++; });
+    $('collPaid').hidden = Object.values(nP).filter(Boolean).length < 2;
+    if ($('collPaid').hidden) collPaid = 'all';
+    $('collPaid').replaceChildren(...[['all', 'Tutte le provenienze'], ['bought', `Acquistate (${nP.bought})`], ['found', `Trovate (${nP.found})`], ['none', `Senza prezzo pagato (${nP.none})`]]
+      .filter(([v]) => v === 'all' || nP[v]).map(([v, l]) =>
+        el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collPaid === v), text: l, onclick: () => { collPaid = v; renderCollection(); } })));
+    const paidOk = (it) => collPaid === 'all' || paidOf(it) === collPaid;
     // Rarità: dal nome salvato "Charizard ex (Special Illustration Rare | 199/165)".
     const rarOf = (it) => { const m = /\(([^()]*)\)\s*$/.exec(it.name || ''); return m ? rarityFromVersion(m[1]) : ''; };
     const rc = new Map();
@@ -767,8 +778,8 @@
     $('collRarityBox').hidden = rc.size < 2 && !rsel.value;
     const rar = rsel.value;
     const rarOk = (it) => !rar || rarOf(it) === rar;
-    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
-    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && !rar;
+    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && paidOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
+    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && collPaid === 'all' && !rar;
     $('collCount').textContent = shownItems.length ? `${shownItems.length} carte su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
