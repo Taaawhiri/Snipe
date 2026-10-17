@@ -6,7 +6,7 @@ Look at the card and answer with ONLY a JSON object, no other text:
 {"name": "...", "number": "...", "total": "...", "set_code": "...", "language": "...", "text_sample": "...", "variant": "...", "confidence": 0.0}
 - name: the Pokémon or trainer card name in ENGLISH (translate if the card is in another language), e.g. "Charizard ex".
 - number: the collector number printed at the bottom (the part before the slash), e.g. "137" or "TG05" or "SV001".
-- total: the part after the slash, e.g. "103"; empty if there is no slash.
+- total: the part after the slash, e.g. "103"; empty if there is no slash. Collector numbers rarely exceed 3 digits: on small print (Chinese cards) do not merge digits, "200/207" is number "200", total "207".
 - set_code: the small set code printed in the bottom-left corner next to the number, copied exactly (e.g. "M6a", "sv3", "PAL"); empty if you cannot read it clearly. Never guess.
 - language: the language the card is PRINTED in, as a 2-letter code: en, ja, it, fr, de, es, pt, ko, zh.
 - text_sample: copy EXACTLY, character by character, 5 to 15 characters of the card name or attack text as printed (keep Japanese/Korean/Chinese characters as they are, do not translate).
@@ -101,7 +101,9 @@ export function scoreRow(row, scan, setCode = '', expName = '') {
   if (scan.number) {
     const nums = [...version.matchAll(/([A-Za-z]*\d+[A-Za-z]*)\s*\/\s*([A-Za-z]*\d+)/g)];
     const single = /(?:^|[|\s#])([A-Za-z]{0,4}\d{1,4}[A-Za-z]?)\s*$/.exec(version);
-    const n = stripZeros(scan.number);
+    let n = stripZeros(scan.number);
+    // Numero letto con una cifra in più (es. "2007/07" per 200/207): proviamo le prime tre cifre.
+    if (/^\d{4,}$/.test(n) && !nums.some((x) => stripZeros(x[1]) === n)) n = stripZeros(n.slice(0, 3));
     if (nums.some((x) => stripZeros(x[1]) === n)) {
       score += 5 * nk;
       if (scan.total && nums.some((x) => stripZeros(x[1]) === n && stripZeros(x[2]) === stripZeros(scan.total))) score += 3 * nk;
