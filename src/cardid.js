@@ -2,9 +2,10 @@
 import { normText } from './search.js';
 
 export const SCAN_PROMPT = `You identify Pokémon trading cards from a photo.
+The photo may be rotated sideways or upside down: mentally rotate it and read the card normally.
 Look at the card and answer with ONLY a JSON object, no other text:
 {"name": "...", "number": "...", "total": "...", "set_code": "...", "language": "...", "text_sample": "...", "variant": "...", "era": "...", "set_guess": "...", "slab_company": "...", "slab_grade": "...", "slab_set": "...", "confidence": 0.0}
-- name: the Pokémon or trainer card name in ENGLISH (translate if the card is in another language), e.g. "Charizard ex". Use the official English card name, not a literal translation: trainers and items often have different names (Italian "Lucinda" is "Dawn", "Camilla" is "Cynthia", "Ruggero" is "Lance").
+- name: the Pokémon or trainer card name in ENGLISH (translate if the card is in another language), e.g. "Charizard ex". Keep prefixes and suffixes that are part of the name: Radiant, Shining, Light, Dark, Team Rocket's, Hisuian, Galarian, Alolan, Paldean, ex, EX, GX, V, VMAX, VSTAR (e.g. "Radiant Charizard"). Use the official English card name, not a literal translation: trainers and items often have different names (Italian "Lucinda" is "Dawn", "Camilla" is "Cynthia", "Ruggero" is "Lance").
 - number: the collector number printed at the bottom (the part before the slash), e.g. "137" or "TG05" or "SV001". Old Japanese cards (1996-2005) often have no collector number: their "No. 040" is the Pokédex number, not the collector number, so leave number empty.
 - total: the part after the slash, e.g. "103"; empty if there is no slash. Collector numbers rarely exceed 3 digits: on small print (Chinese cards) do not merge digits, "200/207" is number "200", total "207".
 - set_code: the small set code printed in the bottom-left corner next to the number, copied exactly (e.g. "M6a", "sv3", "PAL"); empty if you cannot read it clearly. Never guess.
@@ -12,7 +13,7 @@ Look at the card and answer with ONLY a JSON object, no other text:
 - text_sample: copy EXACTLY, character by character, 5 to 15 characters of the card name or attack text as printed (keep Japanese/Korean/Chinese characters as they are, do not translate).
 - variant: "1st edition", "reverse holo", "holo", or "" if not visible.
 - era: "vintage" if the card has the old layout (1996-2007: WOTC, Neo, e-Card, EX, old Japanese cards with yellow border and no regulation mark or collector number), otherwise "modern".
-- set_guess: the English name of the set if you recognise it from the artwork, layout or set symbol (e.g. "Neo Genesis", "Team Rocket", "Base Set"); empty if unsure.
+- set_guess: the English name of the set if you recognise it from the artwork, layout, logo or set symbol (e.g. "Neo Genesis", "Team Rocket", "Base Set", "Pokémon GO" for cards with the Pokémon GO logo); empty if unsure.
 - slab_company, slab_grade, slab_set: only if the card is sealed in a grading slab (PSA, BGS/Beckett, CGC, SGC, ACE, TAG, PCG). Read the slab LABEL: company, numeric grade (e.g. "10", "9.5", "7.5") and the set name as written on the label (e.g. "Darkness, and to Light"). The label also gives the card name, year and language ("Japanese"): trust it. Empty strings if there is no slab.
 - confidence: 0 to 1, how sure you are about name and number together.
 If no card is visible, answer {"name": "", "confidence": 0}.`;

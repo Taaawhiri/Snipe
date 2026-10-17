@@ -1033,19 +1033,10 @@
         const h = Math.round(img.height * k);
         const c = document.createElement('canvas');
         const ctx = c.getContext('2d');
-        // Le carte sono verticali: se la foto arriva orizzontale (telefono girato o fotocamera che la ruota)
-        // la raddrizziamo, così il riconoscimento legge nome e numero nel verso giusto.
-        if (w > h * 1.05) {
-          c.width = h;
-          c.height = w;
-          ctx.translate(0, w);
-          ctx.rotate(-Math.PI / 2);
-          ctx.drawImage(img, 0, 0, w, h);
-        } else {
-          c.width = w;
-          c.height = h;
-          ctx.drawImage(img, 0, 0, w, h);
-        }
+        // Nessuna rotazione: girare la foto alla cieca a volte la capovolge. Il riconoscimento legge la carta in qualsiasi verso.
+        c.width = w;
+        c.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
         URL.revokeObjectURL(img.src);
         resolve(c.toDataURL('image/jpeg', 0.85));
       };
