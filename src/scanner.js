@@ -1532,9 +1532,12 @@ export class Scanner extends DurableObject {
    */
   async regionStep(status) {
     if (!(await this.isCatalog())) return;
-    if (Date.now() - (await this.get('regionAt', 0)) < 60_000) return;
+    const since = Date.now() - (await this.get('regionAt', 0));
+    if (since < 60_000) return;
+    // Una al minuto se ci sono letture libere; con molti alert le letture libere sono rare,
+    // quindi al massimo ogni 5 minuti se ne fa comunque una (aspetta il suo turno come le altre).
     this.refill();
-    if (this.tokens < MKT_BUCKET - 1) return; // gli alert hanno la precedenza: si aspetta che ci siano letture libere
+    if (this.tokens < 2 && since < 5 * 60_000) return;
     const [all, map, meta] = await Promise.all([this.pokemonExpansions(), this.get('expRegion', {}), this.get('ixmeta', null)]);
     // Solo le espansioni con carte singole (le stesse dell'indice): le altre sono solo prodotti sigillati.
     const withCards = meta && Array.isArray(meta.have) && meta.have.length ? new Set(meta.have.map(Number)) : null;
