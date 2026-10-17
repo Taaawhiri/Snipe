@@ -11,7 +11,7 @@ self.addEventListener('push', (event) => {
         a = await res.json();
       } catch {}
       const money = (c, cur) =>
-        new Intl.NumberFormat('it-IT', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
+        new Intl.NumberFormat('de-DE', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
       if (a && a.kind === 'system') {
         await self.registration.showNotification(`HoloSnipe: ${a.name}`, { body: a.text, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'snipe-system', data: { url: '/' } });
         return;

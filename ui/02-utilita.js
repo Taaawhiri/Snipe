@@ -17,7 +17,8 @@
   const cmSearchUrl = (c) => `https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=${encodeURIComponent([c.name, c.number].filter(Boolean).join(' '))}`;
   const chip = (text, cls = '') => el('span', { class: ('chip ' + cls).trim(), text });
   const thumb = (src) => (src ? el('img', { class: 'thumbimg', src, alt: '', loading: 'lazy' }) : el('div', { class: 'thumbimg ph', 'aria-hidden': 'true' }));
-  const money = (c, cur) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
+  // Formato europeo con il punto delle migliaia anche a 4 cifre (4.323,85 €): l'italiano di Intl lo omette sotto i 10.000.
+  const money = (c, cur) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
   function ago(ts) {
     const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
     if (s < 60) return `${s}s fa`;

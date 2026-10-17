@@ -2242,7 +2242,7 @@ export class Scanner extends DurableObject {
       if (diff > 0) { dropCents += diff; dropCards++; }
     }
     if (!recent.length && !dropCards) return;
-    const money = (c) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(c / 100);
+    const money = (c) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(c / 100);
     const parts = [];
     if (recent.length) parts.push(`${recent.length} ${recent.length === 1 ? 'affare' : 'affari'} nelle ultime 24 ore${best && best.discount >= 0.01 ? `, il migliore −${Math.round(best.discount * 100)}% su ${best.name}` : ''}.`);
     if (dropCards) parts.push(`${dropCards} ${dropCards === 1 ? 'carta' : 'carte'} della lista dei desideri ${dropCards === 1 ? 'è scesa' : 'sono scese'} di ${money(dropCents)} in totale.`);
