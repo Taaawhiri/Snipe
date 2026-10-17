@@ -163,6 +163,20 @@
   const askConfirm = (text, opts = {}) => dialog({ cancel: 'Annulla', ok: 'Conferma', ...opts, text });
   // Sostituisce alert() del browser in tutta l'app (le parti dopo questa usano questo).
   function alert(text) { return dialog({ text: String(text) }); }
+
+  // ---------- conferme veloci (toast) ----------
+  let toastTimer = null;
+  function toast(text, kind = 'ok') {
+    let t = document.getElementById('toast');
+    if (!t) { t = el('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }); document.body.append(t); }
+    t.className = `toast ${kind}`;
+    t.textContent = text;
+    t.hidden = false;
+    void t.offsetWidth;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.classList.remove('show'); setTimeout(() => { t.hidden = true; }, 250); }, 2600);
+  }
   // ---------- link esterni ----------
   // Su telefono, toccando un link a CardTrader o Cardmarket si apre il menu "Apri con un'altra app" del sistema:
   // da lì si sceglie il browser, e la pagina si apre fuori dalla webapp. Su computer il link si apre normalmente.
@@ -638,6 +652,10 @@
     if (!current) return;
     $('ownError').hidden = true;
     const paid = Number($('ownPaid').value);
+    const btn = $('ownAdd');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Aggiungo…';
     try {
       await saveOwn({
         bp: current.id, name: current.name + (current.version ? ` (${current.version})` : ''), image: current.image,
@@ -647,9 +665,13 @@
       });
       $('ownPaid').value = '';
       $('ownDialog').close();
+      toast(`✓ Aggiunta alla collezione${own.qty > 1 ? ` (${own.qty} copie)` : ''}`);
     } catch (e) {
       $('ownError').textContent = e.message;
       $('ownError').hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
     }
   });
 
@@ -736,6 +758,7 @@
         try {
           await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: lang || 'en', cond: 'Near Mint', qty: 1, add: true });
           ev.target.textContent = '✓ Aggiunta';
+          toast('✓ Aggiunta alla collezione');
         } catch (e) {
           ev.target.disabled = false;
           alert(e.message);

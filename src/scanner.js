@@ -359,7 +359,9 @@ export class Scanner extends DurableObject {
     }
     await this.ctx.storage.put('coll', coll);
     // Carta appena aggiunta senza prezzo: leggiamo subito i suoi annunci (una richiesta) invece di aspettare il giro orario.
-    if (qty && !(await this.get('collPrices', {}))[key]) await this.productsForCard(bp, 10 * 60_000).catch(() => null);
+    // Carta appena aggiunta senza prezzo: la lettura parte subito ma senza far aspettare la risposta
+    // (se CardTrader chiede di rallentare potrebbe volerci qualche secondo): il prezzo arriva da solo.
+    if (qty && !(await this.get('collPrices', {}))[key]) this.productsForCard(bp, 10 * 60_000).then(() => this.collectionPrices(true)).catch(() => null);
     await this.collectionPrices(true);
     await this.ensureAlarm();
     return { ok: true };

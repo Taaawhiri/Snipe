@@ -313,9 +313,11 @@
     'Nessuna espansione da sistemare.': 'Nothing to fix.',
     'nessun annuncio in vendita': 'no listings for sale',
     'Fatto': 'Done',
+    'Aggiungo…': 'Adding…',
   };
 
   const R = [
+    [/^✓ Aggiunta alla collezione \((\d+) copie\)$/, '✓ Added to collection ($1 copies)'],
     [/^Ce l'hai: (\d+) cop(ia|ie)$/, (m, n) => `You own ${n} ${n === '1' ? 'copy' : 'copies'}`], [/^✓ Ce l'ho$/, '✓ Owned'],
     [/^1 alert attivo · giro ogni (.+)$/, '1 active alert · cycle every $1'], [/^1 alert attivo$/, '1 active alert'],
     [/^(\d+) alert attivi · giro ogni (.+)$/, '$1 active alerts · cycle every $2'], [/^(\d+) alert attivi$/, '$1 active alerts'], [/^Stato del controllo: (.+)$/, 'Check status: $1'],

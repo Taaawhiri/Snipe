@@ -81,6 +81,7 @@
         try {
           await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: lang || 'en', cond: 'Near Mint', qty: 1, add: true });
           ev.target.textContent = '✓ Aggiunta';
+          toast('✓ Aggiunta alla collezione');
         } catch (e) {
           ev.target.disabled = false;
           alert(e.message);

@@ -78,3 +78,17 @@
   const askConfirm = (text, opts = {}) => dialog({ cancel: 'Annulla', ok: 'Conferma', ...opts, text });
   // Sostituisce alert() del browser in tutta l'app (le parti dopo questa usano questo).
   function alert(text) { return dialog({ text: String(text) }); }
+
+  // ---------- conferme veloci (toast) ----------
+  let toastTimer = null;
+  function toast(text, kind = 'ok') {
+    let t = document.getElementById('toast');
+    if (!t) { t = el('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }); document.body.append(t); }
+    t.className = `toast ${kind}`;
+    t.textContent = text;
+    t.hidden = false;
+    void t.offsetWidth;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.classList.remove('show'); setTimeout(() => { t.hidden = true; }, 250); }, 2600);
+  }

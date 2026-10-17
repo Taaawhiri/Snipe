@@ -962,3 +962,8 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 /* badge "Ce l'ho" sulle carte già in collezione */
 .own-badge{position:absolute;left:8px;top:8px;z-index:2;background:#1d3d2e;color:#7fe0a6;border:1.5px solid #3fbf75;border-radius:999px;padding:3px 8px;font:800 11px var(--sans);box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .own-badge.inline{position:static;display:inline-block;margin-top:5px;box-shadow:none}
+
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:1100;transform:translate(-50%,12px);opacity:0;transition:opacity .2s,transform .2s;background:#1d3d2e;color:#7fe0a6;border:1.5px solid #3fbf75;border-radius:999px;padding:10px 16px;font-weight:800;font-size:14px;box-shadow:0 8px 20px rgba(0,0,0,.4);max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.err{background:#3a1420;color:#ff9aac;border-color:#e5484d}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}

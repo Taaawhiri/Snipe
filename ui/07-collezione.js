@@ -250,6 +250,10 @@
     if (!current) return;
     $('ownError').hidden = true;
     const paid = Number($('ownPaid').value);
+    const btn = $('ownAdd');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Aggiungo…';
     try {
       await saveOwn({
         bp: current.id, name: current.name + (current.version ? ` (${current.version})` : ''), image: current.image,
@@ -259,9 +263,13 @@
       });
       $('ownPaid').value = '';
       $('ownDialog').close();
+      toast(`✓ Aggiunta alla collezione${own.qty > 1 ? ` (${own.qty} copie)` : ''}`);
     } catch (e) {
       $('ownError').textContent = e.message;
       $('ownError').hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
     }
   });
 
