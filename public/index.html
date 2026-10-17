@@ -131,9 +131,14 @@
     <section id="tab-cards" class="tab" hidden>
       <div class="panel">
         <div class="field">
-          <label for="cardExpFilter">Espansione</label>
-          <input id="cardExpFilter" type="search" placeholder="Cerca (es. 151, Obsidian, Paldea)" autocomplete="off">
-          <select id="cardExp" size="1"></select>
+          <label for="expPick">Espansione</label>
+          <button id="expPick" class="exp-pick" type="button" aria-expanded="false"><span class="ep-name">Scegli un’espansione…</span><span class="ep-arrow" aria-hidden="true">▾</span></button>
+          <div id="expPanel" class="exp-panel" hidden>
+            <input id="cardExpFilter" type="search" placeholder="Cerca (es. 151, Obsidian, Paldea)" autocomplete="off" aria-label="Cerca un’espansione">
+            <div id="expChips" class="exp-chips"></div>
+            <div id="expList" class="exp-list"></div>
+          </div>
+          <select id="cardExp" hidden></select>
           <button id="setAlertBtn" class="btn" type="button" hidden>Alert su tutto il set</button>
           <button class="btn scan-btn" type="button" data-scan>📷 Scansiona una carta</button>
         </div>

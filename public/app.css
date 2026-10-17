@@ -721,3 +721,45 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .buy-row .btn{flex:1;text-align:center;text-decoration:none}
 a.lrow{color:inherit;text-decoration:none}
 a.lrow:hover,a.lrow:focus-visible{border-color:var(--accent,var(--line))}
+
+/* scelta dell'espansione */
+.exp-pick{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-weight:700;color:var(--text);background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer}
+.exp-pick[aria-expanded="true"]{border-color:var(--blue)}
+.exp-pick .ep-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exp-pick .ep-arrow{color:var(--muted)}
+.exp-panel{margin-top:8px;background:var(--surface);border:2px solid var(--line);border-radius:16px;overflow:hidden}
+.exp-panel input{margin:10px;width:calc(100% - 20px);box-sizing:border-box}
+.exp-chips{display:flex;gap:6px;padding:0 10px 10px;overflow-x:auto;border-bottom:2px solid var(--line)}
+.chip-btn{flex:none;font:700 13px var(--sans);background:var(--surface-2);color:var(--text);border:2px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer}
+.chip-btn[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}
+.exp-list{max-height:min(60vh,460px);overflow-y:auto}
+.exp-sec{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 14px 4px}
+.exp-row{display:flex;align-items:center;gap:12px;width:100%;padding:10px 14px;background:none;border:0;border-top:1px solid var(--line);color:inherit;text-align:left;font:inherit;cursor:pointer}
+.exp-row:hover,.exp-row:focus-visible{background:var(--surface-2);outline:none}
+.exp-row.sel{background:var(--blue-soft)}
+.exp-code{flex:none;width:54px;height:38px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font:600 11px var(--display);color:var(--muted);text-transform:uppercase;overflow:hidden}
+.exp-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.exp-txt .nm{font-weight:700;line-height:1.25}
+.exp-txt .sub{font-size:12px;color:var(--muted)}
+.exp-reg{flex:none;font-size:11.5px;font-weight:700;border-radius:999px;padding:4px 9px;white-space:nowrap}
+.exp-reg.INT{background:#1d3d2e;color:#7fe0a6}.exp-reg.JAP{background:#4a1d27;color:#ff9aac}.exp-reg.CN{background:#4a2f12;color:#ffc27a}.exp-reg.KR{background:#1e2e57;color:#9ab8ff}.exp-reg.Asia{background:#3a2550;color:#d7a8ff}.exp-reg.unk{background:var(--surface-2);color:var(--muted);font-weight:600}
+/* selettori nello stile dell'app */
+select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden}
+.cs-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-weight:600;color:var(--text);background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:11px 14px;cursor:pointer;min-height:46px;box-sizing:border-box}
+.cs-btn:focus-visible{outline:none;border-color:var(--blue)}
+.cs-btn:disabled{opacity:.5;cursor:default}
+.cs-btn .cs-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-btn .cs-arrow{color:var(--red)}
+.cs-overlay{position:fixed;inset:0;z-index:1000;background:rgba(5,8,25,.6);display:flex;align-items:flex-end;justify-content:center;animation:cs-fade .15s ease}
+.cs-sheet{width:100%;max-width:520px;max-height:75vh;display:flex;flex-direction:column;background:var(--surface);border:2px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;padding-bottom:env(safe-area-inset-bottom,0px);animation:cs-up .2s ease}
+.cs-grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:10px auto 4px}
+.cs-title{font-family:var(--display);font-weight:600;font-size:18px;padding:6px 18px 10px}
+.cs-list{overflow-y:auto;padding:0 10px 12px}
+.cs-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font:inherit;font-weight:600;font-size:16px;color:var(--text);background:none;border:0;border-radius:12px;padding:13px 12px;cursor:pointer}
+.cs-opt:hover,.cs-opt:focus-visible{background:var(--surface-2);outline:none}
+.cs-opt.sel{background:var(--blue-soft)}
+.cs-opt:disabled{opacity:.4;cursor:default}
+.cs-check{color:var(--blue);font-weight:800}
+@keyframes cs-up{from{transform:translateY(30px);opacity:.6}}
+@keyframes cs-fade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.cs-overlay,.cs-sheet{animation:none}}

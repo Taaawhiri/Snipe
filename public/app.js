@@ -80,6 +80,60 @@
   $('sheetBackdrop').addEventListener('click', closeSheets);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
 
+  // ---------- selettori ----------
+  // Le tendine di sistema (<select>) si aprono come pannello nostro dal basso, nello stile dell'app.
+  // La <select> resta nel DOM e tiene il valore: chi la legge o ascolta "change" non cambia.
+  const cselButtons = new Map();
+  function cselLabel(sel) {
+    const o = sel.options[sel.selectedIndex];
+    return o ? o.textContent : '';
+  }
+  function cselSync(sel) {
+    const b = cselButtons.get(sel);
+    if (!b) return;
+    b.querySelector('.cs-txt').textContent = cselLabel(sel);
+    b.disabled = sel.disabled;
+  }
+  function cselOpen(sel) {
+    const close = () => { ov.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const lab = document.querySelector(`label[for="${sel.id}__btn"]`);
+    const title = (lab && lab.textContent) || sel.getAttribute('aria-label') || '';
+    const rows = [...sel.options].filter((o) => !o.hidden).map((o) =>
+      el('button', { class: 'cs-opt' + (o.selected ? ' sel' : ''), type: 'button', ...(o.disabled ? { disabled: '' } : {}),
+        onclick: () => { sel.value = o.value; cselSync(sel); close(); sel.dispatchEvent(new Event('change', { bubbles: true })); } },
+        el('span', { text: o.textContent }), o.selected ? el('span', { class: 'cs-check', text: '✓' }) : null));
+    const ov = el('div', { class: 'cs-overlay', onclick: (e) => { if (e.target === ov) close(); } },
+      el('div', { class: 'cs-sheet', role: 'listbox', 'aria-label': title },
+        el('div', { class: 'cs-grab' }),
+        title ? el('div', { class: 'cs-title', text: title }) : null,
+        el('div', { class: 'cs-list' }, ...rows)));
+    document.body.append(ov);
+    document.addEventListener('keydown', onKey);
+    const cur = ov.querySelector('.cs-opt.sel');
+    if (cur) cur.scrollIntoView({ block: 'center' });
+  }
+  function cselWrap(sel) {
+    if (cselButtons.has(sel) || sel.hidden || sel.multiple || sel.size > 1 || sel.closest('[data-native]')) return;
+    const b = el('button', { class: 'cs-btn', type: 'button', onclick: () => cselOpen(sel) }, el('span', { class: 'cs-txt' }), el('span', { class: 'cs-arrow', 'aria-hidden': 'true', text: '▾' }));
+    if (sel.id) { b.id = `${sel.id}__btn`; const lab = document.querySelector(`label[for="${sel.id}"]`); if (lab) lab.htmlFor = b.id; }
+    sel.classList.add('cs-native');
+    sel.tabIndex = -1;
+    sel.after(b);
+    cselButtons.set(sel, b);
+    cselSync(sel);
+    // Opzioni aggiunte o tradotte: aggiorna il testo del pulsante.
+    new MutationObserver(() => cselSync(sel)).observe(sel, { childList: true, subtree: true, characterData: true, attributes: true });
+  }
+  // Valori impostati dal codice (sel.value = …) non generano eventi: aggiorniamo il pulsante qui.
+  for (const prop of ['value', 'selectedIndex']) {
+    const d = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, prop);
+    Object.defineProperty(HTMLSelectElement.prototype, prop, { ...d, set(v) { d.set.call(this, v); cselSync(this); } });
+  }
+  document.addEventListener('change', (e) => { if (e.target instanceof HTMLSelectElement) cselSync(e.target); }, true);
+  const cselScan = () => document.querySelectorAll('select').forEach(cselWrap);
+  cselScan();
+  new MutationObserver(cselScan).observe(document.body, { childList: true, subtree: true });
   // ---------- link esterni ----------
   // Su telefono, toccando un link a CardTrader o Cardmarket si apre il menu "Apri con un'altra app" del sistema:
   // da lì si sceglie il browser, e la pagina si apre fuori dalla webapp. Su computer il link si apre normalmente.
@@ -1465,25 +1519,59 @@
   }
 
   // ---------- regole ----------
-  const REGION_LABEL = { INT: '🌍 International', JAP: '🇯🇵 Giapponese', CN: '🇨🇳 Cinese', KR: '🇰🇷 Coreana', Asia: '🌏 Asia' };
+  // Scelta dell'espansione: elenco nostro (non la tendina di sistema), più recenti in alto, filtri per regione.
+  // La <select id="cardExp"> nascosta resta il "valore": chi la legge (caricamento carte) non cambia.
+  const REGION_LABEL = { INT: '🌍 International', JAP: '🇯🇵 Giappone', CN: '🇨🇳 Cina', KR: '🇰🇷 Corea', Asia: '🌏 Asia' };
+  const REGION_CHIPS = [['', 'Tutte'], ['INT', '🌍 Int'], ['JAP', '🇯🇵 Jap'], ['CN', '🇨🇳 Cina'], ['KR', '🇰🇷 Corea'], ['Asia', '🌏 Asia']];
+  let expRegion = '';
+  const recentExp = () => { try { return JSON.parse(localStorage.getItem('snipe.recentExp') || '[]'); } catch { return []; } };
+  function pushRecent(id) {
+    try { localStorage.setItem('snipe.recentExp', JSON.stringify([id, ...recentExp().filter((x) => x !== id)].slice(0, 5))); } catch {}
+  }
+  function expRow(e) {
+    const cur = $('cardExp').value === String(e.id);
+    return el('button', { class: 'exp-row' + (cur ? ' sel' : ''), type: 'button', onclick: () => chooseExp(String(e.id)) },
+      el('span', { class: 'exp-code', text: (e.code || '').slice(0, 7) }),
+      el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: e.name }), el('span', { class: 'sub', text: e.code || '' })),
+      el('span', { class: `exp-reg ${e.region || 'unk'}`, text: e.region ? REGION_LABEL[e.region] || e.region : 'regione in arrivo' }),
+    );
+  }
   function fillCardExpansions() {
     const q = $('cardExpFilter').value.trim().toLowerCase();
     const sel = $('cardExp');
     const prev = sel.value;
-    const items = expansions.filter((e) => !q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q) || (e.region && (REGION_LABEL[e.region] || '').toLowerCase().includes(q)));
-    sel.replaceChildren(
-      el('option', { value: '', text: items.length ? 'Scegli un’espansione…' : 'Nessun risultato' }),
-      el('option', { value: 'all', text: 'Tutte le espansioni (cerca per nome)' }),
-      ...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})${e.region ? ` · ${REGION_LABEL[e.region] || e.region}` : ''}` })),
+    sel.replaceChildren(el('option', { value: '' }), el('option', { value: 'all' }), ...expansions.map((e) => el('option', { value: e.id })));
+    sel.value = prev;
+    // Id più alto = espansione pubblicata più di recente su CardTrader.
+    const byNew = [...expansions].sort((a, b) => b.id - a.id);
+    const items = byNew.filter((e) => (!expRegion || e.region === expRegion) && (!q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q)));
+    $('expChips').replaceChildren(...REGION_CHIPS.map(([id, label]) => el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(expRegion === id), text: label, onclick: () => { expRegion = id; fillCardExpansions(); } })));
+    const recent = !q && !expRegion ? recentExp().map((id) => expansions.find((e) => String(e.id) === id)).filter(Boolean) : [];
+    const sec = (t) => el('div', { class: 'exp-sec', text: t });
+    $('expList').replaceChildren(
+      ...(q || expRegion ? [] : [el('button', { class: 'exp-row all', type: 'button', onclick: () => chooseExp('all') }, el('span', { class: 'exp-code', text: '🔍' }), el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: 'Tutte le espansioni' }), el('span', { class: 'sub', text: 'cerca un Pokémon per nome in tutti i set' })))]),
+      ...(recent.length ? [sec('Usate di recente'), ...recent.map(expRow)] : []),
+      ...(items.length ? [sec(q || expRegion ? `${items.length} espansioni` : 'Dalla più recente'), ...items.slice(0, 300).map(expRow)] : [sec('Nessuna espansione')]),
     );
-    if (prev === 'all' || items.some((e) => String(e.id) === prev)) sel.value = prev;
-    // mentre scrivi l'elenco resta aperto e mostra le espansioni che corrispondono
-    sel.size = q ? Math.min(items.length + 2, 8) : 1;
-    sel.classList.toggle('open', !!q);
+    const cur = prev === 'all' ? { name: 'Tutte le espansioni' } : expansions.find((e) => String(e.id) === prev);
+    $('expPick').querySelector('.ep-name').textContent = cur ? cur.name : 'Scegli un’espansione…';
   }
-  $('cardExp').addEventListener('change', () => {
-    if ($('cardExp').size > 1) { $('cardExpFilter').value = ''; $('cardExp').size = 1; $('cardExp').classList.remove('open'); }
-  });
+  function openExpPanel(open) {
+    $('expPanel').hidden = !open;
+    $('expPick').setAttribute('aria-expanded', String(open));
+    if (open) { fillCardExpansions(); $('cardExpFilter').focus({ preventScroll: true }); }
+  }
+  function chooseExp(id) {
+    const sel = $('cardExp');
+    if (!sel.querySelector(`option[value="${id}"]`)) sel.append(el('option', { value: id }));
+    sel.value = id;
+    if (id !== 'all') pushRecent(id);
+    $('cardExpFilter').value = '';
+    openExpPanel(false);
+    fillCardExpansions();
+    sel.dispatchEvent(new Event('change'));
+  }
+  $('expPick').addEventListener('click', () => openExpPanel($('expPanel').hidden));
   $('cardExpFilter').addEventListener('input', fillCardExpansions);
 
   async function saveRule(r) {

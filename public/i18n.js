@@ -118,7 +118,7 @@
     'Il prezzo tipico è la mediana dei 5 annunci successivi. Servono almeno 3 altri annunci.': 'The typical price is the median of the next 5 listings. At least 3 other listings are needed.',
     'CardTrader Zero': 'CardTrader Zero', 'Tutte': 'All', 'Solo Zero': 'Zero only', 'Senza Zero': 'Without Zero',
     'Inglese': 'English', 'Italiano': 'Italian', 'Giapponese': 'Japanese', 'Francese': 'French', 'Tedesco': 'German', 'Spagnolo': 'Spanish',
-    'Portoghese': 'Portuguese', 'Coreano': 'Korean', 'Cinese': 'Chinese', 'Russo': 'Russian', 'Thailandese': 'Thai', 'Lingua non indicata': 'Language not stated',
+    'Portoghese': 'Portuguese', 'Coreano': 'Korean', 'Cinese': 'Chinese', 'Scegli un’espansione…': 'Choose an expansion…', 'Usate di recente': 'Recently used', 'Dalla più recente': 'Newest first', 'Tutte le espansioni': 'All expansions', 'cerca un Pokémon per nome in tutti i set': 'search a Pokémon by name across all sets', 'regione in arrivo': 'region pending', 'Nessuna espansione': 'No expansions', '🇯🇵 Giappone': '🇯🇵 Japan', '🇨🇳 Cina': '🇨🇳 China', '🇰🇷 Corea': '🇰🇷 Korea', '🇨🇳 Cina ': '🇨🇳 China', 'Cerca un’espansione': 'Search an expansion', 'Russo': 'Russian', 'Thailandese': 'Thai', 'Lingua non indicata': 'Language not stated',
     'Alert creato. Lo trovi nella scheda Regole.': 'Alert created. You can find it in the Rules tab.',
     'Inserisci un prezzo maggiore di zero.': 'Enter a price greater than zero.',
     'Per questa carta non c’è un riferimento Cardmarket.': 'There is no Cardmarket reference for this card.',
@@ -246,6 +246,7 @@
   };
 
   const R = [
+    [/^(\d+) espansioni$/, '$1 expansions'],
     [/^(.+) · 🇯🇵 Giapponese$/, '$1 · 🇯🇵 Japanese'], [/^(.+) · 🇨🇳 Cinese$/, '$1 · 🇨🇳 Chinese'], [/^(.+) · 🇰🇷 Coreana$/, '$1 · 🇰🇷 Korean'],
     [/^CardTrader conviene: −(\d+)% rispetto alla tendenza Cardmarket$/, 'CardTrader is cheaper: −$1% vs Cardmarket trend'], [/^Su CardTrader costa il (\d+)% in più della tendenza Cardmarket$/, 'On CardTrader it costs $1% more than the Cardmarket trend'],
     [/^Cardmarket tendenza (.+)$/, 'Cardmarket trend $1'], [/^(\d+) limiti CardTrader \(429\) nell’ultima ora$/, '$1 CardTrader limits (429) in the last hour'], [/^(\d+) con ritmo rallentato$/, '$1 with slowed pace'],
