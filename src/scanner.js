@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
-import { collKey, pickPrice, priceFor, summarize } from './collection.js';
+import { collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -340,7 +340,8 @@ export class Scanner extends DurableObject {
     if (!Number.isInteger(bp) || bp <= 0) return { error: 'Carta mancante' };
     const lang = normLang(b.lang) || '';
     const cond = CONDITIONS.includes(b.cond) || parseGradeLabel(b.cond) ? b.cond : ''; // condizione o voto ('PSA 10')
-    const key = collKey(bp, lang, cond);
+    const first = !!b.first;
+    const key = collKey(bp, lang, cond, first);
     const coll = await this.get('coll', []);
     const i = coll.findIndex((c) => c.key === key);
     const prev = i >= 0 ? coll[i] : null;
@@ -358,7 +359,7 @@ export class Scanner extends DurableObject {
       const paidCents = paid == null ? (prev ? prev.paidCents : null)
         : b.add && prev && prev.paidCents != null ? Math.round((prev.paidCents * prev.qty + paid * (qty - prev.qty)) / qty) : paid;
       const item = {
-        key, bp, lang, cond, qty, paidCents,
+        key, bp, lang, cond, qty, paidCents, ...(first ? { first: true } : {}),
         name: String(b.name || (prev && prev.name) || '').slice(0, 120),
         image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : prev ? prev.image : null,
         expansionId: parseInt(b.expansionId, 10) || (prev && prev.expansionId) || null,
@@ -394,9 +395,32 @@ export class Scanner extends DurableObject {
       if (!hit) continue;
       const old = prices[c.key];
       if (!force && old && old.ts >= hit.ts) continue;
-      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked });
+      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first });
       prices[c.key] = pr ? { ...pr, ts: hit.ts } : { cents: null, ts: hit.ts };
       changed = true;
+    }
+    // Gradate senza nessun annuncio su CardTrader: stima dalla tendenza Cardmarket della carta.
+    const noPrice = coll.filter((c) => parseGradeLabel(c.cond) && !(prices[c.key] && prices[c.key].cents != null));
+    let collChanged = false;
+    for (const c of noPrice) {
+      if (c.cmId || !c.expansionId) continue;
+      // Carte aggiunte da scansione o import: l'id Cardmarket si prende dal catalogo dell'espansione.
+      const saved = await this.get(`bp4:${c.expansionId}`, null);
+      const b = saved && saved.list && saved.list.find((x) => x.id === c.bp);
+      if (b && b.cm) { c.cmId = b.cm; collChanged = true; }
+    }
+    if (collChanged) await this.ctx.storage.put('coll', coll);
+    for (let k = noPrice.length - 1; k >= 0; k--) if (!noPrice[k].cmId) noPrice.splice(k, 1);
+    if (noPrice.length) {
+      const cmG = await this.cmLookup(noPrice.map((c) => c.cmId));
+      for (const c of noPrice) {
+        const e = cmG.get(c.cmId);
+        if (!e || !e.trend) continue;
+        const base = Math.round(e.trend * 100);
+        const cents = gradedFromBase(base, parseGradeLabel(c.cond));
+        prices[c.key] = { cents, typCents: cents, approx: true, estimated: true, fromCm: true, rawCents: base, listings: 0, graded: c.cond, zeroCents: null, zeroTypCents: null, zeroApprox: null, ts: Date.now() };
+        changed = true;
+      }
     }
     if (!changed) return;
     await this.ctx.storage.put('collPrices', prices);

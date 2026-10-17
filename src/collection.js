@@ -3,8 +3,24 @@ import { condRank, gradeOf, isListable, isZero, listingLang, normLang, parseGrad
 
 export const COLL_LANGS = ['en', 'it', 'jp', 'fr', 'de', 'es', 'pt', 'ko', 'zh'];
 
-export function collKey(bp, lang, cond) {
-  return `${bp}|${lang || ''}|${cond || ''}`;
+export function collKey(bp, lang, cond, first = false) {
+  return `${bp}|${lang || ''}|${cond || ''}${first ? '|1st' : ''}`;
+}
+
+/** Annuncio di una 1ª edizione: proprietà CardTrader o scritto nel commento del venditore. */
+export function isFirstEd(p) {
+  const h = (p && p.properties_hash) || {};
+  if (h.first_edition === true || h.first_edition === 'true') return true;
+  return /\b(1st|first)\s*ed(ition|\.)?\b|prima edizione|1a edizione|1ª edizione/i.test(String((p && p.description) || ''));
+}
+
+/** Stima di una gradata da un prezzo di base (copia non gradata o tendenza Cardmarket). */
+export function gradedFromBase(base, grade) {
+  const g = Number(grade.g);
+  const k = (GRADE_MULT[grade.g] || 1) * (GRADER_FACTOR[grade.co] || 0.75);
+  let cents = Math.round(base * Math.max(k, g >= 8 ? 1 : k));
+  if (g >= 9) cents = Math.max(cents, base + Math.round(GRADING_COST_CENTS * (g >= 10 ? 1.6 : g >= 9.5 ? 1.3 : 1) * (GRADER_FACTOR[grade.co] || 0.75)));
+  return cents;
 }
 
 /**
@@ -35,9 +51,7 @@ export function estimateGraded(list, lang, grade, opts = {}) {
   const raw = priceFor(list, lang, rawCond, opts);
   if (!raw) return null;
   const base = raw.typCents || raw.cents;
-  const k = (GRADE_MULT[grade.g] || 1) * (GRADER_FACTOR[grade.co] || 0.75);
-  let cents = Math.round(base * Math.max(k, g >= 8 ? 1 : k));
-  if (g >= 9) cents = Math.max(cents, base + Math.round(GRADING_COST_CENTS * (g >= 10 ? 1.6 : g >= 9.5 ? 1.3 : 1) * (GRADER_FACTOR[grade.co] || 0.75)));
+  const cents = gradedFromBase(base, grade);
   return { cents, typCents: cents, approx: true, estimated: true, rawCents: base, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
 }
 
@@ -46,12 +60,18 @@ export function priceFor(list, lang, cond, opts = {}) {
   // Copia gradata ("PSA 10"): si confronta solo con annunci della stessa società e dello stesso voto.
   const grade = parseGradeLabel(cond);
   const usable = (p) => p && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 && !(p.user && blocked.has(p.user.username));
-  const ok = (list || []).filter((p) => {
+  let ok = (list || []).filter((p) => {
     if (!usable(p)) return false;
     if (!grade) return isListable(p);
     const g = gradeOf(p);
     return g && g.co === grade.co && g.g === grade.g;
   }).sort((a, b) => a.price.cents - b.price.cents);
+  // 1ª edizione: si confronta con le 1ª edizione (e viceversa); se non ce ne sono, con tutte, segnato come approssimato.
+  let edApprox = false;
+  if (opts.first != null) {
+    const same = ok.filter((p) => isFirstEd(p) === !!opts.first);
+    if (same.length) ok = same; else if (opts.first) edApprox = true;
+  }
   if (!ok.length) return grade ? estimateGraded(list, lang, grade, opts) : null;
   const want = normLang(lang);
   const min = condRank(cond);
@@ -67,7 +87,7 @@ export function priceFor(list, lang, cond, opts = {}) {
   return {
     cents: all.low,
     typCents: all.typ,
-    approx: all.approx,
+    approx: all.approx || edApprox,
     listings: ok.length,
     graded: grade ? `${grade.co} ${grade.g}` : null,
     zeroCents: zero ? zero.low : null,
