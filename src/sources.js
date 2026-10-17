@@ -7,7 +7,8 @@
 export function pickDue(sources, tsOf, now, n) {
   return sources
     .filter((src) => !src.minAge || now - tsOf(src) > src.minAge)
-    .map((src) => ({ src, score: (now - tsOf(src)) * (src.prio || 1) }))
+    // Età limitata a 2 ore: una fonte mai letta (età "infinita") non deve scavalcare per forza gli alert con la stella.
+    .map((src) => ({ src, score: Math.min(now - tsOf(src), 2 * 3600_000) * (src.prio || 1) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, n)
     .map((x) => x.src);

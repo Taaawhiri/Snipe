@@ -28,3 +28,10 @@ test('dati per la regola: carta se più recente o fresca, altrimenti espansione'
   assert.equal(pickData(exp, { ts: now - 10 * 60_000, data: 'B' }, now), 'E'); // vecchia
   assert.equal(pickData(null, null, now), null);
 });
+
+test('pickDue: un alert con la stella vecchio di 1 ora passa prima di una carta mai letta', () => {
+  const now = Date.parse('2026-10-17T20:00:00Z');
+  const src = [{ id: 'nuova', prio: 2 }, { id: 'stella', prio: 6 }];
+  const ts = { nuova: 0, stella: now - 3600_000 };
+  assert.deepEqual(pickDue(src, (s) => ts[s.id], now, 1).map((s) => s.id), ['stella']);
+});
