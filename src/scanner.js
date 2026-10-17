@@ -1100,6 +1100,23 @@ export class Scanner extends DurableObject {
       return json(res);
     }
 
+    if (path === '/api/collection/remove' && method === 'POST') {
+      // { keys: [...] }: toglie più carte in un colpo solo (una sola scrittura, un solo ricalcolo)
+      const b = await req.json().catch(() => ({}));
+      const keys = new Set((Array.isArray(b.keys) ? b.keys : []).map(String).slice(0, 5000));
+      const coll = await this.get('coll', []);
+      const left = coll.filter((c) => !keys.has(c.key));
+      const removed = coll.length - left.length;
+      if (removed) {
+        await this.ctx.storage.put('coll', left);
+        const prices = await this.get('collPrices', {});
+        for (const k of keys) delete prices[k];
+        await this.ctx.storage.put('collPrices', prices);
+        await this.collectionPrices(true).catch(() => null);
+      }
+      return json({ ...(await this.collectionView()), removed });
+    }
+
     if (path === '/api/collection' && method === 'POST') {
       // { bp, name, image, expansionId, expName, cmId, lang, cond, qty (0 = togli), paidCents, add (true = somma alla quantità) }
       const b = await req.json();

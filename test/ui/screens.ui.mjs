@@ -51,7 +51,9 @@ test('collezione: tieni premuto per selezionare ed eliminare più carte', async 
   await page.click('#collSelBar .sb-del');
   await page.click('.cs-dialog button:has-text("Elimina")');
   await page.waitForTimeout(400);
-  assert.equal(calls.filter((c) => c.key === 'POST /api/collection' && c.body.includes('"qty":0')).length, 2);
+  const rm = calls.filter((c) => c.key === 'POST /api/collection/remove');
+  assert.equal(rm.length, 1); // una sola richiesta per tutte le carte
+  assert.equal(JSON.parse(rm[0].body).keys.length, 2);
   assert.ok(await page.isHidden('#collSelBar'), JSON.stringify(errors) + await page.evaluate(() => document.getElementById('collSelBar').outerHTML.slice(0, 200)));
   assert.deepEqual(errors, []);
 });

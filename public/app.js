@@ -671,21 +671,22 @@
     const copies = items.reduce((t, it) => t + it.qty, 0);
     const ok = await askConfirm('Puoi sempre aggiungerle di nuovo.', { title: `Togliere ${items.length} ${items.length === 1 ? 'carta' : 'carte'} dalla collezione${copies > items.length ? ` (${copies} copie)` : ''}?`, ok: 'Elimina', danger: true });
     if (!ok) return;
-    let done = 0;
-    try {
-      for (const it of items) {
-        const res = await api('/api/collection', { method: 'POST', body: JSON.stringify({ ...it, qty: 0 }) });
-        if (res && res.items) coll = res;
-        done++;
-      }
-      toast(`✓ ${done} ${done === 1 ? 'carta tolta' : 'carte tolte'} dalla collezione`);
-    } catch (e) {
-      toast(`Tolte ${done} su ${items.length}: ${e.message}`, 'err');
-    }
+    // Si esce subito dalla selezione e le carte spariscono dalla lista: l'eliminazione è una sola richiesta al server.
+    const keys = items.map((it) => it.key);
     setSelMode(false);
+    if (coll && coll.items) { coll = { ...coll, items: coll.items.filter((it) => !keys.includes(it.key)) }; try { renderCollection(); } catch {} }
+    toast(`Elimino ${items.length} ${items.length === 1 ? 'carta' : 'carte'}…`);
+    try {
+      const res = await api('/api/collection/remove', { method: 'POST', body: JSON.stringify({ keys }) });
+      if (res && res.items) coll = res;
+      toast(`✓ ${items.length} ${items.length === 1 ? 'carta tolta' : 'carte tolte'} dalla collezione`);
+    } catch (e) {
+      toast(`Eliminazione non riuscita: ${e.message}`, 'err');
+    }
     await loadCollection(); // valore e grafico ricalcolati dal server
     renderOwnBox();
   }
+
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && collSelMode) setSelMode(false); });
 
   function renderCollection() {
