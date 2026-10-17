@@ -232,7 +232,7 @@
     'In attesa…': 'Waiting…', 'Riconosco…': 'Recognising…', 'Carta non riconosciuta': 'Card not recognised', '✓ Aggiunta alla collezione': '✓ Added to collection', '€ pagata': '€ paid',
     'Non analizzata: limite di scansioni raggiunto': 'Not analysed: scan limit reached', 'La scansione di più carte insieme è inclusa nei piani Pro e Sniper.': 'Scanning many cards at once is included in the Pro and Sniper plans.', 'Scansioni al mese': 'Scans per month',
     '📷 Scansiona': '📷 Scan', '📷 Scansiona una carta': '📷 Scan a card', "📷 Scansiona un'altra carta": '📷 Scan another card', '＋ Cerca carta': '＋ Find a card',
-    'Scansione': 'Scan', 'Riconosco la carta…': 'Recognising the card…', 'Carta non riconosciuta': 'Card not recognised', 'Trovata:': 'Found:',
+    'Scansione': 'Scan', "Nessuna carta con questo numero: ecco quelle con lo stesso nome. Se non c'è, cercala per nome in Cerca.": "No card with this number: here are the ones with the same name. If it's not there, search it by name in Search.", 'Riconosco la carta…': 'Recognising the card…', 'Carta non riconosciuta': 'Card not recognised', 'Trovata:': 'Found:',
     'È una di queste? Tocca quella giusta.': 'Is it one of these? Tap the right one.', "＋ Ce l'ho": '＋ I own it', '✓ Aggiunta': '✓ Added',
     'Non vedo una carta: riprova con più luce, la carta dritta e intera nell’inquadratura.': "I can't see a card: try again with more light, the card straight and fully in frame.",
     'Nessuna carta corrispondente nell’indice. Prova a cercarla per nome nella scheda Carte.': 'No matching card in the index. Try searching it by name in the Cards tab.',

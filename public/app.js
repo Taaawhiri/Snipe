@@ -910,6 +910,7 @@
     const cands = r.candidates || [];
     $('scanMsg').textContent = !sc.name && !sc.number
       ? 'Non vedo una carta: riprova con più luce, la carta dritta e intera nell’inquadratura.'
+      : cands.length && r.exact === false ? 'Nessuna carta con questo numero: ecco quelle con lo stesso nome. Se non c\'è, cercala per nome in Cerca.'
       : cands.length ? (cands.length === 1 ? 'Trovata:' : 'È una di queste? Tocca quella giusta.') : 'Nessuna carta corrispondente nell’indice. Prova a cercarla per nome nella scheda Carte.';
     $('scanList').replaceChildren(...cands.map((c, i) => el('div', { class: 'scan-cand' + (i === 0 ? ' top' : '') },
       thumb(c.image),

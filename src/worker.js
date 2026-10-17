@@ -183,7 +183,7 @@ async function scanCard(req, env, user) {
   const scan = result.scan;
   if (!scan || (!scan.name && !scan.number)) return json({ scan, engine: result.engine, candidates: [], used: quota.used, limit: quota.limit });
   const found = await scanner(env, 'main').fetch('https://do.internal/api/_identify', { method: 'POST', body: JSON.stringify(scan) }).then((r) => r.json());
-  return json({ scan, engine: result.engine, candidates: found.candidates || [], used: quota.used, limit: quota.limit });
+  return json({ scan, engine: result.engine, exact: found.exact !== false, candidates: found.candidates || [], used: quota.used, limit: quota.limit });
 }
 
 /** Lemon Squeezy: eventi di abbonamento -> piano dell'utente. */

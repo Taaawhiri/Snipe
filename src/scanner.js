@@ -229,18 +229,19 @@ export class Scanner extends DurableObject {
           const nameOk = !scan.name || normText(r[1]).split(' ').some((w) => normText(scan.name).split(' ').includes(w));
           // Sotto 8 teniamo solo chi ha il nome giusto: serve quando il numero è letto male (es. carte cinesi).
           // Nome tradotto diverso (es. "Lucinda" = Dawn): basta numero, totale e codice del set esatti.
-          const byNumber = !nameOk && scan.number && scan.total && scan.setCode
-            && scoreRow(r, { number: scan.number, total: scan.total, setCode: scan.setCode }, e.code, '') >= 10;
+          // Numero e totale esatti (con la lingua compatibile) bastano anche senza codice del set.
+          const byNumber = !nameOk && scan.number && scan.total
+            && scoreRow(r, { number: scan.number, total: scan.total, setCode: scan.setCode, language: scan.language }, e.code, e.name) >= 8;
           if (!byNumber && (!nameOk || score < (scan.name ? 5 : 8))) continue;
           const numHit = !scan.number || scoreRow(r, { number: scan.number }, '', '') > 0;
-          best.push({ score, numHit, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
+          best.push({ score: byNumber ? Math.max(score, 8) : score, numHit, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
         }
       }
     }
     best.sort((a, b) => b.score - a.score || b.expansionId - a.expansionId);
     // Se c'è almeno una corrispondenza piena mostriamo solo quelle; altrimenti le carte con lo stesso nome.
     const strong = best.filter((x) => x.score >= 8 && x.numHit);
-    return { candidates: (strong.length ? strong : best).slice(0, strong.length ? 6 : 12).map(({ numHit, ...c }) => c), indexComplete: !!meta.complete };
+    return { exact: strong.length > 0, candidates: (strong.length ? strong : best).slice(0, strong.length ? 6 : 12).map(({ numHit, ...c }) => c), indexComplete: !!meta.complete };
   }
 
   /**
