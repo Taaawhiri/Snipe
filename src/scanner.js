@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, rejectReasons } from './deals.js';
+import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
@@ -293,7 +293,7 @@ export class Scanner extends DurableObject {
       const bp = parseInt(b.bp, 10);
       if (!Number.isInteger(bp) || bp <= 0) continue;
       const lang = normLang(b.lang) || '';
-      const cond = CONDITIONS.includes(b.cond) ? b.cond : '';
+      const cond = CONDITIONS.includes(b.cond) || parseGradeLabel(b.cond) ? b.cond : ''; // condizione o voto ('PSA 10')
       const key = collKey(bp, lang, cond);
       const qty = Math.max(1, Math.min(999, parseInt(b.qty, 10) || 1));
       // 0 è un prezzo valido (carta trovata in una busta): "nessun prezzo" è solo null o vuoto.
@@ -328,7 +328,7 @@ export class Scanner extends DurableObject {
     const bp = parseInt(b && b.bp, 10);
     if (!Number.isInteger(bp) || bp <= 0) return { error: 'Carta mancante' };
     const lang = normLang(b.lang) || '';
-    const cond = CONDITIONS.includes(b.cond) ? b.cond : '';
+    const cond = CONDITIONS.includes(b.cond) || parseGradeLabel(b.cond) ? b.cond : ''; // condizione o voto ('PSA 10')
     const key = collKey(bp, lang, cond);
     const coll = await this.get('coll', []);
     const i = coll.findIndex((c) => c.key === key);

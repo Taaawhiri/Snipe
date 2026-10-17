@@ -25,7 +25,7 @@ export function pickData(exp, bp, now) {
  */
 export function slimProducts(list, max = 20) {
   return (list || [])
-    .filter((p) => p && p.price && p.price.cents > 0 && p.quantity > 0 && !p.graded && !p.on_vacation)
+    .filter((p) => p && p.price && p.price.cents > 0 && p.quantity > 0 && !p.graded && !p.on_vacation && !/\b(psa|bgs|beckett|cgc|sgc|ace|tag|pcg)\s*[-:]?\s*\d/i.test(String(p.description || '')))
     .sort((a, b) => a.price.cents - b.price.cents)
     .slice(0, max)
     .map((p) => ({

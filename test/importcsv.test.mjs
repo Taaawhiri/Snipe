@@ -33,3 +33,18 @@ test('carta pagata 0 (sbustata): tutto il valore è guadagno', () => {
   assert.equal(sm.valueKnown - sm.paidPriced, 5000);
   assert.equal(sm.known, 1);
 });
+
+import { gradeOf, isListable } from '../src/deals.js';
+import { priceFor as pf } from '../src/collection.js';
+test('gradate: voto letto dal commento', () => {
+  assert.deepEqual(gradeOf({ description: 'BGS 9.5' }), { co: 'BGS', g: '9.5' });
+  assert.deepEqual(gradeOf({ description: 'Beckett 8.5' }), { co: 'BGS', g: '8.5' });
+  assert.deepEqual(gradeOf({ description: 'psa10 gem mint' }), { co: 'PSA', g: '10' });
+  assert.equal(gradeOf({ description: 'carta perfetta, mai giocata' }), null);
+  const mk = (cents, description, graded = false) => ({ price: { cents }, quantity: 1, description, graded, properties_hash: { condition: 'Near Mint', pokemon_language: 'jp' } });
+  assert.equal(isListable(mk(100, 'PSA 9')), false); // segnata non gradata ma col voto nel commento: esclusa dai prezzi normali
+  const list = [mk(5000, 'PSA 10'), mk(3000, 'PSA 9'), mk(800, ''), mk(7000, 'PSA 10', true)];
+  assert.equal(pf(list, 'jp', 'PSA 10').cents, 5000);
+  assert.equal(pf(list, 'jp', 'Near Mint').cents, 800);
+  assert.equal(pf(list, 'jp', 'BGS 10'), null);
+});

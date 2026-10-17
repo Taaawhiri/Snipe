@@ -26,9 +26,30 @@ export function isZero(p) {
   return !!(p && p.user && p.user.can_sell_via_hub);
 }
 
-/** Annuncio acquistabile: non graded, non in vacanza, disponibile e con un prezzo. */
+// Società di gradazione: su CardTrader il voto è quasi sempre scritto solo nel commento ("PSA 10", "BGS 9.5").
+const GRADERS = { psa: 'PSA', bgs: 'BGS', beckett: 'BGS', cgc: 'CGC', sgc: 'SGC', ace: 'ACE', tag: 'TAG', pcg: 'PCG' };
+const GRADE_RE = /\b(psa|bgs|beckett|cgc|sgc|ace|tag|pcg)\s*[-:]?\s*(10|[1-9](?:[.,]5)?)\b/i;
+
+/** Società e voto di un annuncio gradato, letti dal commento. null se non indicati. */
+export function gradeOf(p) {
+  const m = GRADE_RE.exec(String((p && p.description) || ''));
+  return m ? { co: GRADERS[m[1].toLowerCase()], g: m[2].replace(',', '.') } : null;
+}
+
+/** Gradata: segnata così da CardTrader oppure con il voto nel commento (molti venditori non la segnano). */
+export function isGraded(p) {
+  return !!(p && (p.graded || gradeOf(p)));
+}
+
+/** "PSA 10" → { co: 'PSA', g: '10' }; per le copie gradate in collezione la condizione è scritta così. */
+export function parseGradeLabel(s) {
+  const m = /^(PSA|BGS|CGC|SGC|ACE|TAG|PCG) (10|[1-9](?:\.5)?)$/.exec(String(s || ''));
+  return m ? { co: m[1], g: m[2] } : null;
+}
+
+/** Annuncio acquistabile: non gradato, non in vacanza, disponibile e con un prezzo. */
 export function isListable(p) {
-  if (!p || p.graded || p.on_vacation) return false;
+  if (!p || isGraded(p) || p.on_vacation) return false;
   if (!(p.quantity > 0)) return false;
   return !!(p.price && p.price.cents > 0);
 }
@@ -71,7 +92,7 @@ export function listingLang(p) {
 export function rejectReasons(p, rule) {
   const out = [];
   if (!p) return ['annuncio mancante'];
-  if (p.graded) out.push('carta gradata');
+  if (isGraded(p)) out.push('carta gradata');
   if (p.on_vacation) out.push('venditore in vacanza');
   if (!(p.quantity > 0)) out.push('non disponibile');
   if (!(p.price && p.price.cents > 0)) out.push('senza prezzo');

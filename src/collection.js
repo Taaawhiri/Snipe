@@ -1,5 +1,5 @@
 // Collezione: prezzo attuale di ogni carta posseduta (logica pura, testabile).
-import { condRank, isListable, isZero, listingLang, normLang } from './deals.js';
+import { condRank, gradeOf, isListable, isZero, listingLang, normLang, parseGradeLabel } from './deals.js';
 
 export const COLL_LANGS = ['en', 'it', 'jp', 'fr', 'de', 'es', 'pt', 'ko', 'zh'];
 
@@ -24,11 +24,19 @@ function median(nums) {
  */
 export function priceFor(list, lang, cond, opts = {}) {
   const blocked = opts.blocked || new Set();
-  const ok = (list || []).filter((p) => isListable(p) && !(p.user && blocked.has(p.user.username))).sort((a, b) => a.price.cents - b.price.cents);
+  // Copia gradata ("PSA 10"): si confronta solo con annunci della stessa società e dello stesso voto.
+  const grade = parseGradeLabel(cond);
+  const usable = (p) => p && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 && !(p.user && blocked.has(p.user.username));
+  const ok = (list || []).filter((p) => {
+    if (!usable(p)) return false;
+    if (!grade) return isListable(p);
+    const g = gradeOf(p);
+    return g && g.co === grade.co && g.g === grade.g;
+  }).sort((a, b) => a.price.cents - b.price.cents);
   if (!ok.length) return null;
   const want = normLang(lang);
   const min = condRank(cond);
-  const fits = (p) => (!want || normLang(listingLang(p)) === want) && (min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);
+  const fits = (p) => (!want || normLang(listingLang(p)) === want) && (grade || min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);
   const pickSet = (arr) => {
     const m = arr.filter(fits);
     const base = m.length ? m : arr; // nessun annuncio nella lingua/condizione: tutti, segnato come approssimato
@@ -42,6 +50,7 @@ export function priceFor(list, lang, cond, opts = {}) {
     typCents: all.typ,
     approx: all.approx,
     listings: ok.length,
+    graded: grade ? `${grade.co} ${grade.g}` : null,
     zeroCents: zero ? zero.low : null,
     zeroTypCents: zero ? zero.typ : null,
     zeroApprox: zero ? zero.approx : null,

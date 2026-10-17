@@ -320,9 +320,15 @@
     'Diagnostica gradate': 'Graded diagnostics',
     'esempi di annunci gradati letti da CardTrader': 'samples of graded listings read from CardTrader',
     'Copia': 'Copy',
+    'Gradata': 'Graded',
+    'No': 'No',
+    '✎ Modifica': '✎ Edit',
+    'Società di gradazione': 'Grading company',
+    'Voto': 'Grade',
   };
 
   const R = [
+    [/^nessun annuncio (.+)$/, 'no $1 listings'],
     [/^Modifica (.+)$/, 'Edit $1'],
     [/^(\d+) carte su (\d+)$/, '$1 of $2 cards'], [/^Nessuna carta per “(.+)”$/, 'No cards for “$1”'],
     [/^✓ Aggiunta alla collezione \((\d+) copie\)$/, '✓ Added to collection ($1 copies)'],
