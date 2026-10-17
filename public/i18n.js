@@ -314,9 +314,11 @@
     'nessun annuncio in vendita': 'no listings for sale',
     'Fatto': 'Done',
     'Aggiungo…': 'Adding…',
+    'Cerca nella collezione (es. Charizard, 151)': 'Search your collection (e.g. Charizard, 151)',
   };
 
   const R = [
+    [/^(\d+) carte su (\d+)$/, '$1 of $2 cards'], [/^Nessuna carta per “(.+)”$/, 'No cards for “$1”'],
     [/^✓ Aggiunta alla collezione \((\d+) copie\)$/, '✓ Added to collection ($1 copies)'],
     [/^Ce l'hai: (\d+) cop(ia|ie)$/, (m, n) => `You own ${n} ${n === '1' ? 'copy' : 'copies'}`], [/^✓ Ce l'ho$/, '✓ Owned'],
     [/^1 alert attivo · giro ogni (.+)$/, '1 active alert · cycle every $1'], [/^1 alert attivo$/, '1 active alert'],

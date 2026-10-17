@@ -529,7 +529,13 @@
     const sort = (document.querySelector('input[name="csort"]:checked') || {}).value || 'value';
     const val = (it) => (it.price ? it.price.cents * it.qty : -1);
     const g = (it) => (it.price && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : -Infinity);
-    const list = [...items].sort((a, b) =>
+    // Ricerca per nome della carta o dell'espansione (anche con il numero: "charizard 4").
+    const cq = plainText($('collSearch').value).trim();
+    $('collSearch').hidden = items.length < 5;
+    const shownItems = cq ? items.filter((it) => cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''}`).includes(w))) : items;
+    $('collCount').hidden = !cq;
+    $('collCount').textContent = shownItems.length ? `${shownItems.length} carte su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
+    const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
       : sort === 'set' ? (a.expName || '').localeCompare(b.expName || '') || val(b) - val(a)
       : sort === 'change' ? (b.change7 ?? -9) - (a.change7 ?? -9)
@@ -592,6 +598,7 @@
   }
   document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
+  $('collSearch').addEventListener('input', renderCollection);
   $('collTypical').addEventListener('change', async () => {
     $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });
