@@ -288,9 +288,21 @@
     '90 giorni': '90 days',
     'Tutte le condizioni': 'All conditions',
     'Zero e non': 'Zero or not',
+    'Filtri': 'Filters',
+    'Azzera filtri': 'Reset filters',
+    'Non controllato': 'Not checked',
+    'In attesa del primo controllo': 'Waiting for the first check',
+    'Alert in pausa: non viene controllato': 'Alert paused: not being checked',
+    'Oltre il limite del piano: non viene controllato': 'Over your plan limit: not being checked',
+    'In ritardo: CardTrader sta rallentando le richieste': 'Delayed: CardTrader is slowing requests down',
+    'In ritardo rispetto al solito giro': 'Behind the usual cycle',
+    'Non controllato da oltre 30 minuti': 'Not checked for over 30 minutes',
+    'La carta non è ancora stata letta: succede entro pochi minuti.': 'The card has not been read yet: it happens within a few minutes.',
   };
 
   const R = [
+    [/^Controllato (.+) fa$/, 'Checked $1 ago'], [/^(\d+) controlli? nell’ultima ora$/, '$1 checks in the last hour'], [/^Tutti i (\d+) alert controllati regolarmente$/, 'All $1 alerts checked regularly'],
+    [/^(\d+) alert su (\d+) controllati regolarmente$/, '$1 of $2 alerts checked regularly'], [/^Giro completo ogni (.+)$/, 'Full cycle every $1'], [/^Togli il filtro (.+)$/, 'Remove filter $1'],
     [/^(.+) o meglio$/, '$1 or better'],
     [/^([+−])(.+) \((.+)\) in (\d+) giorni?$/, '$1$2 ($3) in $4 days'],
     [/^✅ (\d+) trovate$/, '✅ $1 found'], [/^🟡 (\d+) da scegliere$/, '🟡 $1 to choose'], [/^🔴 (\d+) non trovate$/, '🔴 $1 not found'], [/^Importa (\d+) carte?$/, 'Import $1 cards'], [/^Riga (\d+)$/, 'Row $1'],

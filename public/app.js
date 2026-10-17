@@ -1273,6 +1273,57 @@
   document.querySelector('header.top .status').addEventListener('click', () => goTab('settings'));
 
   // ---------- render ----------
+  /** Stato del controllo di un alert: 'ok' (regolare), 'slow' (in ritardo), 'stop' (fermo, in pausa o fuori piano). */
+  function checkState(r) {
+    const c = (state.checks || {})[r.id] || {};
+    if (!r.enabled) return { st: 'stop', c, why: 'Alert in pausa: non viene controllato' };
+    if ((state.outOfPlan || []).includes(r.id)) return { st: 'stop', c, why: 'Oltre il limite del piano: non viene controllato' };
+    if (!c.ts) return { st: 'slow', c, why: 'In attesa del primo controllo' };
+    const cycle = (state.status && state.status.cycle && state.status.cycle.ms) || 5 * 60_000;
+    const age = Date.now() - c.ts;
+    if (age <= Math.max(cycle * 1.5, 5 * 60_000)) return { st: 'ok', c };
+    if (age <= 30 * 60_000) return { st: 'slow', c, why: state.system && state.system.limitUntil ? 'In ritardo: CardTrader sta rallentando le richieste' : 'In ritardo rispetto al solito giro' };
+    return { st: 'stop', c, why: 'Non controllato da oltre 30 minuti' };
+  }
+  const openChecks = new Set();
+  function checkRow(r) {
+    const { st, c, why } = checkState(r);
+    const now = Date.now();
+    // 12 barrette = ultima ora a passi di 5 minuti, la più recente a destra.
+    const bars = Array.from({ length: 12 }, (_, i) => {
+      const from = now - (12 - i) * 300_000, to = from + 300_000;
+      return el('i', { class: (c.reads || []).some((t) => t >= from && t < to) ? '' : 'miss' });
+    });
+    const n = (c.reads || []).length;
+    const title = st === 'stop' && !c.ts ? 'Non controllato' : c.ts ? `Controllato ${ago(c.ts)} fa`.replace(' fa fa', ' fa') : 'In attesa del primo controllo';
+    const det = c.ts ? [`Ultimo controllo ${ago(c.ts)} fa`.replace(' fa fa', ' fa'),
+      c.listings != null ? `${c.listings} annunci` : null,
+      c.valid ? `${c.valid} rispettano i filtri, il più economico ${money(c.bestCents, c.currency)}` : c.listings != null ? 'nessuno rispetta i filtri' : null].filter(Boolean).join(' · ') + '.' : 'La carta non è ancora stata letta: succede entro pochi minuti.';
+    const box = el('div', { class: 'chk-wrap' + (openChecks.has(r.id) ? ' open' : '') });
+    const btn = el('button', { class: 'chk', type: 'button', 'aria-expanded': String(openChecks.has(r.id)),
+      onclick: () => { openChecks.has(r.id) ? openChecks.delete(r.id) : openChecks.add(r.id); box.classList.toggle('open'); btn.setAttribute('aria-expanded', String(box.classList.contains('open'))); } },
+      el('span', { class: `cdot ${st}` }),
+      el('span', { class: 'ct' }, el('b', { text: title }), el('small', { text: why || `${n} ${n === 1 ? 'controllo' : 'controlli'} nell’ultima ora` })),
+      el('span', { class: 'cbars', 'aria-hidden': 'true' }, ...bars));
+    box.append(btn, el('p', { class: 'chk-det', text: det }));
+    return box;
+  }
+  function renderRuleHealth() {
+    const box = $('ruleHealth');
+    const active = state.rules.filter((r) => r.enabled);
+    box.hidden = !active.length;
+    if (!active.length) return;
+    const states = active.map((r) => checkState(r).st);
+    const bad = states.filter((x) => x !== 'ok').length;
+    const cyc = state.status && state.status.cycle;
+    box.className = 'rule-health ' + (bad ? (states.includes('stop') ? 'stop' : 'slow') : 'ok');
+    box.replaceChildren(
+      el('span', { class: 'rh-ico', text: bad ? '!' : '✓', 'aria-hidden': 'true' }),
+      el('span', null,
+        el('b', { text: bad ? `${active.length - bad} alert su ${active.length} controllati regolarmente` : `Tutti i ${active.length} alert controllati regolarmente` }),
+        el('small', { text: [cyc ? `Giro completo ogni ${dur(cyc.ms)}` : null, state.status && state.status.lastScan ? `ultimo controllo ${ago(state.status.lastScan)} fa`.replace(' fa fa', ' fa') : null].filter(Boolean).join(' · ') })));
+  }
+
   let ruleState = 'all';
   let ruleLang = '';
   let ruleCond = '';
@@ -1371,33 +1422,46 @@
     const rl = $('ruleList');
     const rq = plainText($('ruleSearch').value).trim();
     const many = state.rules.length >= 6;
-    $('ruleSearch').hidden = !many;
-    $('ruleFilters').hidden = !many;
-    // Filtri: stato (attivi, in pausa, con stella, set interi) e lingua, insieme alla ricerca per nome.
-    const STATES = [['all', 'Tutti'], ['on', 'Attivi'], ['off', 'In pausa'], ['star', '★ Con stella'], ['set', 'Set interi']];
-    const ruleLangs = [...new Set(state.rules.flatMap((r) => String(r.language || '').split(',').filter(Boolean)).map((l) => (l === 'ja' ? 'jp' : l)))];
-    if (ruleLang && !ruleLangs.includes(ruleLang)) ruleLang = '';
-    filterChips($('ruleState'), STATES.filter(([v]) => v !== 'set' || state.rules.some((r) => !r.blueprintId)).filter(([v]) => v !== 'star' || state.rules.some((r) => r.priority)), ruleState, (v) => { ruleState = v; render(); });
-    $('ruleLang').hidden = ruleLangs.length < 2;
-    filterChips($('ruleLang'), [['', 'Tutte le lingue'], ...ruleLangs.map((l) => [l, LANG_CHIP[l] || l.toUpperCase()])], ruleLang, (v) => { ruleLang = v; render(); });
-    // Condizione minima e Zero: solo i valori che usi davvero nei tuoi alert.
+    $('ruleTools').hidden = !many;
+    // Filtri: stato, lingua, condizione minima e venditori. Si mostrano solo i valori usati nei tuoi alert.
+    const STATES = [['all', 'Tutti'], ['on', 'Attivi'], ['off', 'In pausa'], ['star', '★ Con stella'], ['set', 'Set interi']]
+      .filter(([v]) => (v !== 'set' || state.rules.some((r) => !r.blueprintId)) && (v !== 'star' || state.rules.some((r) => r.priority)));
+    const langOf = (r) => String(r.language || '').split(',').filter(Boolean).map((l) => (l === 'ja' ? 'jp' : l));
+    const ruleLangs = [...new Set(state.rules.flatMap(langOf))];
     const CONDS = ['Mint', 'Near Mint', 'Slightly Played', 'Moderately Played', 'Played', 'Heavily Played', 'Poor'];
     const ruleConds = CONDS.filter((c) => state.rules.some((r) => r.minCondition === c));
-    if (ruleCond && !ruleConds.includes(ruleCond)) ruleCond = '';
-    $('ruleCond').hidden = ruleConds.length < 2;
-    filterChips($('ruleCond'), [['', 'Tutte le condizioni'], ...ruleConds.map((c) => [c, `${c} o meglio`])], ruleCond, (v) => { ruleCond = v; render(); });
-    const ZEROS = [['', 'Zero e non'], ['only', 'Solo Zero'], ['exclude', 'Senza Zero'], ['any', 'Tutti i venditori']];
     const zeroOf = (r) => r.zero || 'any';
-    const zeroUsed = new Set(state.rules.map(zeroOf));
-    if (ruleZero && !zeroUsed.has(ruleZero)) ruleZero = '';
-    $('ruleZero').hidden = zeroUsed.size < 2;
-    filterChips($('ruleZero'), ZEROS.filter(([v]) => !v || zeroUsed.has(v)), ruleZero, (v) => { ruleZero = v; render(); });
+    const ZLABEL = { only: 'Solo Zero', exclude: 'Senza Zero', any: 'Tutti i venditori' };
+    const zeroUsed = ['only', 'exclude', 'any'].filter((z) => state.rules.some((r) => zeroOf(r) === z));
+    if (ruleLang && !ruleLangs.includes(ruleLang)) ruleLang = '';
+    if (ruleCond && !ruleConds.includes(ruleCond)) ruleCond = '';
+    if (ruleZero && !zeroUsed.includes(ruleZero)) ruleZero = '';
+    const LBL = { lang: (l) => LANG_CHIP[l] || l.toUpperCase(), cond: (c) => `${c} o meglio`, zero: (z) => ZLABEL[z] };
+    filterChips($('ruleState'), STATES, ruleState, (v) => { ruleState = v; render(); });
+    $('ruleLangG').hidden = ruleLangs.length < 2;
+    filterChips($('ruleLang'), [['', 'Tutte'], ...ruleLangs.map((l) => [l, LBL.lang(l)])], ruleLang, (v) => { ruleLang = v; render(); });
+    $('ruleCondG').hidden = ruleConds.length < 2;
+    filterChips($('ruleCond'), [['', 'Tutte'], ...ruleConds.map((c) => [c, LBL.cond(c)])], ruleCond, (v) => { ruleCond = v; render(); });
+    $('ruleZeroG').hidden = zeroUsed.length < 2;
+    filterChips($('ruleZero'), [['', 'Tutti'], ...zeroUsed.map((z) => [z, LBL.zero(z)])], ruleZero, (v) => { ruleZero = v; render(); });
+    // Filtri attivi: pillole con × sotto la ricerca, e il numero sul pulsante.
+    const activeF = [
+      ruleState !== 'all' && [STATES.find(([v]) => v === ruleState)[1], () => { ruleState = 'all'; }],
+      ruleLang && [LBL.lang(ruleLang), () => { ruleLang = ''; }],
+      ruleCond && [LBL.cond(ruleCond), () => { ruleCond = ''; }],
+      ruleZero && [LBL.zero(ruleZero), () => { ruleZero = ''; }],
+    ].filter(Boolean);
+    $('ruleFilterCount').hidden = !activeF.length;
+    $('ruleFilterCount').textContent = String(activeF.length);
+    $('ruleActive').hidden = !activeF.length || !$('ruleFilters').hidden;
+    $('ruleActive').replaceChildren(...activeF.map(([label, clear]) => el('button', { class: 'af-chip', type: 'button', 'aria-label': `Togli il filtro ${label}`, onclick: () => { clear(); render(); } }, el('span', { text: label }), el('b', { text: '×', 'aria-hidden': 'true' }))));
     const stateOk = (r) => ruleState === 'all' || (ruleState === 'on' && r.enabled) || (ruleState === 'off' && !r.enabled) || (ruleState === 'star' && r.priority) || (ruleState === 'set' && !r.blueprintId);
-    const langOk = (r) => !ruleLang || String(r.language || '').split(',').map((l) => (l === 'ja' ? 'jp' : l)).includes(ruleLang);
-    const shownRules = state.rules.filter((r) => stateOk(r) && langOk(r) && (!ruleCond || r.minCondition === ruleCond) && (!ruleZero || zeroOf(r) === ruleZero) && (!rq || plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)));
-    const filtering = !!rq || ruleState !== 'all' || !!ruleLang || !!ruleCond || !!ruleZero;
+    const shownRules = state.rules.filter((r) => stateOk(r) && (!ruleLang || langOf(r).includes(ruleLang)) && (!ruleCond || r.minCondition === ruleCond) && (!ruleZero || zeroOf(r) === ruleZero)
+      && (!rq || plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)));
+    const filtering = !!rq || activeF.length > 0;
     $('ruleCount').hidden = !filtering;
     $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : rq ? `Nessun alert per “${$('ruleSearch').value.trim()}”` : 'Nessun alert con questi filtri';
+    renderRuleHealth();
     rl.replaceChildren(
       ...shownRules.map((r) => {
         const title = r.cardName || r.expansionName || `Espansione ${r.expansionId}`;
@@ -1428,6 +1492,7 @@
                 onclick: () => toggleWish(wishFromRule(r), inWish) }, ico(inWish ? 'heartFill' : 'heart'));
             })() : null,
           ),
+          checkRow(r),
           el('div', { class: 'acts' },
             el('button', { class: 'act-btn', type: 'button', onclick: () => explainRule(r) }, ico('search'), el('span', { text: 'Verifica' })),
             el('button', { class: 'act-btn', type: 'button', onclick: () => openEdit(r) }, ico('edit'), el('span', { text: 'Modifica' })),
@@ -2561,6 +2626,10 @@
   }
 
   $('ruleSearch').addEventListener('input', render);
+  const toggleFilters = (open) => { $('ruleFilters').hidden = !open; $('ruleFilterBtn').setAttribute('aria-expanded', String(open)); render(); };
+  $('ruleFilterBtn').addEventListener('click', () => toggleFilters($('ruleFilters').hidden));
+  $('ruleFilterClose').addEventListener('click', () => toggleFilters(false));
+  $('ruleFilterReset').addEventListener('click', () => { ruleState = 'all'; ruleLang = ''; ruleCond = ''; ruleZero = ''; render(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
   $('setNameSave').addEventListener('click', async () => {
     try {

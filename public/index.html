@@ -224,8 +224,19 @@
         <p class="muted">Per crearne uno apri <b>Cerca</b>, scegli la carta e imposta prezzo o sconto, oppure scegli un set e tocca <b>Alert su tutto il set</b>.</p>
       </div>
       <p id="ruleError" class="banner" hidden></p>
-      <input id="ruleSearch" type="search" placeholder="Cerca tra i tuoi alert (es. Pikachu, 151)" autocomplete="off" hidden>
-      <div id="ruleFilters" class="rule-filters" hidden><div id="ruleState" class="exp-chips filter-chips"></div><div id="ruleLang" class="exp-chips filter-chips"></div><div id="ruleCond" class="exp-chips filter-chips"></div><div id="ruleZero" class="exp-chips filter-chips"></div></div>
+      <div id="ruleHealth" class="rule-health" hidden></div>
+      <div id="ruleTools" class="rule-tools" hidden>
+        <input id="ruleSearch" type="search" placeholder="Cerca tra i tuoi alert (es. Pikachu, 151)" autocomplete="off">
+        <button id="ruleFilterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="ruleFilters"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Filtri</span><b id="ruleFilterCount" hidden></b></button>
+      </div>
+      <div id="ruleActive" class="active-filters" hidden></div>
+      <div id="ruleFilters" class="filter-panel" hidden>
+        <div class="fg"><span class="fg-k">Stato</span><div id="ruleState" class="fg-chips"></div></div>
+        <div class="fg" id="ruleLangG"><span class="fg-k">Lingua</span><div id="ruleLang" class="fg-chips"></div></div>
+        <div class="fg" id="ruleCondG"><span class="fg-k">Condizione minima</span><div id="ruleCond" class="fg-chips"></div></div>
+        <div class="fg" id="ruleZeroG"><span class="fg-k">Venditori</span><div id="ruleZero" class="fg-chips"></div></div>
+        <div class="fg-foot"><button id="ruleFilterReset" class="btn mini" type="button">Azzera filtri</button><button id="ruleFilterClose" class="btn mini primary" type="button">Mostra</button></div>
+      </div>
       <p id="ruleCount" class="count" hidden></p>
       <div id="ruleList" class="list cols"></div>
       <div id="ruleEmpty" class="empty-state" hidden>

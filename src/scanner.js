@@ -724,6 +724,7 @@ export class Scanner extends DurableObject {
       ]);
       return json({
         rules,
+        checks: this.ruleChecks(rules),
         alerts: alerts.slice(0, 60),
         status,
         pushDevices: subs.length,
@@ -1809,6 +1810,29 @@ export class Scanner extends DurableObject {
    * (la lettura per espansione dà solo i più economici di ogni carta). Così le richieste restano
    * costanti anche con molti alert, e ogni fonte si aggiorna a turno.
    */
+  /** Letture dell'ultima ora per carta o set: servono a mostrare su ogni alert che il controllo è regolare. */
+  noteRead(key, ts = Date.now()) {
+    this.readLog = this.readLog || new Map();
+    const list = (this.readLog.get(key) || []).filter((t) => ts - t < 3600_000);
+    list.push(ts);
+    this.readLog.set(key, list);
+  }
+
+  /** Stato del controllo di ogni alert: ultima lettura, letture dell'ultima ora, annunci e più economico valido. */
+  ruleChecks(rules) {
+    const out = {};
+    const now = Date.now();
+    for (const r of rules) {
+      const key = r.blueprintId ? `b:${r.blueprintId}` : `e:${r.expansionId}`;
+      const hit = r.blueprintId ? this.bpCache.get(r.blueprintId) : this.productCache.get(r.expansionId);
+      const reads = ((this.readLog && this.readLog.get(key)) || []).filter((t) => now - t < 3600_000);
+      if (hit && !reads.includes(hit.ts) && now - hit.ts < 3600_000) reads.push(hit.ts);
+      const info = (this.ruleInfo && this.ruleInfo.get(r.id)) || null;
+      out[r.id] = { ts: hit ? hit.ts : null, reads: reads.sort((a, b) => a - b), ...(info || {}) };
+    }
+    return out;
+  }
+
   async refreshSources(rules, status) {
     this.ruleCards = new Set(rules.filter((r) => r.blueprintId).map((r) => Number(r.blueprintId)));
     await this.warmCards([...this.ruleCards]);
@@ -1852,6 +1876,7 @@ export class Scanner extends DurableObject {
       try {
         if (src.kind === 'b') await this.productsForCard(src.id, 0, true);
         else await this.productsFor(src.id, 0, true);
+        this.noteRead(`${src.kind}:${src.id}`);
         n++;
       } catch (e) {
         error = e; // i dati già letti restano validi: le regole si valutano comunque
@@ -1995,6 +2020,12 @@ export class Scanner extends DurableObject {
       let data = this.dataForRule(rule);
       if (!data) continue; // nessun dato ancora: arriverà a uno dei prossimi giri
       if (blocked.size) data = withoutSellers(data, blocked);
+      {
+        const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
+        const valid = all.filter((p) => p && p.price && !rejectReasons(p, evalRule).length);
+        this.ruleInfo = this.ruleInfo || new Map();
+        this.ruleInfo.set(rule.id, { listings: all.length, valid: valid.length, bestCents: valid.length ? Math.min(...valid.map((p) => p.price.cents)) : null, currency: (all[0] && all[0].price && all[0].price.currency) || 'EUR' });
+      }
       let refKind = cmRef ? 'cardmarket' : null;
       let dropRef = null;
       if (rule.dropPct) {

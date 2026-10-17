@@ -117,3 +117,19 @@ test('importa collezione: riepilogo con trovate, da scegliere e non trovate', as
   assert.deepEqual(errors, []);
   await page.close();
 });
+
+test('regole: controllo su ogni alert e filtri nel pannello', async () => {
+  const rules = Array.from({ length: 6 }, (_, i) => ({ id: 'r' + i, expansionId: 1, expansionName: 'Set', blueprintId: 100 + i, cardName: 'Carta ' + i, enabled: true, priority: false, language: i % 2 ? 'ja' : 'en', minCondition: 'Near Mint', maxPriceCents: 1000, minPriceCents: 0, zero: '' }));
+  const checks = Object.fromEntries(rules.map((r) => [r.id, { ts: Date.now() - 60e3, reads: [Date.now() - 60e3] }]));
+  const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': baseState({ rules, checks, status: { lastScan: Date.now(), scans: 1, cycle: { ms: 240000 } } }) });
+  await page.click('[data-tab=rules]');
+  assert.match(await page.textContent('#ruleHealth'), /Tutti i 6 alert controllati regolarmente/);
+  assert.equal(await page.locator('.chk .cdot.ok').count(), 6);
+  await page.click('#ruleFilterBtn');
+  await page.click('#ruleLang .chip-btn >> text=JP');
+  await page.click('#ruleFilterClose');
+  assert.match(await page.textContent('#ruleCount'), /3 alert su 6/);
+  assert.equal(await page.locator('.af-chip').count(), 1);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
