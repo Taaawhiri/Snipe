@@ -747,7 +747,15 @@ export class Scanner extends DurableObject {
     if (path === '/api/_regions') return json(await this.get('expRegion', {}));
     // Espansioni senza regione (senza annunci o con errore): il proprietario può indicarla a mano.
     if (path === '/api/regions/problems' && method === 'GET') {
-      const problems = await this.get('regionProblems', {});
+      const problems = { ...(await this.get('regionProblems', {})) };
+      // Anche quelle provate prima che l'elenco esistesse: provate, ma ancora senza regione.
+      const [tried, map, exps] = await Promise.all([this.get('regionTried', {}), this.get('expRegion', {}), this.pokemonExpansions().catch(() => [])]);
+      const byId = new Map(exps.map((e) => [e.id, e]));
+      for (const id of Object.keys(tried)) {
+        const e = byId.get(Number(id));
+        if (!e || map[id] || problems[id] || regionFromName(e.name)) continue;
+        problems[id] = { name: e.name, code: e.code, kind: 'none', note: 'non riconosciuta al primo giro (pochi annunci o un errore)' };
+      }
       return json(Object.entries(problems).map(([id, p]) => ({ id: Number(id), ...p })).sort((a, b) => a.name.localeCompare(b.name)));
     }
     if (path === '/api/regions/set' && method === 'POST') {
