@@ -747,16 +747,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/_regions') return json(await this.get('expRegion', {}));
     // Espansioni senza regione (senza annunci o con errore): il proprietario può indicarla a mano.
     if (path === '/api/regions/problems' && method === 'GET') {
-      const problems = { ...(await this.get('regionProblems', {})) };
-      // Anche quelle provate prima che l'elenco esistesse: provate, ma ancora senza regione.
-      const [tried, map, exps] = await Promise.all([this.get('regionTried', {}), this.get('expRegion', {}), this.pokemonExpansions().catch(() => [])]);
-      const byId = new Map(exps.map((e) => [e.id, e]));
-      for (const id of Object.keys(tried)) {
-        const e = byId.get(Number(id));
-        if (!e || map[id] || REGION_FIXED[id] || problems[id] || regionFromName(e.name)) continue;
-        problems[id] = { name: e.name, code: e.code, kind: 'none', note: 'non riconosciuta al primo giro (pochi annunci o un errore)' };
-      }
-      return json(Object.entries(problems).map(([id, p]) => ({ id: Number(id), ...p })).sort((a, b) => a.name.localeCompare(b.name)));
+      return json(await this.openRegionProblems());
     }
     if (path === '/api/regions/set' && method === 'POST') {
       const b = await req.json().catch(() => ({}));
@@ -766,6 +757,7 @@ export class Scanner extends DurableObject {
       const problems = await this.get('regionProblems', {});
       delete problems[id];
       await this.ctx.storage.put('regionProblems', problems);
+      await this.refreshRegionCounts(await this.status());
       return json({ ok: true });
     }
     if (path === '/api/_region' && method === 'POST') {
@@ -1570,6 +1562,7 @@ export class Scanner extends DurableObject {
     const week = 7 * 86400_000;
     const todo = exps.filter((e) => !map[e.id] && !REGION_FIXED[e.id] && !regionFromName(e.name) && !(tried[e.id] && Date.now() - tried[e.id] < week));
     status.regions = { done: exps.length - todo.length, total: exps.length, ...stats };
+    await this.refreshRegionCounts(status);
     const e = todo[0];
     if (!e) return;
     try {
@@ -1603,6 +1596,31 @@ export class Scanner extends DurableObject {
     }
     await this.ctx.storage.put({ regionTried: tried, regionStats: stats, regionAt: Date.now() });
     status.regions = { done: status.regions.done + 1, total: exps.length, ...stats };
+    await this.refreshRegionCounts(status);
+  }
+
+  /** Giallo e rosso contano le espansioni ancora da sistemare, non tutte quelle mai andate storte. */
+  async refreshRegionCounts(status) {
+    if (!status.regions) return;
+    const open = await this.openRegionProblems();
+    status.regions.none = open.filter((p) => p.kind !== 'err').length;
+    status.regions.err = open.filter((p) => p.kind === 'err').length;
+    if (!status.regions.err) status.regionError = null;
+  }
+
+  /** Espansioni ancora senza regione dopo il giro (senza annunci o con errore), escluse quelle già sistemate. */
+  async openRegionProblems() {
+    const [saved, tried, map, exps] = await Promise.all([this.get('regionProblems', {}), this.get('regionTried', {}), this.get('expRegion', {}), this.pokemonExpansions().catch(() => [])]);
+    const byId = new Map(exps.map((e) => [e.id, e]));
+    const out = {};
+    for (const [id, p] of Object.entries(saved)) if (!map[id] && !REGION_FIXED[id]) out[id] = p;
+    // Anche quelle provate prima che l'elenco esistesse: provate, ma ancora senza regione.
+    for (const id of Object.keys(tried)) {
+      const e = byId.get(Number(id));
+      if (!e || map[id] || REGION_FIXED[id] || out[id] || regionFromName(e.name)) continue;
+      out[id] = { name: e.name, code: e.code, kind: 'none', note: 'non riconosciuta al primo giro (pochi annunci o un errore)' };
+    }
+    return Object.entries(out).map(([id, p]) => ({ id: Number(id), ...p })).sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async dealsList() {
