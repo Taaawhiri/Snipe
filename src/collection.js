@@ -66,14 +66,16 @@ export function summarize(items) {
   let missing = 0;
   let cm = 0;
   let paidPriced = 0; // speso per le sole copie con un prezzo: base del guadagno teorico
+  let valueKnown = 0; // valore delle copie con prezzo pagato indicato (anche 0, es. trovate in una busta)
+  let known = 0;
   for (const it of items) {
     qty += it.qty;
     if (it.price) {
       value += it.price.cents * it.qty;
-      if (it.paidCents) paidPriced += it.paidCents * it.qty;
+      if (it.paidCents != null) { paidPriced += it.paidCents * it.qty; valueKnown += it.price.cents * it.qty; known += it.qty; }
     } else missing += it.qty;
-    if (it.paidCents) paid += it.paidCents * it.qty;
+    if (it.paidCents != null) paid += it.paidCents * it.qty;
     if (it.cmCents) cm += it.cmCents * it.qty;
   }
-  return { value, paid, qty, distinct: items.length, missing, cm, paidPriced };
+  return { value, paid, qty, distinct: items.length, missing, cm, paidPriced, valueKnown, known };
 }

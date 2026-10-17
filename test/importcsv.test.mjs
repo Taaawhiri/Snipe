@@ -26,3 +26,10 @@ test('espansione scritta in modo approssimativo', () => {
   assert.equal(expScore('mf', e), 10);
   assert.equal(expScore('Paldea Evolved', e), 0);
 });
+
+import { summarize } from '../src/collection.js';
+test('carta pagata 0 (sbustata): tutto il valore è guadagno', () => {
+  const sm = summarize([{ qty: 1, paidCents: 0, price: { cents: 5000 } }, { qty: 1, paidCents: null, price: { cents: 3000 } }]);
+  assert.equal(sm.valueKnown - sm.paidPriced, 5000);
+  assert.equal(sm.known, 1);
+});

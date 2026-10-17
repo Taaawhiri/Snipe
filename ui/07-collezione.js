@@ -103,7 +103,7 @@
     const ch = old && old.value ? sm.value / old.value - 1 : null;
     const chEur = old && old.value ? sm.value - old.value : null;
     const pct = (v) => `${v >= 0 ? '▲ +' : '▼ '}${(v * 100).toFixed(1).replace('.', ',')}%`;
-    const gain = sm.paidPriced ? sm.value - sm.paidPriced : null;
+    const gain = sm.known ? (sm.valueKnown ?? sm.value) - sm.paidPriced : null;
     $('collHero').replaceChildren(...[
       el('div', { class: 'cv-k', text: `Valore attuale (prezzo ${coll.typical ? 'tipico' : 'più basso'} CardTrader${coll.zeroOnly ? ' Zero' : ''})` }),
       el('div', { class: 'cv-row' },
@@ -126,7 +126,7 @@
     ].filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
     const sort = (document.querySelector('input[name="csort"]:checked') || {}).value || 'value';
     const val = (it) => (it.price ? it.price.cents * it.qty : -1);
-    const g = (it) => (it.price && it.paidCents ? (it.price.cents - it.paidCents) * it.qty : -Infinity);
+    const g = (it) => (it.price && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : -Infinity);
     const list = [...items].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
       : sort === 'set' ? (a.expName || '').localeCompare(b.expName || '') || val(b) - val(a)
@@ -139,14 +139,14 @@
             if (it.qty + d <= 0 && !(await askConfirm('Puoi sempre aggiungerla di nuovo.', { title: `Togliere ${it.name} dalla collezione?`, ok: 'Togli', danger: true }))) return;
             saveOwn({ ...it, qty: it.qty + d });
           } });
-        const g = it.price && it.paidCents ? (it.price.cents - it.paidCents) * it.qty : null;
+        const g = it.price && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : null;
         return el('div', { class: 'ci' + (g == null ? '' : g > 0 ? ' gain' : g < 0 ? ' loss' : '') },
           thumb(it.image),
           el('div', { class: 'ci-main' },
             el('button', { class: 't linklike', type: 'button', text: it.name, onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }),
             el('div', { class: 's', text: [it.expName, it.cond && condShort(it.cond), it.lang && it.lang.toUpperCase()].filter(Boolean).join(' · ') }),
             el('div', { class: 'qty' }, step(-1), el('b', { text: String(it.qty) }), step(1),
-              it.paidCents ? el('span', { class: 's', text: it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
+              it.paidCents != null ? el('span', { class: 's', text: it.paidCents === 0 ? (it.qty > 1 ? 'trovate (0 €)' : 'trovata (0 €)') : it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
           ),
           el('div', { class: 'r' },
             el('b', { text: it.price ? money(it.price.cents * it.qty) : '…' }),
@@ -163,14 +163,14 @@
 
   /** Guadagno o perdita rispetto al prezzo pagato: importo e percentuale in una pillola colorata. */
   function gainPill(it) {
-    if (!it.price || !it.paidCents) return null;
+    if (!it.price || it.paidCents == null) return null;
     const diff = (it.price.cents - it.paidCents) * it.qty;
-    const pct = (it.price.cents / it.paidCents - 1) * 100;
+    const pct = it.paidCents ? (it.price.cents / it.paidCents - 1) * 100 : null; // pagata 0: tutto guadagno, senza percentuale
     const cls = diff > 0 ? 'up' : diff < 0 ? 'dn' : 'eq';
     const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
     return el('span', { class: `gain-pill ${cls}`, title: `Pagata ${money(it.paidCents * it.qty)}` },
       el('b', { text: `${sign}${money(Math.abs(diff))}` }),
-      el('span', { text: `${sign}${Math.abs(pct).toFixed(0)}%` }),
+      pct == null ? el('span', { text: 'gratis' }) : el('span', { text: `${sign}${Math.abs(pct).toFixed(0)}%` }),
     );
   }
 
@@ -224,7 +224,7 @@
     $('ownOpen').classList.toggle('on', n > 0);
     $('ownList').replaceChildren(...mine.map((it) => el('span', { class: 'own-chip' },
       el('b', { text: `${it.qty}×` }),
-      document.createTextNode(` ${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents ? ` · ${money(it.paidCents)}` : ''}`),
+      document.createTextNode(` ${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents != null ? ` · ${money(it.paidCents)}` : ''}`),
       el('button', { type: 'button', 'aria-label': 'Togli', text: '✕', onclick: () => saveOwn({ ...it, qty: 0 }) }),
     )));
   }
@@ -259,7 +259,7 @@
         bp: current.id, name: current.name + (current.version ? ` (${current.version})` : ''), image: current.image,
         expansionId: current.expansionId || (dlgExp && dlgExp.id), expName: current.expName || (dlgExp && dlgExp.name), cmId: current.cmId,
         lang: own.lang, cond: own.cond, qty: own.qty, add: true,
-        paidCents: paid > 0 ? Math.round(paid * 100) : null,
+        paidCents: $('ownPaid').value.trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null,
       });
       $('ownPaid').value = '';
       $('ownDialog').close();

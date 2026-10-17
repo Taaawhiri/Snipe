@@ -52,7 +52,7 @@ const money = (v) => {
   const t = String(v || '').replace(/[€\s]/g, '');
   if (!t) return null;
   const n = Number(/,\d{1,2}$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, ''));
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null; // 0 = trovata in una busta
 };
 
 /** Righe del CSV -> carte da cercare. La prima riga deve avere i nomi delle colonne. */

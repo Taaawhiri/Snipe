@@ -19,7 +19,7 @@ test('totali della collezione', () => {
     { qty: 2, price: { cents: 1000 }, paidCents: 700, cmCents: 900 },
     { qty: 1, price: null, paidCents: 0 },
   ]);
-  assert.deepEqual(s, { value: 2000, paid: 1400, qty: 3, distinct: 2, missing: 1, cm: 1800, paidPriced: 1400 });
+  assert.deepEqual(s, { value: 2000, paid: 1400, qty: 3, distinct: 2, missing: 1, cm: 1800, paidPriced: 1400, valueKnown: 2000, known: 2 });
 });
 
 import { pickPrice } from '../src/collection.js';

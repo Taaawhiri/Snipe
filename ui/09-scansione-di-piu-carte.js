@@ -117,7 +117,7 @@
       const c = row.candidates[row.pick];
       const paid = Number(row.paid);
       try {
-        await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: row.lang, cond: row.cond, qty: row.qty, add: true, paidCents: paid > 0 ? Math.round(paid * 100) : null });
+        await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: row.lang, cond: row.cond, qty: row.qty, add: true, paidCents: String(row.paid ?? '').trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null });
         row.added = true;
       } catch (e) {
         row.error = e.message;

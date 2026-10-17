@@ -296,11 +296,12 @@ export class Scanner extends DurableObject {
       const cond = CONDITIONS.includes(b.cond) ? b.cond : '';
       const key = collKey(bp, lang, cond);
       const qty = Math.max(1, Math.min(999, parseInt(b.qty, 10) || 1));
-      const paid = Number(b.paidCents) > 0 ? Math.round(Number(b.paidCents)) : null;
+      // 0 è un prezzo valido (carta trovata in una busta): "nessun prezzo" è solo null o vuoto.
+      const paid = b.paidCents != null && b.paidCents !== '' && Number(b.paidCents) >= 0 ? Math.round(Number(b.paidCents)) : null;
       const prev = coll.find((c) => c.key === key);
       if (prev) {
         const total = Math.min(999, prev.qty + qty);
-        if (paid) prev.paidCents = prev.paidCents ? Math.round((prev.paidCents * prev.qty + paid * qty) / (prev.qty + qty)) : paid;
+        if (paid != null) prev.paidCents = prev.paidCents != null ? Math.round((prev.paidCents * prev.qty + paid * qty) / (prev.qty + qty)) : paid;
         prev.qty = total;
         merged++;
         continue;
@@ -341,10 +342,10 @@ export class Scanner extends DurableObject {
         const plan = await this.plan();
         if (coll.length >= plan.maxColl) return { error: `Il piano ${plan.label} include ${plan.maxColl} carte diverse nella collezione.`, upgrade: true, status: 403 };
       }
-      const paid = Number.isFinite(Number(b.paidCents)) && Number(b.paidCents) > 0 ? Math.round(Number(b.paidCents)) : null;
+      const paid = b.paidCents != null && b.paidCents !== '' && Number.isFinite(Number(b.paidCents)) && Number(b.paidCents) >= 0 ? Math.round(Number(b.paidCents)) : null;
       // Prezzo pagato: media ponderata quando si aggiungono copie con un prezzo nuovo.
       const paidCents = paid == null ? (prev ? prev.paidCents : null)
-        : b.add && prev && prev.paidCents ? Math.round((prev.paidCents * prev.qty + paid * (qty - prev.qty)) / qty) : paid;
+        : b.add && prev && prev.paidCents != null ? Math.round((prev.paidCents * prev.qty + paid * (qty - prev.qty)) / qty) : paid;
       const item = {
         key, bp, lang, cond, qty, paidCents,
         name: String(b.name || (prev && prev.name) || '').slice(0, 120),
