@@ -88,6 +88,7 @@ export function priceFor(list, lang, cond, opts = {}) {
     cents: all.low,
     typCents: all.typ,
     approx: all.approx || edApprox,
+    edApprox: edApprox && !all.approx,
     listings: ok.length,
     graded: grade ? `${grade.co} ${grade.g}` : null,
     zeroCents: zero ? zero.low : null,

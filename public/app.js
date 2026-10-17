@@ -619,6 +619,7 @@
             miniSpark(it.spark30),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             it.price && it.price.estimated ? el('span', { class: 's', title: it.price.fromCm ? 'Nessun annuncio su CardTrader: stima dalla tendenza Cardmarket, con il premio medio del voto' : 'Nessun annuncio con questo voto: stima dal prezzo della copia non gradata, con il premio medio del voto', text: it.price.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto' })
+            : it.price && it.price.edApprox ? el('span', { class: 's', title: 'Nessun annuncio 1ª edizione: prezzo delle copie normali', text: '≈ altra edizione' })
             : it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
