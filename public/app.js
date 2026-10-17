@@ -1543,8 +1543,8 @@
     const prev = sel.value;
     sel.replaceChildren(el('option', { value: '' }), el('option', { value: 'all' }), ...expansions.map((e) => el('option', { value: e.id })));
     sel.value = prev;
-    // Id più alto = espansione pubblicata più di recente su CardTrader.
-    const byNew = [...expansions].sort((a, b) => b.id - a.id);
+    // In ordine alfabetico: CardTrader non dà la data di uscita, e le fonti online non coprono i set asiatici.
+    const byNew = [...expansions].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     const items = byNew.filter((e) => (!expRegion || e.region === expRegion) && (!q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q)));
     $('expChips').replaceChildren(...REGION_CHIPS.map(([id, label]) => el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(expRegion === id), text: label, onclick: () => { expRegion = id; fillCardExpansions(); } })));
     const recent = !q && !expRegion ? recentExp().map((id) => expansions.find((e) => String(e.id) === id)).filter(Boolean) : [];
@@ -1552,7 +1552,7 @@
     $('expList').replaceChildren(
       ...(q || expRegion ? [] : [el('button', { class: 'exp-row all', type: 'button', onclick: () => chooseExp('all') }, el('span', { class: 'exp-code', text: '🔍' }), el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: 'Tutte le espansioni' }), el('span', { class: 'sub', text: 'cerca un Pokémon per nome in tutti i set' })))]),
       ...(recent.length ? [sec('Usate di recente'), ...recent.map(expRow)] : []),
-      ...(items.length ? [sec(q || expRegion ? `${items.length} espansioni` : 'Dalla più recente'), ...items.slice(0, 300).map(expRow)] : [sec('Nessuna espansione')]),
+      ...(items.length ? [sec(q || expRegion ? `${items.length} espansioni` : 'Tutte (A–Z)'), ...items.slice(0, 300).map(expRow)] : [sec('Nessuna espansione')]),
     );
     const cur = prev === 'all' ? { name: 'Tutte le espansioni' } : expansions.find((e) => String(e.id) === prev);
     $('expPick').querySelector('.ep-name').textContent = cur ? cur.name : 'Scegli un’espansione…';
