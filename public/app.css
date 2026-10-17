@@ -816,7 +816,7 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .act-row.warn b{color:var(--yellow)}
 .act-row.danger b{color:#ff8a8a}
 .danger-title{font-family:var(--display);font-weight:600;font-size:15px;color:var(--muted);margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}
-.lang-field{max-width:none!important}.lang-field select,.lang-field .cs-btn{width:100%;max-width:none}
+.lang-field{max-width:none!important}.lang-field .cs-btn{width:100%;max-width:none}
 
 .wl-steps{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
 .wl-step{display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px}

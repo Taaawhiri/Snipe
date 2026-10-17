@@ -82,3 +82,12 @@ test('benvenuto: alla prima apertura senza alert compaiono i tre passi', async (
   assert.deepEqual(errors, []);
   await page.close();
 });
+
+test('opzioni: nessuno scorrimento orizzontale su telefono', async () => {
+  const { page } = await openApp(browser, srv.url, { 'GET /api/state': baseState() });
+  await page.click('[data-tab=settings]');
+  await page.waitForTimeout(300);
+  const [w, sw] = await page.evaluate(() => [document.documentElement.clientWidth, document.documentElement.scrollWidth]);
+  assert.equal(sw, w);
+  await page.close();
+});

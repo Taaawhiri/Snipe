@@ -271,6 +271,7 @@ async function handle(req, env) {
     // Ricerca per nome e rinnovo dell'indice usano il catalogo condiviso (server dati 'main').
     if (url.pathname === '/api/search') return forward(env, 'main', req, headers);
     if (url.pathname === '/api/deals') return forward(env, 'main', req, headers);
+    if (url.pathname === '/api/collection/match') return forward(env, 'main', req, headers);
     if (url.pathname === '/api/index/refresh') {
       if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può rinnovare l’indice.' }, 403);
       return forward(env, 'main', req, headers);

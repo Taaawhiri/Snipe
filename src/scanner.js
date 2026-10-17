@@ -13,6 +13,7 @@ import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settin
 import { generateVapidKeys, sendPush } from './push.js';
 import { regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
+import { expScore } from './importcsv.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -231,6 +232,90 @@ export class Scanner extends DurableObject {
     }
     best.sort((a, b) => b.score - a.score || b.expansionId - a.expansionId);
     return { candidates: best.slice(0, 6), indexComplete: !!meta.complete };
+  }
+
+  /**
+   * Importazione: per ogni riga del file le carte dell'indice che corrispondono.
+   * status: 'found' (una sola carta sicura), 'choose' (più carte possibili), 'none'.
+   */
+  async matchImport(items) {
+    const meta = await this.indexMeta();
+    const exps = await this.pokemonExpansions().catch(() => []);
+    const byId = new Map(exps.map((e) => [e.id, e]));
+    const ix = new Map();
+    for (let i = 0; i < meta.have.length; i += 100) {
+      const got = await this.ctx.storage.get(meta.have.slice(i, i + 100).map((id) => `ix:${id}`));
+      for (const [k, rows] of got) ix.set(parseInt(k.slice(3), 10), rows);
+    }
+    const bpIndex = new Map();
+    const card = (r, expId) => {
+      const e = byId.get(expId) || {};
+      return { id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '' };
+    };
+    if (items.some((it) => it.bp)) for (const [expId, rows] of ix) for (const r of rows) bpIndex.set(r[0], card(r, expId));
+    return items.map((it) => {
+      if (it.bp && bpIndex.has(it.bp)) return { ...it, status: 'found', candidates: [bpIndex.get(it.bp)] };
+      // Espansioni che somigliano a quanto scritto; se non c'è o non somiglia a nulla, tutte.
+      let expIds = [...ix.keys()];
+      if (it.set) {
+        const scored = exps.map((e) => [e.id, expScore(it.set, e)]).filter(([id, sc]) => sc >= 4 && ix.has(id)).sort((a, b) => b[1] - a[1]);
+        if (scored.length) { const top = scored[0][1]; expIds = scored.filter(([, sc]) => sc >= top - 2).map(([id]) => id).slice(0, 8); }
+      }
+      const scan = { name: it.name, number: it.number, total: it.total, language: it.lang === 'jp' ? 'jp' : it.lang === 'ko' || it.lang === 'zh' ? it.lang : '' };
+      const best = [];
+      for (const expId of expIds) {
+        const e = byId.get(expId) || {};
+        for (const r of ix.get(expId) || []) {
+          const sc = scoreRow(r, scan, e.code, e.name);
+          const nameOk = !it.name || normText(r[1]).split(' ').some((w) => normText(it.name).split(' ').includes(w));
+          if (nameOk && sc >= 4) best.push({ sc, c: card(r, expId) });
+        }
+      }
+      best.sort((a, b) => b.sc - a.sc);
+      const top = best.slice(0, 5);
+      // Sicura: punteggio alto (nome + numero) e nessun'altra carta vicina.
+      const sure = top.length && top[0].sc >= 9 && (top.length === 1 || top[0].sc - top[1].sc >= 3);
+      return { ...it, status: !top.length ? 'none' : sure ? 'found' : 'choose', candidates: (sure ? top.slice(0, 1) : top).map((x) => x.c) };
+    });
+  }
+
+  /** Aggiunge molte carte in una volta (importazione): una sola scrittura, prezzi letti dal giro in background. */
+  async collectionImport(list) {
+    const coll = await this.get('coll', []);
+    const plan = await this.plan();
+    let added = 0;
+    let merged = 0;
+    let limited = 0;
+    for (const b of list.slice(0, 2000)) {
+      const bp = parseInt(b.bp, 10);
+      if (!Number.isInteger(bp) || bp <= 0) continue;
+      const lang = normLang(b.lang) || '';
+      const cond = CONDITIONS.includes(b.cond) ? b.cond : '';
+      const key = collKey(bp, lang, cond);
+      const qty = Math.max(1, Math.min(999, parseInt(b.qty, 10) || 1));
+      const paid = Number(b.paidCents) > 0 ? Math.round(Number(b.paidCents)) : null;
+      const prev = coll.find((c) => c.key === key);
+      if (prev) {
+        const total = Math.min(999, prev.qty + qty);
+        if (paid) prev.paidCents = prev.paidCents ? Math.round((prev.paidCents * prev.qty + paid * qty) / (prev.qty + qty)) : paid;
+        prev.qty = total;
+        merged++;
+        continue;
+      }
+      if (coll.length >= plan.maxColl) { limited++; continue; }
+      coll.unshift({
+        key, bp, lang, cond, qty, paidCents: paid,
+        name: String(b.name || '').slice(0, 120),
+        image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : null,
+        expansionId: parseInt(b.expansionId, 10) || null,
+        expName: String(b.expName || '').slice(0, 80),
+        cmId: null,
+        ts: Date.now(),
+      });
+      added++;
+    }
+    await this.ctx.storage.put('coll', coll);
+    return { added, merged, limited, limit: plan.maxColl };
   }
 
   // ---------- Collezione ----------
@@ -583,7 +668,7 @@ export class Scanner extends DurableObject {
     // x-do = server dati dell'utente che fa la richiesta. La ricerca passa dal catalogo ('main'):
     // lì il piano di chi cerca non deve sostituire quello del proprietario.
     const xdo = req.headers.get('x-do');
-    if (xdo && !['/api/search', '/api/index/refresh', '/api/deals'].includes(path) && !(await this.ctx.storage.get('doName'))) await this.ctx.storage.put('doName', xdo);
+    if (xdo && !['/api/search', '/api/index/refresh', '/api/deals', '/api/collection/match'].includes(path) && !(await this.ctx.storage.get('doName'))) await this.ctx.storage.put('doName', xdo);
     const mine = !xdo || xdo === (await this.get('doName', CATALOG));
     const planHeader = mine ? req.headers.get('x-plan') : null;
     if (planHeader && planHeader !== (await this.get('plan', null))) {
@@ -921,6 +1006,19 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/collection' && method === 'GET') {
       return json(await this.collectionView());
+    }
+
+    if (path === '/api/collection/match' && method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      const items = Array.isArray(b.items) ? b.items.slice(0, 1000) : [];
+      return json({ rows: await this.matchImport(items) });
+    }
+
+    if (path === '/api/collection/import' && method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      const res = await this.collectionImport(Array.isArray(b.items) ? b.items : []);
+      await this.collectionPrices(true).catch(() => null);
+      return json(res);
     }
 
     if (path === '/api/collection' && method === 'POST') {
@@ -1733,7 +1831,15 @@ export class Scanner extends DurableObject {
       return hit ? hit.ts : 0;
     };
     // Gli alert con la stella contano come se i loro dati fossero tre volte più vecchi: si aggiornano più spesso.
-    const due = pickDue([...sources.values()], age, Date.now(), MARKET_PER_SCAN);
+    // Gli alert hanno la precedenza: desideri e collezione prendono una lettura solo quando
+    // le carte degli alert sono già fresche (lette negli ultimi 3 minuti). Così anche importare
+    // centinaia di carte in collezione non rallenta gli alert.
+    const all = [...sources.values()];
+    const now = Date.now();
+    const ruleDue = pickDue(all.filter((x) => x.prio >= 2), age, now, MARKET_PER_SCAN);
+    const otherDue = pickDue(all.filter((x) => x.prio < 2), age, now, MARKET_PER_SCAN);
+    const fresh = (src) => src && now - age(src) < 3 * 60_000;
+    const due = [...ruleDue.filter((x) => !fresh(x)), ...otherDue, ...ruleDue.filter(fresh)].slice(0, MARKET_PER_SCAN);
     let n = 0;
     let error = null;
     for (const src of due) {
