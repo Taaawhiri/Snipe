@@ -899,13 +899,13 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 
 /* logo: HOLO | Poké Ball | Snipe in un blocco unico (la Poké Ball fa da giuntura e continua ad animarsi) */
 .brand.lockup{gap:0}
-.lockup .lk-holo{font:900 12px var(--sans);letter-spacing:.14em;color:#2a1840;padding:7px 18px 7px 9px;border:2px solid #1b2340;border-right:0;border-radius:10px 0 0 10px;
+.lockup .lk-holo{font:700 15px var(--display);letter-spacing:.06em;color:#2a1840;padding:7px 18px 7px 9px;border:2px solid #1b2340;border-right:0;border-radius:10px 0 0 10px;
   background:linear-gradient(100deg,#ff9ad5 0%,#ffe36b 22%,#8affc1 42%,#7ec8ff 62%,#c59bff 82%,#ff9ad5 100%);background-size:250% 100%;animation:holo-sh 7s linear infinite}
 .lockup svg{margin:0 -14px;position:relative;z-index:1}
 .lockup .lk-snipe{font-size:22px;line-height:1;background:#141a3a;border:2px solid #1b2340;border-left:0;border-radius:0 10px 10px 0;padding:5px 11px 6px 20px;text-shadow:none}
 @keyframes holo-sh{to{background-position:250% 0}}
 @media (prefers-reduced-motion:reduce){.lockup .lk-holo{animation:none}}
-@media (max-width:400px){.brand .logo.lk-snipe{font-size:19px}.lockup .lk-holo{font-size:11px;padding:6px 16px 6px 8px}}
+@media (max-width:400px){.brand .logo.lk-snipe{font-size:19px}.lockup .lk-holo{font-size:13px;padding:6px 16px 6px 8px}}
 
 /* logo grande nella pagina di accesso */
 .hero-brand.lockup{gap:0}
@@ -913,10 +913,10 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .lockup.big .reticle svg{width:56px;height:56px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
 .lockup.big .ball-top{fill:var(--yellow)}
 .lockup.big .ball-line,.lockup.big .ball-btn{stroke:#1b2340}
-.lockup.big .lk-holo{font-size:17px;padding:11px 28px 11px 13px;border-radius:14px 0 0 14px;border-width:3px}
+.lockup.big .lk-holo{font-size:21px;padding:11px 28px 11px 13px;border-radius:14px 0 0 14px;border-width:3px}
 .lockup.big .lk-snipe{font-size:36px;color:#fff;padding:6px 16px 8px 30px;border-radius:0 14px 14px 0;border-width:3px}
-@media (min-width:900px){.lockup.big .reticle svg{width:68px;height:68px}.lockup.big .reticle{margin:0 -26px}.lockup.big .lk-snipe{font-size:46px;padding:6px 20px 9px 36px}.lockup.big .lk-holo{font-size:20px;padding:15px 34px 15px 16px}}
-@media (max-width:380px){.lockup.big .lk-snipe{font-size:30px}.lockup.big .lk-holo{font-size:15px}}
+@media (min-width:900px){.lockup.big .reticle svg{width:68px;height:68px}.lockup.big .reticle{margin:0 -26px}.lockup.big .lk-snipe{font-size:46px;padding:6px 20px 9px 36px}.lockup.big .lk-holo{font-size:25px;padding:15px 34px 15px 16px}}
+@media (max-width:380px){.lockup.big .lk-snipe{font-size:30px}.lockup.big .lk-holo{font-size:18px}}
 .lockup.big .lk-snipe{background:linear-gradient(#b8374d,#8f1d31);border-color:#1b2340;padding-left:36px;box-shadow:0 3px 0 rgba(0,0,0,.3)}
 .lockup.big .lk-holo{box-shadow:0 3px 0 rgba(0,0,0,.3)}
 @media (min-width:900px){.lockup.big .lk-snipe{padding-left:42px}}
