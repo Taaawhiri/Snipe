@@ -2398,6 +2398,8 @@
   });
   $('cardPriceMode').addEventListener('change', renderCards);
   $('cardKind').addEventListener('change', renderCards);
+  // Cambio di lingua o condizione con la scheda della carta aperta: la scheda si ricalcola.
+  for (const id of ['cardCond', 'cardLang']) $(id).addEventListener('change', () => { if ($('cardDialog').open && current) openCard(current); });
   $('cardCond').addEventListener('change', () => {
     try { localStorage.setItem('snipe.cardCond2', $('cardCond').value); } catch {}
     renderCards();
@@ -2454,9 +2456,11 @@
     $('alertCond').value = minRank !== '' ? condNames[Number(minRank)] : 'Slightly Played';
     $('dlgLow').textContent = v.lowest == null ? '—' : money(v.lowest, c.currency);
     $('dlgLowZero').textContent = v.lowestZero == null ? '—' : money(v.lowestZero, c.currency);
+    // Lingua e condizione si cambiano da qui: toccando la pillola si apre la scelta, e prezzi e annunci si ricalcolano.
+    const pick = (cls, text, sel) => el('button', { class: `chip chip-pick ${cls}`, type: 'button', onclick: () => cselOpen($(sel)) }, el('span', { text }), el('span', { class: 'cp-arrow', text: '▾', 'aria-hidden': 'true' }));
     $('dlgLangNote').replaceChildren(
-      ...(lang ? [chip(`Prezzi in ${LANG_NAMES[lang] || lang.toUpperCase()}`, 'zero')] : []),
-      ...(minRank !== '' ? [chip(`${condNames[Number(minRank)]} o migliore`, 'cond')] : []),
+      pick('zero', lang ? `Prezzi in ${LANG_NAMES[lang] || lang.toUpperCase()}` : 'Tutte le lingue', 'cardLang'),
+      pick('cond', minRank !== '' ? `${condNames[Number(minRank)]} o migliore` : 'Qualsiasi condizione', 'cardCond'),
     );
     $('alertLang').value = [...$('alertLang').options].some((o) => o.value === toRuleLang(lang)) ? toRuleLang(lang) : '';
     $('alertError').hidden = true;

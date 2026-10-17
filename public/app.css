@@ -956,3 +956,5 @@ header.top.ball-err .status.ring-status{background:#3a1420}
 .ring-pop .dot.wait{background:#e0a92a;box-shadow:0 0 0 3px rgba(224,169,42,.2)}
 .ring-status[data-mode="wait"] .rg-prog{stroke:#e0a92a}
 header.top.ball-wait .status.ring-status{background:#2e2410}
+.chip.chip-pick{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit;font-size:inherit;font-weight:700}
+.chip.chip-pick .cp-arrow{opacity:.7;font-size:.85em}
