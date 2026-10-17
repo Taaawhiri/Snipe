@@ -85,6 +85,9 @@ main { max-width: 1080px; margin: 0 auto; width: 100%; }
 
 main { padding: 22px 0 130px; }
 .tab { display: flex; flex-direction: column; gap: 16px; }
+/* Sezioni della pagina Regole: stessa spaziatura della pagina */
+#rvAlertsBox, #rvWishBox, #rvSellersBox { display: flex; flex-direction: column; gap: 16px; }
+#rvAlertsBox[hidden], #rvWishBox[hidden], #rvSellersBox[hidden] { display: none; }
 .intro { display: flex; flex-direction: column; gap: 4px; }
 
 /* ---------- pannelli e campi ---------- */
