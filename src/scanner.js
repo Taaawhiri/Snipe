@@ -726,13 +726,6 @@ export class Scanner extends DurableObject {
       return json({ ok: true });
     }
 
-    if (path === '/api/graded-diag' && method === 'GET') {
-      if ((await this.plan()).id !== 'owner') return json({ error: 'Solo il proprietario' }, 403);
-      const saved = await this.get('gradedDiag', null);
-      const mem = this.gradedDiag;
-      return json(mem && (!saved || mem.listings >= (saved.listings || 0)) ? mem : saved || { listings: 0, graded: 0, samples: [] });
-    }
-
     if (path === '/api/state' && method === 'GET') {
       const [rules, alerts, status, subs] = await Promise.all([
         this.get('rules', []),
@@ -1382,7 +1375,6 @@ export class Scanner extends DurableObject {
     if (hit && Date.now() - hit.ts < maxAgeMs) return hit.data;
     try {
       const data = await this.ct(`/marketplace/products?expansion_id=${expansionId}`, background);
-      this.noteGraded(data);
       this.productCache.set(expansionId, { ts: Date.now(), data });
       // Lo storico delle carte seguite si aggiorna anche dalla lettura per espansione.
       for (const bp of await this.trackedCards()) {
@@ -1404,7 +1396,6 @@ export class Scanner extends DurableObject {
     if (hit && Date.now() - hit.ts < maxAgeMs) return hit.data;
     try {
       const data = await this.ct(`/marketplace/products?blueprint_id=${blueprintId}`, background);
-      this.noteGraded(data);
       this.bpCache.set(blueprintId, { ts: Date.now(), data });
       await this.persistCard(blueprintId, data);
       await this.recordHistory(blueprintId, data[blueprintId] || data[String(blueprintId)]);
@@ -1445,32 +1436,6 @@ export class Scanner extends DurableObject {
           this.bpCache.set(id, { ts: v.ts, data: v.data });
           this.cardSigs = this.cardSigs || new Map();
           this.cardSigs.set(id, slimSig(Object.values(v.data)[0] || []));
-        }
-      }
-    }
-  }
-
-  /**
-   * Diagnostica temporanea: com'è fatto un annuncio gradato su CardTrader (campi e testi), per capire
-   * dove si trovano società e voto (PSA 9, BGS 9.5…). Tiene pochi esempi, li vede solo il proprietario.
-   */
-  noteGraded(data) {
-    const d = (this.gradedDiag = this.gradedDiag || { listings: 0, graded: 0, samples: [] });
-    for (const list of Object.values(data || {})) {
-      for (const p of list || []) {
-        if (!p) continue;
-        d.listings++;
-        const textual = Object.entries(p).filter(([, v]) => typeof v === 'string' && v.length > 2 && v.length < 400);
-        const gradeText = textual.find(([, v]) => /\b(psa|bgs|cgc|sgc|beckett|ace|tag)\s*-?\s*\d/i.test(v));
-        if (!p.graded && !gradeText) continue;
-        d.graded++;
-        if (d.samples.length < 8 && !d.samples.some((x) => x.bp === p.blueprint_id)) {
-          d.samples.push({
-            bp: p.blueprint_id, name: p.name_en, graded: p.graded ?? null, cents: p.price && p.price.cents,
-            fields: Object.keys(p), props: p.properties_hash || null,
-            texts: Object.fromEntries(textual.filter(([k]) => !/^(name|image|url)/i.test(k)).slice(0, 8)),
-          });
-          this.gradedDirty = true;
         }
       }
     }
@@ -1916,7 +1881,6 @@ export class Scanner extends DurableObject {
     await this.maybeSummary();
     await this.saveStatus(status);
     await this.saveReadLog().catch(() => null);
-    if (this.gradedDirty) { this.gradedDirty = false; await this.ctx.storage.put('gradedDiag', this.gradedDiag).catch(() => null); }
 
     const settings = await this.settings();
     const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
