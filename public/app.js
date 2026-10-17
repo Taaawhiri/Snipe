@@ -792,10 +792,23 @@
       const img = new Image();
       img.onload = () => {
         const k = Math.min(1, 1280 / Math.max(img.width, img.height));
+        const w = Math.round(img.width * k);
+        const h = Math.round(img.height * k);
         const c = document.createElement('canvas');
-        c.width = Math.round(img.width * k);
-        c.height = Math.round(img.height * k);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const ctx = c.getContext('2d');
+        // Le carte sono verticali: se la foto arriva orizzontale (telefono girato o fotocamera che la ruota)
+        // la raddrizziamo, così il riconoscimento legge nome e numero nel verso giusto.
+        if (w > h * 1.05) {
+          c.width = h;
+          c.height = w;
+          ctx.translate(0, w);
+          ctx.rotate(-Math.PI / 2);
+          ctx.drawImage(img, 0, 0, w, h);
+        } else {
+          c.width = w;
+          c.height = h;
+          ctx.drawImage(img, 0, 0, w, h);
+        }
         URL.revokeObjectURL(img.src);
         resolve(c.toDataURL('image/jpeg', 0.85));
       };
