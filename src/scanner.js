@@ -11,7 +11,7 @@ import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
-import { regionFromLangs, regionFromName } from './region.js';
+import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
 import { RELEASED } from './expdates.js';
 import { expScore, mapRows, parseCsv } from './importcsv.js';
@@ -753,7 +753,7 @@ export class Scanner extends DurableObject {
       const byId = new Map(exps.map((e) => [e.id, e]));
       for (const id of Object.keys(tried)) {
         const e = byId.get(Number(id));
-        if (!e || map[id] || problems[id] || regionFromName(e.name)) continue;
+        if (!e || map[id] || REGION_FIXED[id] || problems[id] || regionFromName(e.name)) continue;
         problems[id] = { name: e.name, code: e.code, kind: 'none', note: 'non riconosciuta al primo giro (pochi annunci o un errore)' };
       }
       return json(Object.entries(problems).map(([id, p]) => ({ id: Number(id), ...p })).sort((a, b) => a.name.localeCompare(b.name)));
@@ -777,7 +777,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/expansions' && method === 'GET') {
       try {
         const [list, map] = await Promise.all([this.pokemonExpansions(), this.regions()]);
-        return json(list.map((e) => ({ ...e, region: map[e.id] || regionFromName(e.name), vintage: vintageEra(e.id), released: RELEASED[e.id] || null })));
+        return json(list.map((e) => ({ ...e, region: map[e.id] || REGION_FIXED[e.id] || regionFromName(e.name), vintage: vintageEra(e.id), released: RELEASED[e.id] || null })));
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
@@ -1568,7 +1568,7 @@ export class Scanner extends DurableObject {
     const tried = await this.get('regionTried', {});
     const stats = await this.get('regionStats', { ok: 0, none: 0, err: 0 });
     const week = 7 * 86400_000;
-    const todo = exps.filter((e) => !map[e.id] && !regionFromName(e.name) && !(tried[e.id] && Date.now() - tried[e.id] < week));
+    const todo = exps.filter((e) => !map[e.id] && !REGION_FIXED[e.id] && !regionFromName(e.name) && !(tried[e.id] && Date.now() - tried[e.id] < week));
     status.regions = { done: exps.length - todo.length, total: exps.length, ...stats };
     const e = todo[0];
     if (!e) return;

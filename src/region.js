@@ -26,3 +26,9 @@ export function regionFromName(name) {
   if (/\bthai\b|indonesian|asia/.test(n)) return 'Asia';
   return null;
 }
+
+/** Regioni indicate a mano dal proprietario per le espansioni che il giro non riconosce (id CardTrader). */
+export const REGION_FIXED = {
+  4868: 'CN', // Aura Seeker
+  1982: 'JAP', // Awakening Legends Premium File 3
+};
