@@ -1,3 +1,3 @@
 // Cambia a ogni modifica del server: /api/health mostra se Worker e server dati sono allineati.
-// Nome in codice: un Pokémon in ordine di Pokédex, uno nuovo a ogni versione (#069 Clefairy, #002 Ivysaur, ...).
-export const BUILD = '#069 Clefairy · 2026-10-17';
+// Nome in codice: un Pokémon in ordine di Pokédex, uno nuovo a ogni versione (#070 Clefable, #002 Ivysaur, ...).
+export const BUILD = '#070 Clefable · 2026-10-17';

@@ -208,7 +208,7 @@
     'Nessuna regola attiva ': 'No active rules',
     'Le notifiche funzionano.': 'Notifications work.',
     // collezione
-    'Collezione': 'Collection', 'Avvisi': 'Alerts', 'Vista': 'View', 'Valore': 'Value', 'Guadagno': 'Gain', 'Per set': 'By set', 'Variazione': 'Change',
+    'Collezione': 'Collection', 'Avvisi': 'Alerts', 'Venditore': 'Seller', 'Spedizione': 'Shipping', 'Zero: una sola spedizione per tutto l’ordine': 'Zero: one shipment for the whole order', 'Sotto soglia': 'Below threshold', 'Disponibile': 'Available', 'Vista': 'View', 'Valore': 'Value', 'Guadagno': 'Gain', 'Per set': 'By set', 'Variazione': 'Change',
     'Ordina la collezione': 'Sort the collection', 'Valore attuale (prezzo più basso CardTrader)': 'Current value (lowest CardTrader price)',
     'Il grafico del valore compare dal secondo giorno.': 'The value chart appears from the second day.',
     'La collezione è vuota: aggiungi la prima carta.': 'Your collection is empty: add your first card.',
@@ -246,6 +246,7 @@
   };
 
   const R = [
+    [/^tendenza (.+)$/, 'trend $1'], [/^\+ (.+) spedizione tracciata = (.+)$/, '+ $1 tracked shipping = $2'], [/^\+ (.+) spedizione = (.+)$/, '+ $1 shipping = $2'], [/^(.+) Cardmarket$/, '$1 Cardmarket'], [/^(.+) 7 giorni fa$/, '$1 7 days ago'],
     [/^(\d+) alert su (\d+)$/, '$1 of $2 alerts'], [/^Nessun alert per “(.+)”$/, 'No alerts for “$1”'],
     [/^(.+) · 🕰️ Era EX 2003–2007$/, '$1 · 🕰️ EX era 2003–2007'],
     [/^(\d+) su (\d+) · ne mancano (\d+)$/, '$1 of $2 · $3 left'], [/^tutte fatte \((\d+)\)$/, 'all done ($1)'], [/^\+(\d+) trovate$/, '+$1 found'], [/^(\d+) senza annunci$/, '$1 without listings'], [/^(\d+) errori$/, '$1 errors'], [/^Ultimo errore: (.+)$/, 'Last error: $1'],

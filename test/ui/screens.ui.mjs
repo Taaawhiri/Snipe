@@ -37,7 +37,7 @@ test('avvisi non visti: si apre su Avvisi con il contatore', async () => {
   const alerts = [{ id: 'a1', ts: Date.now(), name: 'Mew ex', expansion: '151', cents: 400, refCents: 900, discount: 0.55, currency: 'EUR', url: 'https://www.cardtrader.com/cards/1' }];
   const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': baseState({ alerts }) });
   assert.ok(await page.isVisible('#alertsView'));
-  assert.equal(await page.textContent('#alertsLabel'), 'Avvisi (1)');
+  assert.equal(await page.textContent('#alertsLabel'), 'Avvisi1');
   assert.ok((await page.textContent('#alertList')).includes('Mew ex'));
   assert.deepEqual(errors, []);
 });

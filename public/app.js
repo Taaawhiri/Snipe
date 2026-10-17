@@ -1238,43 +1238,44 @@
     list.replaceChildren(
       ...shown.map((a) => {
         const lv = a.discount >= 0.5 ? 'lv3' : a.discount >= 0.3 ? 'lv2' : 'lv1';
-        const who = a.seller && `${a.seller}${a.country ? ' (' + a.country + ')' : ''}`;
-        const card = el(
-          'a',
-          { class: 'alert' + (lv === 'lv3' ? ' hot' : '') + (a.mark ? ' marked' : ''), href: a.url || '#', target: '_blank', rel: 'noopener noreferrer' },
-          thumb(a.cardImage),
-          el('div', { class: 'main' },
-            el('div', { class: 'name', text: a.name || '' }),
-            el('div', { class: 'sub', text: a.expansion || '' }),
-            el('div', { class: 'chips' },
-              a.condition ? chip(a.condition, 'cond') : null,
-              a.language ? chip(a.language.toUpperCase(), 'lang') : null,
-              who ? chip(who) : null,
-              a.zero ? chip('Zero', 'zero') : null,
+        const badge = a.test ? chip('prova') : a.refKind === 'stock' ? el('span', { class: 'al-badge stock', text: 'Disponibile' })
+          : a.discount >= 0.01 ? el('span', { class: `al-badge ${lv}`, text: `−${Math.round(a.discount * 100)}%` }) : el('span', { class: 'al-badge stock', text: 'Sotto soglia' });
+        const refTag = a.refKind === 'cardmarket' ? ' Cardmarket' : a.refKind === 'drop' ? ' 7 giorni fa' : '';
+        const shipTxt = a.test ? null : a.zero ? 'Zero: una sola spedizione per tutto l’ordine'
+          : a.ship ? `+ ${money(a.ship.cents, a.currency)} spedizione${a.ship.tracked ? ' tracciata' : ''} = ${money(a.cents + a.ship.cents, a.currency)}` : 'Spedizione non stimata';
+        const markBtn = (m, label, done) => el('button', { class: 'al-btn' + (a.mark === m ? ' on' : ''), type: 'button', text: a.mark === m ? done : label,
+          onclick: () => markAlert(a, a.mark === m ? null : m) });
+        return el('article', { class: 'al' + (lv === 'lv3' ? ' hot' : '') + (a.mark ? ' marked' : '') },
+          el('div', { class: 'al-top' },
+            el('a', { class: 'al-img', href: a.url || '#', target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Apri su CardTrader' }, thumb(a.cardImage)),
+            el('div', { class: 'al-info' },
+              el('div', { class: 'al-head' },
+                el('div', { class: 'al-name', text: a.name || '' }),
+                badge,
+              ),
+              el('div', { class: 'al-exp', text: [a.expansion, ago(a.ts)].filter(Boolean).join(' · ') }),
+              a.test ? null : el('div', { class: 'al-price' },
+                el('span', { class: 'now', text: money(a.cents, a.currency) }),
+                a.refKind !== 'stock' && a.refCents ? el('span', { class: 'was', text: money(a.refCents, a.currency) + refTag }) : null,
+              ),
+              el('div', { class: 'al-tags' },
+                a.condition ? chip(a.condition, 'cond') : null,
+                a.language ? chip(a.language.toUpperCase(), 'lang') : null,
+                a.zero ? chip('Zero', 'zero') : null,
+              ),
             ),
-            a.test ? null : el('div', { class: 'prices' },
-              el('span', { class: 'price', text: money(a.cents, a.currency) }),
-              a.refKind === 'stock' ? el('span', { class: 'chip zero', text: 'Di nuovo disponibile' })
-              : el('span', { class: 'ref' }, money(a.refCents, a.currency), a.refKind === 'cardmarket' ? el('span', { class: 'cmtag', text: 'Cardmarket' }) : a.refKind === 'drop' ? el('span', { class: 'cmtag', text: '7 giorni fa' }) : null),
-            ),
-            a.test || !a.cmCents || a.refKind === 'cardmarket' ? null : el('div', { class: 'ship', text: `Cardmarket tendenza ${money(a.cmCents, a.currency)}` }),
-            a.test ? null : el('div', { class: 'ship', text: a.zero
-              ? 'Spedizione con CardTrader Zero: una sola per tutto l’ordine'
-              : a.ship
-                ? `+ ${money(a.ship.cents, a.currency)} spedizione${a.ship.tracked ? ' tracciata' : ''} → totale ${money(a.cents + a.ship.cents, a.currency)}`
-                : 'Spedizione non stimata' }),
           ),
-          el('div', { class: 'side' },
-            a.test ? chip('prova') : a.refKind === 'stock' ? chip('Disponibile', 'cond') : a.discount >= 0.01 ? el('span', { class: `badge ${lv}`, text: `−${Math.round(a.discount * 100)}%` }) : chip('Sotto soglia', 'zero'),
-            el('span', { class: 'when', text: ago(a.ts) }),
-            a.test ? null : el('span', { class: 'go', text: 'CardTrader ↗' }),
+          a.test ? null : el('div', { class: 'al-meta' },
+            a.seller ? el('div', null, el('span', { class: 'k', text: 'Venditore' }), el('span', { text: `${a.seller}${a.country ? ' · ' + a.country : ''}` })) : null,
+            a.cmCents && a.refKind !== 'cardmarket' ? el('div', null, el('span', { class: 'k', text: 'Cardmarket' }), el('span', { text: `tendenza ${money(a.cmCents, a.currency)}` })) : null,
+            el('div', null, el('span', { class: 'k', text: 'Spedizione' }), el('span', { text: shipTxt })),
+          ),
+          a.test ? null : el('div', { class: 'al-acts' },
+            markBtn('seen', 'Segna visto', '✓ Visto'),
+            markBtn('bought', 'Comprato', '✓ Comprato'),
+            el('a', { class: 'al-btn go', href: a.url || '#', target: '_blank', rel: 'noopener noreferrer', text: 'CardTrader ↗' }),
           ),
         );
-        if (a.test) return card;
-        const markBtn = (m, label) => el('button', { class: 'btn mini' + (a.mark === m ? ' on' : ''), type: 'button', text: label,
-          onclick: () => markAlert(a, a.mark === m ? null : m) });
-        return el('div', { class: 'alertwrap' }, card,
-          el('div', { class: 'alert-acts' }, markBtn('seen', a.mark === 'seen' ? '✓ Visto' : 'Segna visto'), markBtn('bought', a.mark === 'bought' ? '✓ Comprato' : 'Comprato')));
       }),
     );
     $('alertEmpty').hidden = state.alerts.length > 0;
@@ -1285,7 +1286,7 @@
     $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con Snipe · ${money(saved)} risparmiati rispetto al riferimento`;
 
     const unseen = state.alerts.filter((a) => !a.test && !a.mark).length;
-    $('alertsLabel').textContent = unseen ? `Avvisi (${unseen})` : 'Avvisi';
+    $('alertsLabel').replaceChildren('Avvisi', ...(unseen ? [el('span', { class: 'count-dot', text: unseen > 99 ? '99+' : String(unseen) })] : []));
     $('alertDot').hidden = !unseen;
     if (!hviewChosen) { hviewChosen = true; setHview(unseen ? 'alerts' : 'coll'); }
 
