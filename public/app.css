@@ -999,3 +999,16 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 .est-badge{font:800 10px var(--sans,system-ui);letter-spacing:.08em;color:#2a1a00;background:linear-gradient(135deg,#ffd76a,#f0a92b);border:0;border-radius:6px;padding:3px 6px;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.25)}
 .est-badge:active{transform:translateY(1px)}
 .est-badge.fallback{color:#e7ecff;background:linear-gradient(135deg,#5b6795,#3d4774)}
+
+/* Selezione multipla in collezione (tieni premuto) */
+#collList .ci{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.coll-selecting #collList .ci{cursor:pointer;outline:2px dashed transparent;transition:outline-color .15s,transform .1s}
+.coll-selecting #collList .ci.picked{outline:3px solid var(--blue,#7b8cff);background:color-mix(in srgb,var(--blue,#7b8cff) 16%,var(--surface))}
+.coll-selecting #collList .ci .qty,.coll-selecting #collList .ci .ci-edit{pointer-events:none;opacity:.5}
+.coll-selecting .tabs{visibility:hidden}
+.sel-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:7;width:min(440px,calc(100% - 24px));box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:3px solid var(--outline);border-radius:26px;box-shadow:0 5px 0 var(--outline),0 16px 30px rgba(0,0,0,.3)}
+.sel-bar[hidden]{display:none}
+.sel-bar .sb-n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sel-bar button{font:inherit;font-weight:800;border-radius:999px;border:2px solid var(--line);background:var(--surface-2);color:var(--text);padding:9px 12px;cursor:pointer}
+.sel-bar .sb-x{padding:9px 13px}
+.sel-bar .sb-del{background:var(--red,#d0384b);border-color:transparent;color:#fff}

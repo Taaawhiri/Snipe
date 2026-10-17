@@ -33,6 +33,29 @@ test('collezione: valore, guadagno per carta e filtri', async () => {
   assert.deepEqual(errors, []);
 });
 
+test('collezione: tieni premuto per selezionare ed eliminare più carte', async () => {
+  const { page, errors, calls } = await openApp(browser, srv.url);
+  await page.waitForTimeout(400);
+  const rows = await page.$$('#collList .ci');
+  assert.ok(rows.length >= 2);
+  const box = await rows[0].boundingBox();
+  await page.mouse.move(box.x + 20, box.y + 20);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  assert.ok(await page.isVisible('#collSelBar'));
+  assert.equal(await page.textContent('#collSelBar .sb-n'), '1 selezionata');
+  await (await page.$$('#collList .ci'))[1].click({ position: { x: 20, y: 20 } });
+  assert.equal(await page.textContent('#collSelBar .sb-n'), '2 selezionate');
+  await page.click('#collSelBar .sb-del');
+  await page.click('.cs-dialog button:has-text("Elimina")');
+  await page.waitForTimeout(400);
+  assert.equal(calls.filter((c) => c.key === 'POST /api/collection' && c.body.includes('"qty":0')).length, 2);
+  assert.ok(await page.isHidden('#collSelBar'), JSON.stringify(errors) + await page.evaluate(() => document.getElementById('collSelBar').outerHTML.slice(0, 200)));
+  assert.deepEqual(errors, []);
+});
+
 test('avvisi non visti: si apre su Avvisi con il contatore', async () => {
   const alerts = [{ id: 'a1', ts: Date.now(), name: 'Mew ex', expansion: '151', cents: 400, refCents: 900, discount: 0.55, currency: 'EUR', url: 'https://www.cardtrader.com/cards/1' }];
   const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': baseState({ alerts }) });

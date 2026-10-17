@@ -136,6 +136,87 @@
     return svg;
   }
 
+  // ---------- selezione multipla (tieni premuto su una carta) ----------
+  const collSel = new Set(); // chiavi delle carte selezionate
+  let collSelMode = false;
+  function setSelMode(on) {
+    collSelMode = on;
+    if (!on) collSel.clear();
+    document.documentElement.classList.toggle('coll-selecting', on);
+    if (!on && $('collSelBar')) $('collSelBar').hidden = true;
+    renderCollection();
+  }
+  function toggleSel(key) {
+    if (collSel.has(key)) collSel.delete(key); else collSel.add(key);
+    if (!collSel.size) { setSelMode(false); return; }
+    renderCollection();
+  }
+  /** Tieni premuto mezzo secondo: entra in selezione. In selezione un tocco seleziona o deseleziona. */
+  function bindLongPress(row, it) {
+    let timer = null;
+    let start = null;
+    let fired = false;
+    const cancel = () => { clearTimeout(timer); timer = null; };
+    row.addEventListener('pointerdown', (e) => {
+      if (collSelMode) return;
+      fired = false;
+      start = [e.clientX, e.clientY];
+      timer = setTimeout(() => {
+        fired = true;
+        if (navigator.vibrate) try { navigator.vibrate(15); } catch {}
+        collSel.add(it.key);
+        setSelMode(true);
+      }, 500);
+    });
+    row.addEventListener('pointermove', (e) => { if (timer && start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 10) cancel(); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) row.addEventListener(ev, cancel);
+    row.addEventListener('contextmenu', (e) => e.preventDefault()); // niente menu del browser con la pressione lunga
+    // In selezione i tocchi non aprono la carta né cambiano le copie: selezionano.
+    row.addEventListener('click', (e) => {
+      if (fired) { fired = false; e.preventDefault(); e.stopPropagation(); return; }
+      if (!collSelMode) return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSel(it.key);
+    }, true);
+  }
+  function renderSelBar() {
+    let bar = $('collSelBar');
+    if (!bar) { bar = el('div', { id: 'collSelBar', class: 'sel-bar', role: 'toolbar', 'aria-label': 'Carte selezionate' }); document.body.append(bar); }
+    const visibleKeys = [...document.querySelectorAll('#collList .ci[data-key]')].map((x) => x.dataset.key);
+    bar.hidden = !collSelMode;
+    if (!collSelMode) return;
+    const all = visibleKeys.length && visibleKeys.every((k) => collSel.has(k));
+    bar.replaceChildren(
+      el('button', { class: 'sb-x', type: 'button', 'aria-label': 'Annulla selezione', text: '✕', onclick: () => setSelMode(false) }),
+      el('b', { class: 'sb-n', text: `${collSel.size} ${collSel.size === 1 ? 'selezionata' : 'selezionate'}` }),
+      el('button', { class: 'sb-all', type: 'button', text: all ? 'Nessuna' : 'Tutte', onclick: () => { if (all) visibleKeys.forEach((k) => collSel.delete(k)); else visibleKeys.forEach((k) => collSel.add(k)); if (!collSel.size) setSelMode(false); else renderCollection(); } }),
+      el('button', { class: 'sb-del', type: 'button', text: '🗑 Elimina', onclick: deleteSelected }),
+    );
+  }
+  async function deleteSelected() {
+    const items = ((coll && coll.items) || []).filter((it) => collSel.has(it.key));
+    if (!items.length) return;
+    const copies = items.reduce((t, it) => t + it.qty, 0);
+    const ok = await askConfirm('Puoi sempre aggiungerle di nuovo.', { title: `Togliere ${items.length} ${items.length === 1 ? 'carta' : 'carte'} dalla collezione${copies > items.length ? ` (${copies} copie)` : ''}?`, ok: 'Elimina', danger: true });
+    if (!ok) return;
+    let done = 0;
+    try {
+      for (const it of items) {
+        const res = await api('/api/collection', { method: 'POST', body: JSON.stringify({ ...it, qty: 0 }) });
+        if (res && res.items) coll = res;
+        done++;
+      }
+      toast(`✓ ${done} ${done === 1 ? 'carta tolta' : 'carte tolte'} dalla collezione`);
+    } catch (e) {
+      toast(`Tolte ${done} su ${items.length}: ${e.message}`, 'err');
+    }
+    setSelMode(false);
+    await loadCollection(); // valore e grafico ricalcolati dal server
+    renderOwnBox();
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && collSelMode) setSelMode(false); });
+
   function renderCollection() {
     if (!coll) return;
     $('collList').classList.remove('loading');
@@ -219,7 +300,7 @@
             saveOwn({ ...it, qty: it.qty + d });
           } });
         const g = it.price && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : null;
-        return el('div', { class: 'ci' + (g == null ? '' : g > 0 ? ' gain' : g < 0 ? ' loss' : '') },
+        const row = el('div', { class: 'ci' + (g == null ? '' : g > 0 ? ' gain' : g < 0 ? ' loss' : '') + (collSel.has(it.key) ? ' picked' : ''), 'data-key': it.key },
           isGradeLabel(it.cond) ? slabView(it.cond, it.image, it.name, 'slab-sm') : thumb(it.image),
           el('div', { class: 'ci-main' },
             el('button', { class: 't linklike', type: 'button', text: it.name, onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }),
@@ -243,8 +324,11 @@
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
         );
+        bindLongPress(row, it);
+        return row;
       }),
     );
+    renderSelBar();
   }
 
   /** Guadagno o perdita rispetto al prezzo pagato: importo e percentuale in una pillola colorata. */
