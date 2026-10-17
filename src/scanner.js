@@ -18,7 +18,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 3; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 4; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -394,6 +394,9 @@ export class Scanner extends DurableObject {
     for (const c of coll) {
       const hit = this.bpCache.get(c.bp);
       if (!hit) continue;
+      // Gradate e 1ª edizione hanno bisogno degli annunci completi (voto e edizione sono nel commento):
+      // con la versione leggera salvata su disco si aspetta la prossima lettura vera.
+      if (hit.slim && (c.first || parseGradeLabel(c.cond))) continue;
       const old = prices[c.key];
       if (!force && old && old.ts >= hit.ts && old.v === PRICE_V) continue;
       const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first });
@@ -458,7 +461,7 @@ export class Scanner extends DurableObject {
         this.ctx.waitUntil((async () => {
           try {
             for (const c of stale) {
-              await this.productsForCard(c.bp, 60 * 60_000).catch(() => null);
+              await this.productsForCard(c.bp, 60 * 60_000, false, { full: true }).catch(() => null);
               await this.collectionPrices(true).catch(() => null);
             }
           } finally {
@@ -1429,9 +1432,9 @@ export class Scanner extends DurableObject {
   }
 
   /** Tutti gli annunci di una carta: la lettura per espansione restituisce solo i più economici di ogni carta. */
-  async productsForCard(blueprintId, maxAgeMs = 5 * 60_000, background = false) {
+  async productsForCard(blueprintId, maxAgeMs = 5 * 60_000, background = false, opts = {}) {
     const hit = this.bpCache.get(blueprintId);
-    if (hit && Date.now() - hit.ts < maxAgeMs) return hit.data;
+    if (hit && !(hit.slim && opts.full) && Date.now() - hit.ts < maxAgeMs) return hit.data;
     try {
       const data = await this.ct(`/marketplace/products?blueprint_id=${blueprintId}`, background);
       this.bpCache.set(blueprintId, { ts: Date.now(), data });
@@ -1471,7 +1474,7 @@ export class Scanner extends DurableObject {
       for (const [k, v] of got) {
         const id = Number(k.slice(3));
         if (v && v.data && !this.bpCache.has(id)) {
-          this.bpCache.set(id, { ts: v.ts, data: v.data });
+          this.bpCache.set(id, { ts: v.ts, data: v.data, slim: true }); // versione leggera: senza gradate né commenti
           this.cardSigs = this.cardSigs || new Map();
           this.cardSigs.set(id, slimSig(Object.values(v.data)[0] || []));
         }

@@ -438,6 +438,27 @@
   }
   let hviewChosen = false;
 
+  /** Scritta sotto il prezzo (stima, altra edizione/lingua, non Zero): si tocca per sapere come è calcolato. */
+  function priceNote(it) {
+    const p = it.price;
+    if (!p) return null;
+    const text = p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
+      : p.edApprox ? '≈ altra edizione'
+      : p.approx ? `≈ altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
+      : p.notZero ? '≈ non Zero' : '';
+    if (!text) return null;
+    const lines = [];
+    if (p.estimated) {
+      lines.push(p.fromCm ? 'Nessun annuncio su CardTrader: si parte dalla tendenza Cardmarket della carta.' : `Nessun annuncio ${it.cond}: si parte da ${p.how || 'copie non gradate'}.`);
+      if (p.rawCents != null) lines.push(`Valore di base: ${money(p.rawCents)}, poi il premio medio del voto ${it.cond}.`);
+    }
+    if (p.edApprox) lines.push('Nessun annuncio 1ª edizione: è il prezzo delle copie normali.');
+    if (p.approx && !p.estimated && !p.edApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
+    if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
+    if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
+    return el('button', { class: 's linklike', type: 'button', text, onclick: () => dialog({ title: 'Come è calcolato', text: lines.join('\n\n') }) });
+  }
+
   let collPoll = null;
   async function loadCollection() {
     try {
@@ -618,10 +639,7 @@
             gainPill(it),
             miniSpark(it.spark30),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
-            it.price && it.price.estimated ? el('span', { class: 's', title: it.price.fromCm ? 'Nessun annuncio su CardTrader: stima dalla tendenza Cardmarket, con il premio medio del voto' : 'Nessun annuncio con questo voto: stima dal prezzo della copia non gradata, con il premio medio del voto', text: it.price.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto' })
-            : it.price && it.price.edApprox ? el('span', { class: 's', title: 'Nessun annuncio 1ª edizione: prezzo delle copie normali', text: '≈ altra edizione' })
-            : it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: `≈ altra lingua${it.price.lowLang && it.price.lowLang !== it.lang ? ` (${it.price.lowLang.toUpperCase()})` : ''}` })
-            : it.price && it.price.notZero ? el('span', { class: 's', title: 'Nessun annuncio Zero adatto: prezzo tra tutti i venditori', text: '≈ non Zero' }) : null,
+            priceNote(it),
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
         );

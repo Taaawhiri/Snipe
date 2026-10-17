@@ -768,7 +768,7 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .reg-stats .ok{background:#1d3d2e;color:#7fe0a6}.reg-stats .none{background:#4a3c12;color:#ffd66b}.reg-stats .err{background:#4a1d27;color:#ff9aac}
 .cs-dialog{padding:0 18px calc(18px + env(safe-area-inset-bottom,0px))}
 .cs-dialog .cs-title{padding:6px 0 4px}
-.cs-text{margin:0 0 14px;color:var(--muted);line-height:1.5}
+.cs-text{margin:0 0 14px;color:var(--muted);line-height:1.5;white-space:pre-line}
 .cs-input{width:100%;box-sizing:border-box;margin-bottom:14px}
 .cs-actions{display:flex;gap:10px}
 .cs-actions .btn{flex:1}

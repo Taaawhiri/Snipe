@@ -48,21 +48,29 @@ export function estimateGraded(list, lang, grade, opts = {}) {
   const g = Number(grade.g);
   // Sotto 8 la slab vale circa come una copia non gradata nella condizione corrispondente.
   const rawCond = g >= 8 ? 'Near Mint' : g >= 7 ? 'Slightly Played' : g >= 5 ? 'Moderately Played' : 'Played';
-  const raw = priceFor(list, lang, rawCond, opts);
-  let base = raw ? raw.typCents || raw.cents : null;
+  const rawAny = priceFor(list, lang, rawCond, opts);
+  let base = null;
+  let how = '';
+  // 1) Copie non gradate nella stessa lingua e condizione.
+  if (rawAny && !rawAny.approx) { base = rawAny.typCents || rawAny.cents; how = `copie non gradate ${rawCond}`; }
+  // 2) Gradate con altri voti (prima nella stessa lingua), riportate a "non gradata" col loro moltiplicatore.
   if (base == null) {
-    // Nessuna copia non gradata: si parte dalle gradate con altri voti, riportate a "non gradata" col loro moltiplicatore.
     const want = normLang(lang);
     const others = (list || []).filter((p) => p && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 && gradeOf(p))
       .map((p) => ({ p, gr: gradeOf(p) })).filter(({ gr }) => GRADE_MULT[gr.g]);
     const sameLang = others.filter(({ p }) => !want || normLang(listingLang(p)) === want);
     const pool = sameLang.length ? sameLang : others;
-    if (!pool.length) return null;
-    const bases = pool.map(({ p, gr }) => p.price.cents / Math.max(1, GRADE_MULT[gr.g] * (GRADER_FACTOR[gr.co] || 0.75))).sort((a, b) => a - b);
-    base = Math.round(median(bases.slice(0, TYPICAL_N)));
+    if (pool.length) {
+      const bases = pool.map(({ p, gr }) => p.price.cents / Math.max(1, GRADE_MULT[gr.g] * (GRADER_FACTOR[gr.co] || 0.75))).sort((x, y) => x - y);
+      base = Math.round(median(bases.slice(0, TYPICAL_N)));
+      how = `${pool.length} annunci gradati con altri voti`;
+    }
   }
+  // 3) Ultima risorsa: copie non gradate di altre lingue o condizioni.
+  if (base == null && rawAny) { base = rawAny.typCents || rawAny.cents; how = 'copie non gradate di altre lingue o condizioni'; }
+  if (base == null) return null;
   const cents = gradedFromBase(base, grade);
-  return { cents, typCents: cents, approx: true, estimated: true, fromGraded: !raw, rawCents: base, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
+  return { cents, typCents: cents, approx: true, estimated: true, rawCents: base, how, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
 }
 
 export function priceFor(list, lang, cond, opts = {}) {
