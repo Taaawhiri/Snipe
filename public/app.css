@@ -837,3 +837,7 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .im-cand span{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .im-cand.sel{border-color:var(--green);background:var(--surface)}
 .im-row.found .im-cand:not(.sel){opacity:.45}
+.wl-step{animation:wl-in .35s cubic-bezier(.2,.8,.2,1) both}
+.wl-step:nth-child(1){animation-delay:.25s}.wl-step:nth-child(2){animation-delay:.45s}.wl-step:nth-child(3){animation-delay:.65s}
+@keyframes wl-in{from{opacity:0;transform:translateY(10px)}}
+@media (prefers-reduced-motion:reduce){.wl-step{animation:none}}
