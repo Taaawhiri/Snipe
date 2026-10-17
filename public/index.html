@@ -89,23 +89,32 @@
       </div>
       <div id="collView">
         <div id="collHero" class="cv-hero"></div>
-        <div class="coll-opts">
-          <label class="switch coll-zero"><input id="collZero" type="checkbox"><span>Solo venditori CardTrader Zero</span></label>
-          <label class="switch coll-zero"><input id="collTypical" type="checkbox"><span>Prezzo tipico invece del più basso</span></label>
-        </div>
-        <p class="muted small coll-note">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori che hai escluso con ⛔ non contano mai.</p>
         <div class="seg seg-sm" role="radiogroup" aria-label="Ordina la collezione">
           <label><input type="radio" name="csort" value="value" checked> Valore</label>
           <label><input type="radio" name="csort" value="gain"> Guadagno</label>
           <label><input type="radio" name="csort" value="set"> Per set</label>
           <label><input type="radio" name="csort" value="change"> Variazione</label>
         </div>
-        <input id="collSearch" type="search" placeholder="Cerca nella collezione (es. Charizard, 151)" autocomplete="off">
-        <div id="collRarityBox" class="coll-rarity" hidden><select id="collRarity" aria-label="Rarità"><option value="">Tutte le rarità</option></select></div>
-        <div id="collType" class="fg-chips coll-kind" hidden></div>
-        <div id="collEra" class="fg-chips coll-kind" hidden></div>
-        <div id="collPaid" class="fg-chips coll-kind" hidden></div>
-        <div id="collKind" class="fg-chips coll-kind" hidden></div>
+        <div class="rule-tools coll-tools">
+          <input id="collSearch" type="search" placeholder="Cerca (es. Charizard, 151)" autocomplete="off">
+          <button id="collFilterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="collFilters"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Filtri</span><b id="collFilterCount" hidden></b></button>
+        </div>
+        <div id="collActive" class="active-filters" hidden></div>
+        <div id="collFilters" class="filter-panel" hidden>
+          <div class="fg" id="collTypeG"><span class="fg-k">Tipo</span><div id="collType" class="fg-chips"></div></div>
+          <div class="fg" id="collRarityG"><span class="fg-k">Rarità</span><div id="collRarityBox" class="coll-rarity"><select id="collRarity" aria-label="Rarità"><option value="">Tutte le rarità</option></select></div></div>
+          <div class="fg" id="collEraG"><span class="fg-k">Epoca</span><div id="collEra" class="fg-chips"></div></div>
+          <div class="fg" id="collPaidG"><span class="fg-k">Provenienza</span><div id="collPaid" class="fg-chips"></div></div>
+          <div class="fg" id="collKindG"><span class="fg-k">Gradazione</span><div id="collKind" class="fg-chips"></div></div>
+          <div class="fg"><span class="fg-k">Come si calcola il valore</span>
+            <div class="coll-opts">
+              <label class="switch coll-zero"><input id="collZero" type="checkbox"><span>Solo venditori CardTrader Zero</span></label>
+              <label class="switch coll-zero"><input id="collTypical" type="checkbox"><span>Prezzo tipico invece del più basso</span></label>
+            </div>
+            <p class="muted small">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori che hai escluso con ⛔ non contano mai.</p>
+          </div>
+          <div class="fg-foot"><button id="collFilterReset" class="btn mini" type="button">Azzera filtri</button><button id="collFilterClose" class="btn mini primary" type="button">Mostra</button></div>
+        </div>
         <p id="collCount" class="count" hidden></p>
         <div id="collList" class="list"></div>
         <p class="muted small">Aggiungi le carte dal loro dettaglio con <b>Ce l'ho</b>, oppure in automatico segnando un avviso come <b>Comprato</b>. Il valore usa il prezzo più basso su CardTrader nella lingua e condizione della tua copia, aggiornato ogni ora.</p>

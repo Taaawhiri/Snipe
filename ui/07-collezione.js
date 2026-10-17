@@ -304,19 +304,19 @@
     const g = (it) => (it.price && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : -Infinity);
     // Ricerca per nome della carta o dell'espansione (anche con il numero: "charizard 4").
     const cq = plainText($('collSearch').value).trim();
-    $('collSearch').hidden = items.length < 5;
+    $('collSearch').closest('.coll-tools').hidden = !items.length;
     // Filtro rapido gradate / non gradate (compare solo se ci sono entrambe).
     const nG = items.filter((it) => isGradeLabel(it.cond)).length;
-    $('collKind').hidden = !nG || nG === items.length;
-    if ($('collKind').hidden) collKind = 'all';
+    $('collKindG').hidden = !nG || nG === items.length;
+    if ($('collKindG').hidden) collKind = 'all';
     $('collKind').replaceChildren(...[['all', `Tutte (${items.length})`], ['raw', `Non gradate (${items.length - nG})`], ['graded', `Gradate (${nG})`]].map(([v, l]) =>
       el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collKind === v), text: l, onclick: () => { collKind = v; renderCollection(); } })));
     const kindOk = (it) => collKind === 'all' || (collKind === 'graded') === isGradeLabel(it.cond);
     // Filtro per tipo: compare solo se in collezione ci sono almeno due tipi diversi.
     const nT = { pokemon: 0, trainer: 0, energy: 0 };
     items.forEach((it) => { nT[cardType(it.name)]++; });
-    $('collType').hidden = Object.values(nT).filter(Boolean).length < 2;
-    if ($('collType').hidden) collType = 'all';
+    $('collTypeG').hidden = Object.values(nT).filter(Boolean).length < 2;
+    if ($('collTypeG').hidden) collType = 'all';
     $('collType').replaceChildren(...[['all', `Tutti i tipi`], ['pokemon', `Pokémon (${nT.pokemon})`], ['trainer', `Allenatori (${nT.trainer})`], ['energy', `Energie (${nT.energy})`]]
       .filter(([v]) => v === 'all' || nT[v]).map(([v, l]) =>
         el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collType === v), text: l, onclick: () => { collType = v; renderCollection(); } })));
@@ -326,8 +326,8 @@
     const eraOf = (it) => (vint.get(it.expansionId) ? 'vintage' : 'modern');
     const nE = { modern: 0, vintage: 0 };
     items.forEach((it) => { nE[eraOf(it)]++; });
-    $('collEra').hidden = !expansions.length || !nE.modern || !nE.vintage;
-    if ($('collEra').hidden) collEra = 'all';
+    $('collEraG').hidden = !expansions.length || !nE.modern || !nE.vintage;
+    if ($('collEraG').hidden) collEra = 'all';
     $('collEra').replaceChildren(...[['all', 'Tutte le epoche'], ['modern', `Moderne (${nE.modern})`], ['vintage', `🕰️ Vintage (${nE.vintage})`]].map(([v, l]) =>
       el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collEra === v), text: l, onclick: () => { collEra = v; renderCollection(); } })));
     const eraOk = (it) => collEra === 'all' || eraOf(it) === collEra;
@@ -335,8 +335,8 @@
     const paidOf = (it) => (it.paidCents == null ? 'none' : it.paidCents === 0 ? 'found' : 'bought');
     const nP = { bought: 0, found: 0, none: 0 };
     items.forEach((it) => { nP[paidOf(it)]++; });
-    $('collPaid').hidden = Object.values(nP).filter(Boolean).length < 2;
-    if ($('collPaid').hidden) collPaid = 'all';
+    $('collPaidG').hidden = Object.values(nP).filter(Boolean).length < 2;
+    if ($('collPaidG').hidden) collPaid = 'all';
     $('collPaid').replaceChildren(...[['all', 'Tutte le provenienze'], ['bought', `Acquistate (${nP.bought})`], ['found', `Trovate (${nP.found})`], ['none', `Senza prezzo pagato (${nP.none})`]]
       .filter(([v]) => v === 'all' || nP[v]).map(([v, l]) =>
         el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collPaid === v), text: l, onclick: () => { collPaid = v; renderCollection(); } })));
@@ -350,12 +350,25 @@
     rsel.replaceChildren(el('option', { value: '', text: 'Tutte le rarità' }), ...[...rc].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([r, n]) => el('option', { value: r, text: `${r} (${n})` })));
     rsel.value = rc.has(rprev) ? rprev : '';
     cselSync(rsel);
-    $('collRarityBox').hidden = rc.size < 2 && !rsel.value;
+    $('collRarityG').hidden = rc.size < 2 && !rsel.value;
     const rar = rsel.value;
     const rarOk = (it) => !rar || rarOf(it) === rar;
+    // Filtri attivi: pillole con × sotto la ricerca e numero sul pulsante (come negli alert).
+    const lbl = (box) => { const b = box.querySelector('[aria-pressed="true"]'); return b ? b.textContent.replace(/\s*\(\d+\)$/, '') : ''; };
+    const activeF = [
+      collType !== 'all' && [lbl($('collType')), () => { collType = 'all'; }],
+      rar && [rar, () => { $('collRarity').value = ''; cselSync($('collRarity')); }],
+      collEra !== 'all' && [lbl($('collEra')), () => { collEra = 'all'; }],
+      collPaid !== 'all' && [lbl($('collPaid')), () => { collPaid = 'all'; }],
+      collKind !== 'all' && [lbl($('collKind')), () => { collKind = 'all'; }],
+    ].filter(Boolean);
+    $('collFilterCount').hidden = !activeF.length;
+    $('collFilterCount').textContent = String(activeF.length);
+    $('collActive').hidden = !activeF.length || !$('collFilters').hidden;
+    $('collActive').replaceChildren(...activeF.map(([label, clear]) => el('button', { class: 'af-chip', type: 'button', 'aria-label': `Togli il filtro ${label}`, onclick: () => { clear(); renderCollection(); } }, el('span', { text: label }), el('b', { text: '×', 'aria-hidden': 'true' }))));
     const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && paidOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
     $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && collPaid === 'all' && !rar;
-    $('collCount').textContent = shownItems.length ? `${shownItems.length} carte su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
+    $('collCount').textContent = shownItems.length ? `${shownItems.length} ${shownItems.length === 1 ? "carta" : "carte"} su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
       : sort === 'set' ? (a.expName || '').localeCompare(b.expName || '') || val(b) - val(a)
@@ -440,6 +453,14 @@
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
   $('collSearch').addEventListener('input', renderCollection);
   $('collRarity').addEventListener('change', renderCollection);
+  const toggleCollFilters = (open) => { $('collFilters').hidden = !open; $('collFilterBtn').setAttribute('aria-expanded', String(open)); renderCollection(); };
+  $('collFilterBtn').addEventListener('click', () => toggleCollFilters($('collFilters').hidden));
+  $('collFilterClose').addEventListener('click', () => toggleCollFilters(false));
+  $('collFilterReset').addEventListener('click', () => {
+    collType = 'all'; collEra = 'all'; collPaid = 'all'; collKind = 'all';
+    $('collRarity').value = ''; cselSync($('collRarity'));
+    renderCollection();
+  });
   $('collTypical').addEventListener('change', async () => {
     $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });

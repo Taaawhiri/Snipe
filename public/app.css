@@ -688,6 +688,9 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .coll-zero { font-size: 14px; min-height: 40px; }
 .coll-opts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .coll-note { margin-top: -8px; }
+.coll-tools { margin-top: 10px; }
+#collFilters .coll-opts { flex-direction: column; gap: 6px; }
+#collFilters .fg p { margin: 2px 0 0; }
 /* azioni della collezione: tre pulsanti uguali su desktop; su telefono due affiancati e il terzo a tutta larghezza */
 .coll-actions { grid-template-columns: 1fr 1fr; }
 .coll-actions > :last-child { grid-column: 1 / -1; }
