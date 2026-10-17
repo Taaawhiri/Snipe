@@ -565,6 +565,7 @@
   const collSel = new Set(); // chiavi delle carte selezionate
   let collSelMode = false;
   function setSelMode(on) {
+    closeSwipe();
     collSelMode = on;
     if (!on) collSel.clear();
     document.documentElement.classList.toggle('coll-selecting', on);
@@ -605,6 +606,51 @@
       toggleSel(it.key);
     }, true);
   }
+  // ---------- scorri a sinistra per eliminare una carta ----------
+  const SWIPE_OPEN = 104; // larghezza del pulsante Elimina
+  let openSwipe = null;
+  function closeSwipe() {
+    if (!openSwipe) return;
+    openSwipe.style.transform = '';
+    openSwipe.closest('.ci-wrap').classList.remove('swiped');
+    openSwipe = null;
+  }
+  function bindSwipe(wrap, row) {
+    let x0 = null, y0 = null, dx = 0, dragging = false, base = 0;
+    row.addEventListener('pointerdown', (e) => {
+      if (collSelMode || e.pointerType === 'mouse') return; // sul computer basta ✎ o la selezione
+      x0 = e.clientX; y0 = e.clientY; dx = 0; dragging = false;
+      base = openSwipe === row ? -SWIPE_OPEN : 0;
+      if (openSwipe && openSwipe !== row) closeSwipe();
+    });
+    row.addEventListener('pointermove', (e) => {
+      if (x0 == null) return;
+      const mx = e.clientX - x0, my = e.clientY - y0;
+      if (!dragging) {
+        if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) { x0 = null; return; } // sta scorrendo la lista
+        if (Math.abs(mx) < 12) return;
+        dragging = true;
+        row.classList.add('dragging');
+      }
+      dx = Math.max(-SWIPE_OPEN - 30, Math.min(0, base + mx));
+      row.style.transform = `translateX(${dx}px)`;
+      wrap.classList.toggle('swiped', dx < -8);
+    });
+    const end = () => {
+      if (x0 == null) return;
+      x0 = null;
+      row.classList.remove('dragging');
+      if (!dragging) return;
+      // Bloccare il click che segue il trascinamento (non deve aprire la carta).
+      row.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); }, { capture: true, once: true });
+      if (dx < -SWIPE_OPEN / 2) { row.style.transform = `translateX(${-SWIPE_OPEN}px)`; wrap.classList.add('swiped'); openSwipe = row; }
+      else { row.style.transform = ''; wrap.classList.remove('swiped'); if (openSwipe === row) openSwipe = null; }
+    };
+    row.addEventListener('pointerup', end);
+    row.addEventListener('pointercancel', end);
+  }
+  document.addEventListener('pointerdown', (e) => { if (openSwipe && !e.target.closest('.ci-wrap.swiped')) closeSwipe(); });
+
   function renderSelBar() {
     let bar = $('collSelBar');
     if (!bar) { bar = el('div', { id: 'collSelBar', class: 'sel-bar', role: 'toolbar', 'aria-label': 'Carte selezionate' }); document.body.append(bar); }
@@ -750,7 +796,16 @@
           ),
         );
         bindLongPress(row, it);
-        return row;
+        // Scorri a sinistra: compare "Elimina" dietro la carta.
+        const del = el('button', { class: 'ci-swipe-del', type: 'button', 'aria-label': `Elimina ${it.name}`, text: '🗑 Elimina', tabindex: '-1',
+          onclick: async () => {
+            if (!(await askConfirm('Puoi sempre aggiungerla di nuovo.', { title: `Togliere ${it.name} dalla collezione?`, ok: 'Elimina', danger: true }))) { closeSwipe(); return; }
+            await saveOwn({ ...it, qty: 0 });
+            toast('✓ Carta tolta dalla collezione');
+          } });
+        const wrap = el('div', { class: 'ci-wrap' }, del, row);
+        bindSwipe(wrap, row);
+        return wrap;
       }),
     );
     renderSelBar();

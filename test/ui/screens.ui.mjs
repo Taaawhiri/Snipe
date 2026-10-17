@@ -56,6 +56,24 @@ test('collezione: tieni premuto per selezionare ed eliminare più carte', async 
   assert.deepEqual(errors, []);
 });
 
+test('collezione: scorri a sinistra per eliminare una carta', async () => {
+  const { page, errors, calls } = await openApp(browser, srv.url);
+  await page.waitForTimeout(400);
+  await page.evaluate(() => {
+    const row = document.querySelector('#collList .ci');
+    const r = row.getBoundingClientRect();
+    const ev = (type, x) => row.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', clientX: x, clientY: r.top + 20 }));
+    ev('pointerdown', r.right - 20); ev('pointermove', r.right - 60); ev('pointermove', r.right - 140); ev('pointerup', r.right - 140);
+  });
+  await page.waitForTimeout(300);
+  assert.ok(await page.isVisible('.ci-wrap.swiped .ci-swipe-del'));
+  await page.click('.ci-wrap.swiped .ci-swipe-del');
+  await page.click('.cs-dialog button:has-text("Elimina")');
+  await page.waitForTimeout(300);
+  assert.equal(calls.filter((c) => c.key === 'POST /api/collection' && c.body.includes('"qty":0')).length, 1);
+  assert.deepEqual(errors.filter((e) => !/known/.test(e)), []); // la risposta finta del server è vuota
+});
+
 test('avvisi non visti: si apre su Avvisi con il contatore', async () => {
   const alerts = [{ id: 'a1', ts: Date.now(), name: 'Mew ex', expansion: '151', cents: 400, refCents: 900, discount: 0.55, currency: 'EUR', url: 'https://www.cardtrader.com/cards/1' }];
   const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': baseState({ alerts }) });

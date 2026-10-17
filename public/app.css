@@ -1003,7 +1003,7 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 /* Selezione multipla in collezione (tieni premuto) */
 #collList .ci{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .coll-selecting #collList .ci{cursor:pointer;outline:2px dashed transparent;transition:outline-color .15s,transform .1s}
-.coll-selecting #collList .ci.picked{outline:3px solid var(--blue,#7b8cff);background:color-mix(in srgb,var(--blue,#7b8cff) 16%,var(--surface))}
+.coll-selecting #collList .ci.picked{outline:3px solid var(--blue,#7b8cff);outline-offset:-3px;background:color-mix(in srgb,var(--blue,#7b8cff) 16%,var(--surface))}
 .coll-selecting #collList .ci .qty,.coll-selecting #collList .ci .ci-edit{pointer-events:none;opacity:.5}
 .coll-selecting .tabs{visibility:hidden}
 .sel-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:7;width:min(440px,calc(100% - 24px));box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:3px solid var(--outline);border-radius:26px;box-shadow:0 5px 0 var(--outline),0 16px 30px rgba(0,0,0,.3)}
@@ -1012,3 +1012,10 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 .sel-bar button{font:inherit;font-weight:800;border-radius:999px;border:2px solid var(--line);background:var(--surface-2);color:var(--text);padding:9px 12px;cursor:pointer}
 .sel-bar .sb-x{padding:9px 13px}
 .sel-bar .sb-del{background:var(--red,#d0384b);border-color:transparent;color:#fff}
+
+/* Scorri a sinistra per eliminare */
+.ci-wrap{position:relative;border-radius:18px;overflow:hidden}
+.ci-wrap .ci{position:relative;z-index:1;touch-action:pan-y;transition:transform .2s ease}
+.ci-wrap .ci.dragging{transition:none}
+.ci-swipe-del{position:absolute;right:0;top:0;bottom:0;width:104px;border:0;border-radius:0 18px 18px 0;background:var(--red,#d0384b);color:#fff;font:800 14px var(--sans,system-ui);cursor:pointer;opacity:0;transition:opacity .15s}
+.ci-wrap.swiped .ci-swipe-del{opacity:1}
