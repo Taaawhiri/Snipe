@@ -903,3 +903,17 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 @keyframes holo-sh{to{background-position:250% 0}}
 @media (prefers-reduced-motion:reduce){.lockup .lk-holo{animation:none}}
 @media (max-width:400px){.brand .logo.lk-snipe{font-size:19px}.lockup .lk-holo{font-size:11px;padding:6px 16px 6px 8px}}
+
+/* logo grande nella pagina di accesso */
+.hero-brand.lockup{gap:0}
+.lockup.big .reticle{margin:0 -22px;position:relative;z-index:1}
+.lockup.big .reticle svg{width:56px;height:56px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+.lockup.big .ball-top{fill:var(--yellow)}
+.lockup.big .ball-line,.lockup.big .ball-btn{stroke:#1b2340}
+.lockup.big .lk-holo{font-size:17px;padding:11px 28px 11px 13px;border-radius:14px 0 0 14px;border-width:3px}
+.lockup.big .lk-snipe{font-size:36px;color:#fff;padding:6px 16px 8px 30px;border-radius:0 14px 14px 0;border-width:3px}
+@media (min-width:900px){.lockup.big .reticle svg{width:68px;height:68px}.lockup.big .reticle{margin:0 -26px}.lockup.big .lk-snipe{font-size:46px;padding:6px 20px 9px 36px}.lockup.big .lk-holo{font-size:20px;padding:15px 34px 15px 16px}}
+@media (max-width:380px){.lockup.big .lk-snipe{font-size:30px}.lockup.big .lk-holo{font-size:15px}}
+.lockup.big .lk-snipe{background:linear-gradient(#b8374d,#8f1d31);border-color:#1b2340;padding-left:36px;box-shadow:0 3px 0 rgba(0,0,0,.3)}
+.lockup.big .lk-holo{box-shadow:0 3px 0 rgba(0,0,0,.3)}
+@media (min-width:900px){.lockup.big .lk-snipe{padding-left:42px}}
