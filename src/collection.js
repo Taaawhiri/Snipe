@@ -17,9 +17,11 @@ export function isFirstEd(p) {
 /** Stima di una gradata da un prezzo di base (copia non gradata o tendenza Cardmarket). */
 export function gradedFromBase(base, grade) {
   const g = Number(grade.g);
-  const k = (GRADE_MULT[grade.g] || 1) * (GRADER_FACTOR[grade.co] || 0.75);
-  let cents = Math.round(base * Math.max(k, g >= 8 ? 1 : k));
-  if (g >= 9) cents = Math.max(cents, base + Math.round(GRADING_COST_CENTS * (g >= 10 ? 1.6 : g >= 9.5 ? 1.3 : 1) * (GRADER_FACTOR[grade.co] || 0.75)));
+  const f = GRADER_FACTOR[grade.co] || 0.75;
+  let cents = Math.round(base * Math.max(1, (GRADE_MULT[grade.g] || 1) * f));
+  // Una slab vale almeno la carta più una parte del costo di gradazione (più alta per i voti alti).
+  const share = g >= 10 ? 1.6 : g >= 9.5 ? 1.3 : g >= 9 ? 1 : g >= 8.5 ? 0.8 : g >= 8 ? 0.7 : g >= 7.5 ? 0.6 : g >= 7 ? 0.5 : 0;
+  if (share) cents = Math.max(cents, base + Math.round(GRADING_COST_CENTS * share * f));
   return cents;
 }
 
@@ -47,7 +49,8 @@ const GRADING_COST_CENTS = 2500; // costo indicativo di una gradazione: una 9 o 
 export function estimateGraded(list, lang, grade, opts = {}) {
   const g = Number(grade.g);
   // Sotto 8 la slab vale circa come una copia non gradata nella condizione corrispondente.
-  const rawCond = g >= 8 ? 'Near Mint' : g >= 7 ? 'Slightly Played' : g >= 5 ? 'Moderately Played' : 'Played';
+  // Base: 7 e oltre partono dalla Near Mint, 5-6.5 dalla Slightly Played, sotto dalla Moderately Played.
+  const rawCond = g >= 7 ? 'Near Mint' : g >= 5 ? 'Slightly Played' : 'Moderately Played';
   const rawAny = priceFor(list, lang, rawCond, opts);
   let base = null;
   let how = '';
@@ -85,15 +88,20 @@ export function priceFor(list, lang, cond, opts = {}) {
     return g && g.co === grade.co && g.g === grade.g;
   }).sort((a, b) => a.price.cents - b.price.cents);
   // 1ª edizione: si confronta con le 1ª edizione (e viceversa); se non ce ne sono, con tutte, segnato come approssimato.
-  let edApprox = false;
-  if (opts.first != null) {
-    const same = ok.filter((p) => isFirstEd(p) === !!opts.first);
-    if (same.length) ok = same; else if (opts.first) edApprox = true;
-  }
   if (!ok.length) return grade ? estimateGraded(list, lang, grade, opts) : null;
   const want = normLang(lang);
   const min = condRank(cond);
-  const fits = (p) => (!want || normLang(listingLang(p)) === want) && (grade || min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);
+  const fitsLC = (p) => (!want || normLang(listingLang(p)) === want) && (grade || min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);
+  // Edizione: lingua e condizione contano di più (l'edizione spesso non è indicata nell'annuncio).
+  // Tra gli annunci giusti per lingua e condizione si preferiscono quelli della stessa edizione; se non ce ne sono, si usano gli altri.
+  let edApprox = false;
+  if (opts.first != null) {
+    const good = ok.filter(fitsLC);
+    const sameEd = good.filter((p) => isFirstEd(p) === !!opts.first);
+    if (sameEd.length) ok = ok.filter((p) => !fitsLC(p) || isFirstEd(p) === !!opts.first);
+    else if (opts.first && good.length) edApprox = true;
+  }
+  const fits = fitsLC;
   const pickSet = (arr) => {
     const m = arr.filter(fits);
     const base = m.length ? m : arr; // nessun annuncio nella lingua/condizione: tutti, segnato come approssimato
