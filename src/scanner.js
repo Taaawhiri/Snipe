@@ -406,6 +406,13 @@ export class Scanner extends DurableObject {
       const era = c.expansionId && vintageEra(Number(c.expansionId)) ? 'vintage' : 'modern';
       const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, ratios, era });
       prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
+      // Prezzo precedente (per "cosa è cambiato"): si tiene quello di prima dell'ultimo cambio, per 24 ore.
+      if (old && old.cents != null && pr) {
+        const keys = ['cents', 'typCents', 'zeroCents', 'zeroTypCents'];
+        const differs = keys.some((k) => (old[k] ?? null) !== (pr[k] ?? null));
+        if (differs) { prices[c.key].prev = Object.fromEntries(keys.map((k) => [k, old[k] ?? null])); prices[c.key].changedAt = Date.now(); }
+        else if (old.prev && Date.now() - (old.changedAt || 0) < 24 * 3600_000) { prices[c.key].prev = old.prev; prices[c.key].changedAt = old.changedAt; }
+      }
       if (pr) histTodo.push(c.key);
       changed = true;
     }
@@ -504,7 +511,14 @@ export class Scanner extends DurableObject {
     const items = coll.map((c) => {
       const p = prices[c.key];
       const e = c.cmId && cm.get(c.cmId);
-      return { ...c, price: p && p.cents != null ? pickPrice(p, zeroOnly, typical) : null, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
+      const price = p && p.cents != null ? pickPrice(p, zeroOnly, typical) : null;
+      // Variazione recente del valore di questa copia (con le stesse impostazioni Zero/tipico), ultime 24 ore.
+      let delta = null;
+      if (price && p.prev && Date.now() - (p.changedAt || 0) < 24 * 3600_000) {
+        const before = pickPrice({ ...p, ...p.prev }, zeroOnly, typical);
+        if (before && before.cents != null && before.cents !== price.cents) delta = { cents: price.cents - before.cents, at: p.changedAt };
+      }
+      return { ...c, price, delta, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
     });
     // Variazione a 7 giorni dallo storico prezzi della carta (prezzo più basso in assoluto).
     for (const it of items) {

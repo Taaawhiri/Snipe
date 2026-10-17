@@ -15,6 +15,23 @@
   }
   let hviewChosen = false;
 
+  /** "Cosa è cambiato": le copie il cui valore è cambiato nelle ultime 24 ore, dalle variazioni più grandi. */
+  function recentChanges(items) {
+    const ch = items.filter((it) => it.delta && it.delta.cents).map((it) => ({ it, d: it.delta.cents * it.qty }))
+      .sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+    if (!ch.length) return null;
+    const tot = ch.reduce((t, x) => t + x.d, 0);
+    const row = ({ it, d }) => el('button', { class: 'rc-row', type: 'button', onclick: () => {
+      const n = document.querySelector(`#collList .ci[data-key="${CSS.escape(it.key)}"]`);
+      if (n) { n.scrollIntoView({ behavior: 'smooth', block: 'center' }); n.classList.add('flash'); setTimeout(() => n.classList.remove('flash'), 1600); }
+    } }, el('span', { class: 'rc-n', text: it.name.replace(/\s*\(.*\)\s*$/, '') + (it.qty > 1 ? ` ×${it.qty}` : '') }),
+      el('b', { class: d >= 0 ? 'up' : 'dn', text: `${d >= 0 ? '+' : '−'}${money(Math.abs(d))}` }));
+    const box = el('details', { class: 'recent-ch' },
+      el('summary', null, el('span', { text: `Cambiati nelle ultime 24 ore: ${ch.length}` }), el('b', { class: tot >= 0 ? 'up' : 'dn', text: `${tot >= 0 ? '+' : '−'}${money(Math.abs(tot))}` })),
+      el('div', { class: 'rc-list' }, ...ch.slice(0, 15).map(row)));
+    return box;
+  }
+
   /** Spiegazione del prezzo di una copia: da quale annuncio parte e quali rapporti di mercato usa. */
   function explainPrice(it) {
     const p = it.price;
@@ -295,6 +312,7 @@
         el('div', null, el('b', { text: sm.paid ? money(sm.paid) : '—' }), el('span', { text: 'spesi' })),
         el('div', null, el('b', { class: gain == null ? '' : gain >= 0 ? 'up' : 'dn', text: gain == null ? '—' : `${gain >= 0 ? '+' : ''}${money(gain)}` }), el('span', { text: 'guadagno teorico' })),
       ),
+      recentChanges(items),
       coll.refreshing ? el('div', { class: 'scan-wait small' }, el('span', { class: 'spinner' }), el('span', { text: `Ricalcolo i prezzi di ${coll.refreshing} ${coll.refreshing === 1 ? 'carta' : 'carte'}…` })) : null,
       sm.missing && !coll.refreshing ? el('p', { class: 'small muted', text: coll.zeroOnly
         ? `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} senza un prezzo Zero: nessun venditore Zero la offre ora, oppure il prezzo arriva entro un'ora.`

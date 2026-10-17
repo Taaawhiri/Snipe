@@ -1065,3 +1065,15 @@ header.top.ball-err:not(.ball-wait) .brand svg .ball-top { fill: #e5484d; }
 header.top.ball-err .brand svg .ball-bottom { fill: #fff; }
 header.top.ball-err .brand svg .ball-btn { fill: #fff; }
 .ex-fresh{display:block;margin-top:8px}
+
+/* Collezione: cosa è cambiato nelle ultime 24 ore */
+.recent-ch{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.recent-ch summary{display:flex;justify-content:space-between;gap:8px;cursor:pointer;font-weight:700;font-size:14px;list-style:none}
+.recent-ch summary::-webkit-details-marker{display:none}
+.recent-ch summary::after{content:'▾';color:var(--muted);margin-left:6px}
+.recent-ch[open] summary::after{content:'▴'}
+.rc-list{display:flex;flex-direction:column;margin-top:8px}
+.rc-row{display:flex;justify-content:space-between;gap:10px;font:inherit;font-size:13.5px;color:var(--text);background:none;border:0;border-top:1px solid var(--line);padding:8px 2px;cursor:pointer;text-align:left}
+.rc-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent-ch .up{color:var(--good,#7fe0a6)}.recent-ch .dn{color:#ff8a9a}
+#collList .ci.flash{outline:3px solid var(--yellow,#ffcb05);outline-offset:-3px;transition:outline-color .3s}
