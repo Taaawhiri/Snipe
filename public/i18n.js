@@ -56,7 +56,7 @@
     'Questo account è stato sospeso.': 'This account has been suspended.',
 
     // schede e intestazione
-    'Alert': 'Alerts', 'Carte': 'Cards', 'Affari': 'Deals', 'Regole': 'Rules', 'Opzioni': 'Options', 'Sezioni': 'Sections',
+    'Alert': 'Alerts', 'Carte': 'Cards', 'Cerca': 'Search', 'Affari': 'Deals', 'Regole': 'Rules', 'Opzioni': 'Options', 'Sezioni': 'Sections',
     'In avvio…': 'Starting…', 'Nessuna regola attiva': 'No active rules',
 
     // avvisi
