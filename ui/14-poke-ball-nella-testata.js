@@ -48,6 +48,8 @@
     const top = document.querySelector('header.top');
     const active = state.rules.some((r) => r.enabled);
     const paused = state.settings && state.settings.paused;
+    // Semaforo sulla Poké Ball: gialla se i controlli sono fermi (pausa o nessun alert attivo).
+    top.classList.toggle('ball-paused', !!paused || !active);
     const plan = (state.account && state.account.plan) || {};
     const every = Math.max((state.settings && state.settings.scanEverySec) || 30, plan.scanSec || 10) * 1000;
     const err = top.classList.contains('ball-err');
