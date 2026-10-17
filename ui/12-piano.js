@@ -13,7 +13,7 @@
   const PLAN_INFO = {
     free: { label: 'Gratuito', price: '0 €', maxScans: 5, maxColl: 20, maxRules: 3, maxSetRules: 0, maxWish: 10, scanSec: 300, historyDays: 7, shipping: false, priority: false },
     pro: { label: 'Pro', price: '4,99 €/mese', maxScans: 200, maxColl: 500, maxRules: 30, maxSetRules: 1, maxWish: 200, scanSec: 30, historyDays: 120, shipping: true, priority: true },
-    sniper: { label: 'Sniper', price: '9,99 €/mese', maxScans: 1000, maxColl: 100000, maxRules: 100, maxSetRules: 100000, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true },
+    sniper: { label: 'Sniper', price: '9,99 €/mese', maxScans: 1000, maxColl: 100000, maxRules: 100, maxSetRules: 10, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true },
   };
 
   /** Righe della tabella di confronto dei piani (usata in Impostazioni e nella pagina di accesso). */

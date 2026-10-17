@@ -56,7 +56,7 @@ L'interfaccia è in italiano; `public/i18n.js` la traduce in inglese al volo (sc
   | | Gratuito | Pro (4,99 €/mese, 39 €/anno) | Sniper (9,99 €/mese, 79 €/anno) |
   | --- | --- | --- | --- |
   | Alert su una carta | 3 | 30 | 100 |
-  | Alert su un set | — | 1 | illimitati |
+  | Alert su un set | — | 1 | 10 |
   | Lista dei desideri | 10 | 200 | illimitata |
   | Velocità degli alert | 5 min | 30 s | 10 s |
   | Storico prezzi | 7 giorni | 120 giorni | 120 giorni |

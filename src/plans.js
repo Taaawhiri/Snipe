@@ -14,7 +14,7 @@ export const PLANS = {
   },
   sniper: {
     label: 'Sniper', price: '9,99 €/mese o 79 €/anno',
-    maxRules: 100, maxSetRules: UNLIMITED, maxWish: UNLIMITED, maxColl: UNLIMITED, maxScans: 1000, batchScan: true, scanSec: 10, historyDays: 120, shipping: true, priority: true,
+    maxRules: 100, maxSetRules: 10, maxWish: UNLIMITED, maxColl: UNLIMITED, maxScans: 1000, batchScan: true, scanSec: 10, historyDays: 120, shipping: true, priority: true,
   },
   owner: {
     label: 'Proprietario', price: null,
