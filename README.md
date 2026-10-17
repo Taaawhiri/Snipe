@@ -4,19 +4,59 @@ Web app (PWA) che controlla gli annunci Pokémon su [CardTrader](https://www.car
 
 Gira tutta su Cloudflare, in un solo Worker:
 
-- `public/`: la PWA (feed alert, regole, impostazioni).
-- `src/worker.js`: serve le API e controlla la chiave `APP_KEY`.
-- `src/scanner.js`: Durable Object che ogni 10 secondi interroga CardTrader, confronta i prezzi e manda le notifiche push.
-- `src/deals.js`: la logica che decide se un annuncio è anomalo (con test in `test/`).
+- `public/` e `ui/`: la PWA (le parti in `ui/` si ricompongono in `public/app.js`).
+- `src/worker.js`: API, accesso con il token CardTrader di ogni utente, pagamenti.
+- `src/scanner.js`: Durable Object, uno per utente, che controlla CardTrader, manda le notifiche e tiene collezione e storico. Quello del proprietario (`main`) è anche il catalogo condiviso (indice dei nomi, Cardmarket, affari del giorno, regioni delle espansioni).
+- `src/registry.js`: utenti, piani, sessioni.
+- Logica pura con test in `test/`: `deals.js`, `collection.js`, `cardid.js`, `importcsv.js`, `region.js`, `vintage.js`, `billing.js`…
 
 ## Come si usa
 
-- **Carte**: scegli un'espansione e vedi tutte le carte con immagine e prezzo più basso, in assoluto e con CardTrader Zero. Tocca una carta per vedere gli annunci più economici e creare l'alert: sotto un prezzo che scegli tu, oppure con uno sconto in percentuale.
-- **Ricerca su tutte le espansioni**: nella scheda Carte scegli "Tutte le espansioni" e scrivi il nome di un Pokémon. La prima volta il server prepara in background un indice dei nomi (una richiesta per espansione, circa 10 minuti, poi si rinnova ogni due settimane). I nomi compaiono subito, i prezzi si caricano a gruppi di 8 espansioni, dalle più recenti, per restare nei limiti di CardTrader.
-- **Cardmarket**: Cardmarket non ha un'API aperta, ma pubblica ogni giorno un listino prezzi scaricabile (tendenza, media a 30 giorni, minimo). Il server lo scarica da solo una volta al giorno e lo abbina alle carte tramite l'identificativo Cardmarket che CardTrader indica per ogni carta. Sulle tessere compare la tendenza e di quanto il prezzo CardTrader è sotto; si può ordinare per "Più sotto Cardmarket" e creare alert "almeno X% sotto Cardmarket".
-- **Impostazioni**: stato del sistema, pausa generale, frequenza di scansione, orari silenziosi, backup degli alert.
-- **Regole**: l'elenco dei tuoi alert, che puoi mettere in pausa o eliminare. Gli alert si creano dalla scheda Carte.
-- **CardTrader Zero**: ogni regola può considerare tutti i venditori, solo quelli Zero o escluderli. Si basa sul campo `can_sell_via_hub` dell'API.
+Le schede in basso:
+
+- **Collezione**: le tue carte con valore, guadagno o perdita e andamento; in alto la scheda **Avvisi** con gli alert scattati (il pallino giallo conta quelli da vedere).
+- **Cerca**: scegli un'espansione dall'elenco (filtri per regione International, Giappone, Cina, Corea, Asia e 🕰️ Vintage) oppure "Tutte le espansioni" per cercare un Pokémon per nome. Tocca una carta per vedere gli annunci, creare un alert, aggiungerla ai desideri o alla collezione ("Ce l'ho"). C'è anche lo scanner da foto.
+- **Affari**: gli annunci di oggi almeno il 25% sotto il prezzo tipico, con ricerca per nome.
+- **Regole**: i tuoi alert (con ricerca per nome), **Verifica** per vedere perché un annuncio fa o non fa scattare l'alert, venditori salvati o esclusi, lista dei desideri.
+- **Opzioni**: piano, stato (con il tempo del giro completo degli alert), notifiche, orari silenziosi, backup e dati, account.
+
+Altre cose utili:
+
+- **Cardmarket**: il listino pubblico giornaliero (tendenza, media 30 giorni, minimo) abbinato alle carte tramite l'identificativo Cardmarket indicato da CardTrader. Mescola lingue e condizioni, quindi è solo indicativo: si vede nella scheda della carta e negli avvisi, non nel valore della collezione.
+- **CardTrader Zero**: ogni alert può considerare tutti i venditori, solo Zero o escluderli (campo `can_sell_via_hub`).
+- **Prima apertura**: chi entra senza alert vede un benvenuto in tre passi (primo alert, notifiche, collezione).
+
+## Il giro degli alert
+
+Ogni controllo (ogni 10 s per Sniper e proprietario, 30 s per Pro, 5 min per Gratuito) legge 2 carte da CardTrader, scegliendo quelle lette da più tempo:
+
+- gli alert su una carta leggono solo quella carta; l'espansione intera si legge solo per gli alert su un set;
+- gli alert hanno la precedenza (la stella ★ conta tre volte): desideri e collezione prendono una lettura solo quando le carte degli alert sono state lette negli ultimi 3 minuti;
+- quando crei o modifichi un alert, la sua carta si legge subito;
+- gli annunci più economici delle carte con un alert si salvano anche su disco, così dopo un aggiornamento dell'app lo scan riparte con i prezzi già letti.
+
+Con 50 alert il giro completo dura circa 4–5 minuti al ritmo di 10 s. In Opzioni → Stato la riga "Giro completo" mostra il tempo reale.
+
+## Regioni delle espansioni e vintage
+
+- **Regione** (International, Giappone, Cina, Corea, Asia): si riconosce dalle lingue degli annunci. Un giro lento nel catalogo condiviso ne fa una al minuto finché non le ha tutte (avanzamento in Opzioni → Stato); quando qualcuno apre un'espansione, la sua regione si salva subito.
+- **Vintage**: elenco curato in `src/vintage.js` dei set WOTC (1999–2003) ed era EX (2003–2007), confrontato con il nome dell'espansione.
+
+## Importare la collezione (CSV)
+
+Opzioni → Backup e dati → **Importa la collezione**. La prima riga deve avere i nomi delle colonne; separatore `;` o `,`, decimali con virgola o punto.
+
+| Colonna | Obbligatoria | Esempio |
+|---|---|---|
+| Carta | sì | Umbreon ex |
+| Numero | consigliata | 044/040 |
+| Espansione | consigliata | 30th Celebration Premium Deck Set (o il codice) |
+| Lingua | no | JP |
+| Condizione | no (Near Mint) | NM |
+| Copie | no (1) | 2 |
+| Pagata | no | 100,00 |
+
+Va bene anche il CSV esportato da Snipe (contiene l'ID CardTrader). Prima di importare si vede un riepilogo: **trovate**, **da scegliere** (più carte possibili: si tocca quella giusta, con l'immagine) e **non trovate**. Nome scritto male con il numero completo: la carta finisce tra quelle da scegliere. Le carte già presenti sommano le copie.
 
 ## Come decide che un prezzo è sbagliato
 
@@ -90,7 +130,7 @@ npm run test:ui     # schermate: la pagina vera con API simulate, in Chromium he
 
 - Il formato del link alla carta (`https://www.cardtrader.com/cards/<blueprint_id>`) è dedotto, non documentato: se non si apre correttamente, va corretto in `src/scanner.js`.
 - Nei prodotti Pokémon i nomi dei campi di lingua e condizione in `properties_hash` potrebbero differire da Magic. Il filtro lingua usa il parametro `language` dell'API, quindi non dipende da quei nomi.
-- Limiti API: 200 richieste ogni 10 secondi in totale e 10 al secondo sul marketplace. Lo scan usa circa 4 richieste al secondo al massimo e riusa la stessa risposta per le regole sulla stessa espansione.
+- Limiti API: 200 richieste ogni 10 secondi in totale e 10 al secondo sul marketplace. Le letture del marketplace passano da un secchiello di gettoni (6, ricarica adattiva tra 2 e 15 s, ne restano sempre 3 per le richieste aperte dall'utente) che rallenta da solo dopo un 429.
 
 ## Stato
 
