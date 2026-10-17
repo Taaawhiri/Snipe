@@ -1367,13 +1367,13 @@ export class Scanner extends DurableObject {
   }
 
   /**
-   * Giro lento: ogni 5 minuti riconosce la regione di un'espansione che non l'ha ancora.
+   * Giro lento: ogni minuto riconosce la regione di un'espansione che non l'ha ancora.
    * La lettura aspetta il suo turno come una richiesta dell'utente (lasciando sempre un gettone libero):
    * in background, subito dopo lo scan, i gettoni non bastavano mai e il giro non avanzava.
    */
   async regionStep(status) {
     if (!(await this.isCatalog())) return;
-    if (Date.now() - (await this.get('regionAt', 0)) < 5 * 60_000) return;
+    if (Date.now() - (await this.get('regionAt', 0)) < 60_000) return;
     const [exps, map] = await Promise.all([this.pokemonExpansions(), this.get('expRegion', {})]);
     const tried = await this.get('regionTried', {});
     const week = 7 * 86400_000;
