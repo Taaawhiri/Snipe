@@ -90,14 +90,18 @@ export function priceFor(list, lang, cond, opts = {}) {
     const m = arr.filter(fits);
     const base = m.length ? m : arr; // nessun annuncio nella lingua/condizione: tutti, segnato come approssimato
     if (!base.length) return null;
-    return { low: base[0].price.cents, typ: median(base.slice(0, TYPICAL_N).map((p) => p.price.cents)), approx: !m.length, n: Math.min(TYPICAL_N, base.length) };
+    return { low: base[0].price.cents, typ: median(base.slice(0, TYPICAL_N).map((p) => p.price.cents)), approx: !m.length, n: Math.min(TYPICAL_N, base.length), lowLang: normLang(listingLang(base[0])) || '' };
   };
   const all = pickSet(ok);
-  const zero = pickSet(ok.filter(isZero));
+  // Solo Zero: un annuncio Zero in un'altra lingua non vale più di uno giusto non Zero (es. 1ª ed. giapponese a 70 € vs inglese Zero).
+  const z = pickSet(ok.filter(isZero));
+  const zero = z && z.approx && !all.approx ? null : z;
   return {
     cents: all.low,
     typCents: all.typ,
     approx: all.approx || edApprox,
+    lowLang: all.lowLang,
+    zeroLowLang: zero ? zero.lowLang : null,
     edApprox,
     listings: ok.length,
     graded: grade ? `${grade.co} ${grade.g}` : null,
@@ -111,8 +115,9 @@ export function priceFor(list, lang, cond, opts = {}) {
 export function pickPrice(p, zeroOnly, typical = false) {
   if (!p) return null;
   if (zeroOnly) {
-    if (p.zeroCents == null) return null;
-    return { ...p, cents: typical && p.zeroTypCents != null ? p.zeroTypCents : p.zeroCents, approx: p.zeroApprox };
+    // Nessun annuncio Zero adatto: si usa il prezzo di tutti i venditori, segnato.
+    if (p.zeroCents == null) return p.cents == null ? null : { ...p, cents: typical && p.typCents != null ? p.typCents : p.cents, notZero: true };
+    return { ...p, cents: typical && p.zeroTypCents != null ? p.zeroTypCents : p.zeroCents, approx: p.zeroApprox, lowLang: p.zeroLowLang };
   }
   return typical && p.typCents != null ? { ...p, cents: p.typCents } : p;
 }

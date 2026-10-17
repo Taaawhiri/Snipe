@@ -30,7 +30,14 @@ test('prezzo solo CardTrader Zero', () => {
   assert.equal(p.cents, 1000);
   assert.equal(p.zeroCents, 1400);
   assert.equal(pickPrice(p, true).cents, 1400);
-  assert.equal(pickPrice(priceFor([L(500, 'en', 'Near Mint')], 'en', 'Near Mint'), true), null);
+  // Nessun annuncio Zero: prezzo di tutti i venditori, segnato "non Zero".
+  const nz = pickPrice(priceFor([L(500, 'en', 'Near Mint')], 'en', 'Near Mint'), true);
+  assert.equal(nz.cents, 500);
+  assert.equal(nz.notZero, true);
+  // Zero solo in un'altra lingua: vale l'annuncio giusto non Zero (1ª ed. JP a 70 € contro inglese Zero a 39 €).
+  const jp = pickPrice(priceFor([L(7000, 'jp', 'Near Mint'), L(3900, 'en', 'Near Mint', true)], 'jp', 'Near Mint'), true);
+  assert.equal(jp.cents, 7000);
+  assert.equal(jp.notZero, true);
 });
 
 test('prezzo tipico e venditori esclusi', () => {

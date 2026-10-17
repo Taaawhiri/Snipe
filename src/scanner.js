@@ -18,7 +18,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 2; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 3; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -446,9 +446,11 @@ export class Scanner extends DurableObject {
     // Prezzi salvati prima delle opzioni Zero/tipico: rileggiamo subito gli annunci di quelle carte
     // (al massimo 10 per apertura, il resto al giro orario) e ricalcoliamo.
     let refreshing = 0;
-    if (zeroOnly || typical) {
+    {
       const old = await this.get('collPrices', {});
-      const stale = coll.filter((c) => !old[c.key] || !('typCents' in old[c.key]));
+      // Da rileggere: prezzi senza "tipico" (con Zero/tipico attivi) e, sempre, gradate e 1ª edizione calcolate con una versione vecchia.
+      const stale = coll.filter((c) => ((zeroOnly || typical) && (!old[c.key] || !('typCents' in old[c.key])))
+        || ((c.first || parseGradeLabel(c.cond)) && (!old[c.key] || old[c.key].v !== PRICE_V))).slice(0, 10);
       refreshing = stale.length;
       if (stale.length && !this.collRefreshing) {
         // In sottofondo: la risposta arriva subito e la pagina si aggiorna da sola quando i prezzi sono pronti.
