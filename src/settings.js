@@ -10,8 +10,8 @@ export const DEFAULT_SETTINGS = {
   tz: 'Europe/Rome',
   scanEverySec: 10,
   summary: true, // riepilogo giornaliero alle 9
-  collZero: false, // valore della collezione con i soli prezzi CardTrader Zero
-  collTypical: false, // valore con il prezzo tipico (mediana dei 5 più economici) invece del più basso
+  collZero: true, // valore della collezione con i soli prezzi CardTrader Zero
+  collTypical: true, // valore con il prezzo tipico (mediana dei 5 più economici) invece del più basso
 };
 
 /** "07:30" -> 450 minuti dalla mezzanotte; null se non è un orario valido. */
