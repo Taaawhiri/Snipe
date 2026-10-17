@@ -844,6 +844,7 @@
     openSheet($('scanDialog'));
     try {
       const r = await api('/api/scan', { method: 'POST', body: JSON.stringify({ image: data }) });
+      if (!coll) await loadCollection(); // serve per segnare le carte che hai già
       renderScan(r);
     } catch (e) {
       $('scanRead').replaceChildren(el('p', { class: 'error', text: e.message }));
@@ -874,11 +875,11 @@
         openCard({ id: c.id, name: c.name, version: c.version, image: c.image, expansionId: c.expansionId, expName: c.expName, currency: 'EUR' });
         if (lang && OWN_LANGS.some(([v]) => v === lang)) own.lang = lang;
       } },
-        el('div', { class: 't', text: c.name }),
+        el('div', { class: 't' }, c.name, ' ', ownedBadge(c.id, 'own-badge inline')),
         el('div', { class: 's', text: [c.version, c.expName].filter(Boolean).join(' · ') }),
       ),
       // Si apre "Ce l'ho" con la lingua letta dalla foto: condizione, copie, gradata e prezzo li scegli tu.
-      el('button', { class: 'btn mini', type: 'button', title: 'Aggiungi alla collezione', text: "＋ Ce l'ho", onclick: (ev) => {
+      el('button', { class: 'btn mini', type: 'button', title: 'Aggiungi alla collezione', text: ownedQty(c.id) ? '＋ Un\'altra' : "＋ Ce l'ho", onclick: (ev) => {
         const btn = ev.currentTarget;
         openOwnAdd({ id: c.id, name: c.name, version: c.version, image: c.image, expansionId: c.expansionId, expName: c.expName }, lang, () => {
           btn.textContent = '✓ Aggiunta';
