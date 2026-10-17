@@ -91,7 +91,7 @@ const stripZeros = (s) => String(s || '').replace(/^0+(?=\d)/, '').toLowerCase()
  * row = [id, name, version, ...]; version contiene di solito "Rarità | 137/103".
  */
 // δ (Delta Species) e "Star" ★ diventano parole, così "Meganium δ" non è un Meganium qualsiasi.
-const cardName = (t) => normText(String(t || '').replace(/δ/g, ' delta ').replace(/delta species/gi, 'delta').replace(/[★☆]/g, ' star '));
+const cardName = (t) => normText(String(t || '').replace(/δ/g, ' delta ').replace(/delta species/gi, 'delta').replace(/[★☆]/g, ' star ')).replace(/\b(delta|star)( \1\b)+/g, '$1');
 
 const REGION_LANG = { JAP: 'jp', CN: 'zh', KR: 'ko' };
 const ASIAN = ['jp', 'zh', 'ko', 'th', 'id'];
@@ -133,7 +133,8 @@ export function scoreRow(row, scan, setCode = '', expName = '', region = '', opt
   }
   if (scan.setCode && setCode && normText(scan.setCode) === normText(setCode)) score += 2;
   // Epoca (vintage/moderna) vista dal layout: le vecchie carte giapponesi non hanno numero, così si distinguono dalle ristampe.
-  if (scan.era && opts.era) score += scan.era === opts.era ? 3 : -3;
+  // Solo bonus: alcuni set di passaggio (es. δ giapponesi del 2007) non risultano "vintage" nel nostro elenco.
+  if (scan.era && opts.era === scan.era) score += 3;
   // Set riconosciuto dal modello (meno sicuro dell'etichetta della slab).
   if (scan.setGuess && expName) {
     const gw = normText(scan.setGuess).split(' ').filter((w) => w.length > 2 && !['and', 'the', 'set'].includes(w));
