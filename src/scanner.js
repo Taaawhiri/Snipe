@@ -45,7 +45,7 @@ function withoutSellers(data, blocked) {
 const CATALOG = 'main';
 const STUCK_MS = 15 * 60_000;
 const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
-const MKT_RESERVE = 3; // gettoni che lo scan lascia sempre all'utente
+const MKT_RESERVE = 2; // gettoni che lo scan lascia sempre all'utente
 const MKT_GAP_START = 3000; // un gettone ogni 3 s = 20 letture al minuto
 const MKT_GAP_MIN = 2000;
 const MKT_GAP_MAX = 15_000; // letture dal marketplace per giro di scan, qualunque sia il numero di alert
@@ -1373,7 +1373,9 @@ export class Scanner extends DurableObject {
       }
       return data;
     } catch (e) {
-      if (hit) return hit.data;
+      // Per chi apre una schermata vanno bene i dati già letti; per lo scan no: deve sapere che la lettura
+      // non è avvenuta, altrimenti la conta come fatta e non rilegge mai quella carta.
+      if (hit && !background) return hit.data;
       throw e;
     }
   }
@@ -1389,7 +1391,9 @@ export class Scanner extends DurableObject {
       await this.recordHistory(blueprintId, data[blueprintId] || data[String(blueprintId)]);
       return data;
     } catch (e) {
-      if (hit) return hit.data;
+      // Per chi apre una schermata vanno bene i dati già letti; per lo scan no: deve sapere che la lettura
+      // non è avvenuta, altrimenti la conta come fatta e non rilegge mai quella carta.
+      if (hit && !background) return hit.data;
       throw e;
     }
   }
@@ -1988,6 +1992,7 @@ export class Scanner extends DurableObject {
         if (e.rateLimited || e.budget) break;
       }
     }
+    if (status) status.lastRefresh = { ts: Date.now(), want: due.length, read: n, error: error ? (error.budget ? 'letture finite per questo giro' : String(error.message || error).slice(0, 80)) : null };
     // Giro completo: da quanto tempo non si rilegge la carta (o il set) di alert più "vecchia".
     if (status) {
       // Solo letture vere dall'avvio del server: i prezzi ricaricati dal disco dopo un aggiornamento hanno l'ora vecchia.
@@ -2164,7 +2169,8 @@ export class Scanner extends DurableObject {
 
       // Prima di avvisare: se i prezzi hanno più di un minuto, si rilegge la carta e si tengono solo
       // gli annunci ancora in vendita allo stesso prezzo. Succede di rado (solo quando c'è un affare).
-      if (deals.length && rule.blueprintId && srcHit && Date.now() - srcHit.ts > 60_000) {
+      const unseen = deals.filter((d) => !seen[`${rule.id}:${d.product.id}:${d.cents}`]);
+      if (unseen.length && rule.blueprintId && srcHit && Date.now() - srcHit.ts > 60_000) {
         const fresh = await this.productsForCard(rule.blueprintId, 0).catch(() => null);
         const still = fresh && (fresh[rule.blueprintId] || fresh[String(rule.blueprintId)]);
         if (Array.isArray(still)) {
