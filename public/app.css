@@ -973,3 +973,21 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 .ci-edit{width:auto;height:30px;border-radius:999px;padding:0 10px;font-size:12px;font-weight:800}
 .grade-badge{display:inline-block;margin-right:6px;font-size:11px;font-weight:900;letter-spacing:.04em;color:#2a1840;border-radius:6px;padding:1px 6px;background:linear-gradient(100deg,#ff9ad5,#ffe36b,#8affc1,#7ec8ff,#c59bff)}
 .ci-edit{width:34px;height:34px;padding:0;font-size:15px}
+
+/* slab delle carte gradate */
+.slab{--lab:#c8202f;--labink:#fff;position:relative;flex:none;aspect-ratio:63/105;border-radius:8%/5%;padding:6% 7% 7%;box-sizing:border-box;display:flex;flex-direction:column;gap:5%;
+  background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.08) 40%,rgba(255,255,255,.18));border:1.5px solid rgba(255,255,255,.55);box-shadow:inset 0 0 0 3px rgba(255,255,255,.08),0 6px 14px rgba(0,0,0,.45);overflow:hidden}
+.slab::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.3) 45%,transparent 55%);pointer-events:none}
+.slab-label{background:var(--lab);color:var(--labink);border-radius:4px;padding:5% 7%;display:flex;justify-content:space-between;align-items:center;gap:4px;min-height:18%;box-sizing:border-box}
+.slab .sl-l{display:flex;flex-direction:column;line-height:1.1;min-width:0}
+.slab .sl-co{font-weight:900;letter-spacing:.06em;font-size:1em}
+.slab .sl-nm{font-weight:700;font-size:.55em;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slab .sl-g{font-family:var(--display);font-weight:700;font-size:1.5em;line-height:1}
+.slab-card{display:block;width:100%;flex:1;min-height:0;object-fit:cover;border-radius:4%;box-shadow:0 0 0 2px rgba(0,0,0,.25)}
+.slab-card.ph{background:var(--surface-2)}
+.slab.bgs{--lab:linear-gradient(135deg,#d9dde3,#9aa3ad);--labink:#1b2340}
+.slab.bgs.gold{--lab:linear-gradient(135deg,#ffe58a,#c9962b);--labink:#3a2700}
+.slab.cgc{--lab:#1f4fae}
+.slab.sgc,.slab.ace,.slab.tag,.slab.pcg{--lab:#16181f;--labink:#fff}
+.slab.slab-sm{width:58px;font-size:9px}
+.slab.slab-own{width:96px;font-size:13px}

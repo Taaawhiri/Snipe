@@ -147,7 +147,7 @@
           } });
         const g = it.price && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : null;
         return el('div', { class: 'ci' + (g == null ? '' : g > 0 ? ' gain' : g < 0 ? ' loss' : '') },
-          thumb(it.image),
+          isGradeLabel(it.cond) ? slabView(it.cond, it.image, it.name, 'slab-sm') : thumb(it.image),
           el('div', { class: 'ci-main' },
             el('button', { class: 't linklike', type: 'button', text: it.name, onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }),
             el('div', { class: 's' },
@@ -223,6 +223,20 @@
   const ownCond = () => (own.gco ? `${own.gco} ${own.g}` : own.cond);
   let ownEditing = null; // carta della collezione che si sta modificando (null = si aggiunge)
 
+  /**
+   * Slab disegnata per le copie gradate: custodia trasparente, etichetta con società e voto, e dentro
+   * l'immagine della carta di CardTrader. Colori per società, senza loghi ufficiali.
+   */
+  function slabView(label, image, name, cls = '') {
+    const [co, g] = String(label).split(' ');
+    const gold = co === 'BGS' && Number(g) >= 9.5;
+    return el('div', { class: `slab ${co.toLowerCase()}${gold ? ' gold' : ''} ${cls}`.trim(), role: 'img', 'aria-label': `${name || 'Carta'} gradata ${label}` },
+      el('div', { class: 'slab-label' },
+        el('span', { class: 'sl-l' }, el('span', { class: 'sl-co', text: co }), el('span', { class: 'sl-nm', text: name || '' })),
+        el('span', { class: 'sl-g', text: g })),
+      image ? el('img', { class: 'slab-card', src: image, alt: '', loading: 'lazy' }) : el('div', { class: 'slab-card ph' }));
+  }
+
   /** Modifica di una carta già in collezione: copie, lingua, condizione e prezzo pagato nello stesso pannello. */
   function openOwnEdit(it) {
     ownEditing = it;
@@ -256,6 +270,12 @@
     pills($('ownGrades'), GRADES, own.g, (v) => { own.g = v; renderOwnSheet(); });
     $('ownGrades').hidden = !own.gco;
     $('ownCondField').hidden = !!own.gco;
+    // Anteprima: con una società scelta l'immagine della carta compare dentro la slab.
+    const img = $('ownImg');
+    const prev = img.parentNode.querySelector('.slab');
+    if (prev) prev.remove();
+    img.hidden = !!own.gco;
+    if (own.gco) img.after(slabView(`${own.gco} ${own.g}`, img.getAttribute('src'), $('ownCardName').textContent, 'slab-own'));
   }
 
   function renderOwnBox() {
