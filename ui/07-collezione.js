@@ -1,5 +1,6 @@
   // ---------- collezione ----------
   let coll = null;
+  let collType = 'all'; // filtro per tipo: Pokémon, allenatori, energie
   let collKind = 'all'; // filtro rapido: tutte, non gradate, gradate
   /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
   function ownedQty(bp) {
@@ -138,8 +139,17 @@
     $('collKind').replaceChildren(...[['all', `Tutte (${items.length})`], ['raw', `Non gradate (${items.length - nG})`], ['graded', `Gradate (${nG})`]].map(([v, l]) =>
       el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collKind === v), text: l, onclick: () => { collKind = v; renderCollection(); } })));
     const kindOk = (it) => collKind === 'all' || (collKind === 'graded') === isGradeLabel(it.cond);
-    const shownItems = items.filter((it) => kindOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
-    $('collCount').hidden = !cq && collKind === 'all';
+    // Filtro per tipo: compare solo se in collezione ci sono almeno due tipi diversi.
+    const nT = { pokemon: 0, trainer: 0, energy: 0 };
+    items.forEach((it) => { nT[cardType(it.name)]++; });
+    $('collType').hidden = Object.values(nT).filter(Boolean).length < 2;
+    if ($('collType').hidden) collType = 'all';
+    $('collType').replaceChildren(...[['all', `Tutti i tipi`], ['pokemon', `Pokémon (${nT.pokemon})`], ['trainer', `Allenatori (${nT.trainer})`], ['energy', `Energie (${nT.energy})`]]
+      .filter(([v]) => v === 'all' || nT[v]).map(([v, l]) =>
+        el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collType === v), text: l, onclick: () => { collType = v; renderCollection(); } })));
+    const typeOk = (it) => collType === 'all' || cardType(it.name) === collType;
+    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
+    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all';
     $('collCount').textContent = shownItems.length ? `${shownItems.length} carte su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
