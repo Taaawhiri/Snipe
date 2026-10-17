@@ -56,7 +56,7 @@
     'Questo account è stato sospeso.': 'This account has been suspended.',
 
     // schede e intestazione
-    'Alert': 'Alerts', 'Carte': 'Cards', 'Cerca': 'Search', 'Affari': 'Deals', 'Regole': 'Rules', 'Opzioni': 'Options', 'Sezioni': 'Sections',
+    'Alert': 'Alerts', 'Carte': 'Cards', 'Cerca': 'Search', 'Cerca tra i tuoi alert (es. Pikachu, 151)': 'Search your alerts (e.g. Pikachu, 151)', 'Affari': 'Deals', 'Regole': 'Rules', 'Opzioni': 'Options', 'Sezioni': 'Sections',
     'In avvio…': 'Starting…', 'Nessuna regola attiva': 'No active rules',
 
     // avvisi
@@ -246,6 +246,7 @@
   };
 
   const R = [
+    [/^(\d+) alert su (\d+)$/, '$1 of $2 alerts'], [/^Nessun alert per “(.+)”$/, 'No alerts for “$1”'],
     [/^(.+) · 🕰️ Era EX 2003–2007$/, '$1 · 🕰️ EX era 2003–2007'],
     [/^(\d+) su (\d+) · ne mancano (\d+)$/, '$1 of $2 · $3 left'], [/^tutte fatte \((\d+)\)$/, 'all done ($1)'], [/^\+(\d+) trovate$/, '+$1 found'], [/^(\d+) senza annunci$/, '$1 without listings'], [/^(\d+) errori$/, '$1 errors'], [/^Ultimo errore: (.+)$/, 'Last error: $1'],
     [/^tutte riconosciute \((\d+)\)$/, 'all recognised ($1)'], [/^(\d+) su (\d+) · (.+)$/, '$1 of $2 · $3'],

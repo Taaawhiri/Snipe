@@ -26,6 +26,7 @@
   }
 
   // ---------- utilità ----------
+  const plainText = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   function el(tag, props = {}, ...children) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(props || {})) {
@@ -1301,8 +1302,13 @@
 
     // regole
     const rl = $('ruleList');
+    const rq = plainText($('ruleSearch').value).trim();
+    $('ruleSearch').hidden = state.rules.length < 6;
+    const shownRules = rq ? state.rules.filter((r) => plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)) : state.rules;
+    $('ruleCount').hidden = !rq;
+    $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : `Nessun alert per “${$('ruleSearch').value.trim()}”`;
     rl.replaceChildren(
-      ...state.rules.map((r) => {
+      ...shownRules.map((r) => {
         const title = r.cardName || r.expansionName || `Espansione ${r.expansionId}`;
         const zeroTxt = r.zero === 'only' ? 'Solo Zero' : r.zero === 'exclude' ? 'Senza Zero' : '';
         return el('div', { class: 'rule' + (r.enabled ? '' : ' off') },
@@ -2357,6 +2363,7 @@
     timer = setInterval(() => { if (!document.hidden) refresh(); }, 15000);
   }
 
+  $('ruleSearch').addEventListener('input', render);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
   $('setNameSave').addEventListener('click', async () => {
     try {

@@ -17,6 +17,7 @@
     timer = setInterval(() => { if (!document.hidden) refresh(); }, 15000);
   }
 
+  $('ruleSearch').addEventListener('input', render);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
   $('setNameSave').addEventListener('click', async () => {
     try {

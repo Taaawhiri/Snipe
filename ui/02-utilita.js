@@ -1,4 +1,5 @@
   // ---------- utilità ----------
+  const plainText = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   function el(tag, props = {}, ...children) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(props || {})) {
