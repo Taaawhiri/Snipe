@@ -325,7 +325,7 @@
 
   /** Apre "Ce l'ho" per una carta qualsiasi (es. dallo scanner), con lingua già proposta; onDone dopo il salvataggio. */
   let ownDone = null;
-  function openOwnAdd(c, lang, onDone) {
+  function openOwnAdd(c, lang, onDone, slab) {
     current = c;
     ownDone = onDone || null;
     $('ownName').textContent = "Ce l'ho";
@@ -340,6 +340,7 @@
     own.qty = 1;
     if (lang && OWN_LANGS.some(([v]) => v === lang)) own.lang = lang;
     own.cond = 'Near Mint';
+    if (slab && GRADE_COS.some(([v]) => v === slab.co)) { own.gco = slab.co; own.g = slab.g; }
     renderOwnSheet();
     renderOwnBox();
     openSheet($('ownDialog'));

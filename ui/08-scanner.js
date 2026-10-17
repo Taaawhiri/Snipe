@@ -73,6 +73,7 @@
         lang ? chip(LANG_LABEL[lang] || lang.toUpperCase(), 'lang') : null,
         sc.setCode ? chip(sc.setCode) : null,
         sc.variant ? chip(sc.variant, 'zero') : null,
+        sc.slab ? chip(`${sc.slab.co} ${sc.slab.g}`, 'on') : null,
       ),
       el('div', { class: 'small muted', text: `${r.engine === 'workers-ai' ? 'Riconoscimento Cloudflare' : r.engine === 'claude-opus' ? 'Riconoscimento Claude Opus' : r.engine === 'claude-sonnet' ? 'Riconoscimento Claude Sonnet' : 'Riconoscimento Claude'}${r.limit < 100000 ? ` · ${r.used}/${r.limit} scansioni questo mese` : ''}` }),
     );
@@ -97,7 +98,7 @@
         openOwnAdd({ id: c.id, name: c.name, version: c.version, image: c.image, expansionId: c.expansionId, expName: c.expName }, lang, () => {
           btn.textContent = '✓ Aggiunta';
           btn.disabled = true;
-        });
+        }, sc.slab); // dalla slab: società e voto già scelti
       } }),
     )));
   }

@@ -3,7 +3,7 @@ import { normText } from './search.js';
 
 export const SCAN_PROMPT = `You identify Pokémon trading cards from a photo.
 Look at the card and answer with ONLY a JSON object, no other text:
-{"name": "...", "number": "...", "total": "...", "set_code": "...", "language": "...", "text_sample": "...", "variant": "...", "confidence": 0.0}
+{"name": "...", "number": "...", "total": "...", "set_code": "...", "language": "...", "text_sample": "...", "variant": "...", "slab_company": "...", "slab_grade": "...", "slab_set": "...", "confidence": 0.0}
 - name: the Pokémon or trainer card name in ENGLISH (translate if the card is in another language), e.g. "Charizard ex". Use the official English card name, not a literal translation: trainers and items often have different names (Italian "Lucinda" is "Dawn", "Camilla" is "Cynthia", "Ruggero" is "Lance").
 - number: the collector number printed at the bottom (the part before the slash), e.g. "137" or "TG05" or "SV001". Old Japanese cards (1996-2005) often have no collector number: their "No. 040" is the Pokédex number, not the collector number, so leave number empty.
 - total: the part after the slash, e.g. "103"; empty if there is no slash. Collector numbers rarely exceed 3 digits: on small print (Chinese cards) do not merge digits, "200/207" is number "200", total "207".
@@ -11,6 +11,7 @@ Look at the card and answer with ONLY a JSON object, no other text:
 - language: the language the card is PRINTED in, as a 2-letter code: en, ja, it, fr, de, es, pt, ko, zh.
 - text_sample: copy EXACTLY, character by character, 5 to 15 characters of the card name or attack text as printed (keep Japanese/Korean/Chinese characters as they are, do not translate).
 - variant: "1st edition", "reverse holo", "holo", or "" if not visible.
+- slab_company, slab_grade, slab_set: only if the card is sealed in a grading slab (PSA, BGS/Beckett, CGC, SGC, ACE, TAG, PCG). Read the slab LABEL: company, numeric grade (e.g. "10", "9.5", "7.5") and the set name as written on the label (e.g. "Darkness, and to Light"). The label also gives the card name, year and language ("Japanese"): trust it. Empty strings if there is no slab.
 - confidence: 0 to 1, how sure you are about name and number together.
 If no card is visible, answer {"name": "", "confidence": 0}.`;
 
@@ -50,6 +51,11 @@ export function parseScan(text) {
   // La scrittura del testo copiato vince sulla lingua dichiarata (il modello piccolo tende a dire "en").
   const lang = langFromScript(sample) || langFromScript(o.name_original) || LANG_MAP[clean(o.language).toLowerCase()] || '';
   const conf = Number(o.confidence);
+  // Etichetta della slab: società e voto normalizzati come in collezione ("CGC 7.5").
+  const SLAB = { psa: 'PSA', bgs: 'BGS', beckett: 'BGS', cgc: 'CGC', sgc: 'SGC', ace: 'ACE', tag: 'TAG', pcg: 'PCG' };
+  const slabCo = SLAB[clean(o.slab_company).toLowerCase().split(/\s+/)[0]] || '';
+  const gm = /^(10|[1-9](?:[.,]5)?)$/.exec(clean(o.slab_grade).replace(/\s+/g, ''));
+  const slab = slabCo && gm ? { co: slabCo, g: gm[1].replace(',', '.'), set: clean(o.slab_set).slice(0, 80) } : null;
   return {
     name: clean(o.name).slice(0, 80),
     number: number.slice(0, 12),
@@ -58,6 +64,7 @@ export function parseScan(text) {
     language: lang,
     textSample: sample,
     variant: clean(o.variant).slice(0, 30),
+    slab,
     confidence: Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : null,
   };
 }
@@ -121,6 +128,13 @@ export function scoreRow(row, scan, setCode = '', expName = '', region = '') {
     } else if (single && stripZeros(single[1]) === n) score += 3 * nk;
   }
   if (scan.setCode && setCode && normText(scan.setCode) === normText(setCode)) score += 2;
+  // Set scritto sull'etichetta della slab: se le parole tornano col nome dell'espansione, è quasi certamente lei.
+  if (scan.slab && scan.slab.set && expName) {
+    const sw = normText(scan.slab.set).split(' ').filter((w) => w.length > 2 && !['and', 'the', 'pokemon', 'japanese'].includes(w));
+    const ew = normText(expName).split(' ');
+    const hit = sw.filter((w) => ew.includes(w)).length;
+    if (sw.length && hit / sw.length >= 0.6) score += 6;
+  }
   // Lingua dell'espansione (CardTrader separa le edizioni giapponesi, cinesi, coreane, thai).
   // La regione dell'espansione (stessa usata nel selettore) vale più del nome: i set giapponesi vintage non dicono "Japanese".
   const el = REGION_LANG[region] || expLang(`${expName} ${setCode}`) || (region === 'INT' ? 'int' : null);
