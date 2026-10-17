@@ -236,7 +236,7 @@
     'È una di queste? Tocca quella giusta.': 'Is it one of these? Tap the right one.', "＋ Ce l'ho": '＋ I own it', '✓ Aggiunta': '✓ Added',
     'Non vedo una carta: riprova con più luce, la carta dritta e intera nell’inquadratura.': "I can't see a card: try again with more light, the card straight and fully in frame.",
     'Nessuna carta corrispondente nell’indice. Prova a cercarla per nome nella scheda Carte.': 'No matching card in the index. Try searching it by name in the Cards tab.',
-    'Riconoscimento Cloudflare': 'Cloudflare recognition', 'Riconoscimento Claude': 'Claude recognition', 'Riconoscimento Claude Opus': 'Claude Opus recognition', 'Foto non leggibile': 'Unreadable photo',
+    'Riconoscimento Cloudflare': 'Cloudflare recognition', 'Riconoscimento Claude': 'Claude recognition', 'Riconoscimento Claude Opus': 'Claude Opus recognition', 'Riconoscimento Claude Sonnet': 'Claude Sonnet recognition', "＋ Un'altra": '＋ Another', 'Foto non leggibile': 'Unreadable photo',
     'Sto controllando…': 'Checking…', 'Problema con CardTrader · tocca': 'CardTrader problem · tap',
     'Velocità verso CardTrader': 'Pace towards CardTrader', 'Rallentamenti di CardTrader': 'CardTrader slowdowns', 'nessuno, tutto fluido': 'none, all smooth',
     'Nome da mostrare': 'Display name', 'Salva': 'Save', 'Es. il tuo nome o nickname': 'e.g. your name or nickname',
