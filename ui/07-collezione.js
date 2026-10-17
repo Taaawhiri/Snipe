@@ -78,8 +78,8 @@
     $('collList').replaceChildren(
       ...list.map((it) => {
         const step = (d) => el('button', { type: 'button', 'aria-label': d > 0 ? 'Una copia in più' : 'Una copia in meno', text: d > 0 ? '+' : '−',
-          onclick: () => {
-            if (it.qty + d <= 0 && !window.confirm(`Togliere ${it.name} dalla collezione?`)) return;
+          onclick: async () => {
+            if (it.qty + d <= 0 && !(await askConfirm('Puoi sempre aggiungerla di nuovo.', { title: `Togliere ${it.name} dalla collezione?`, ok: 'Togli', danger: true }))) return;
             saveOwn({ ...it, qty: it.qty + d });
           } });
         const g = it.price && it.paidCents ? (it.price.cents - it.paidCents) * it.qty : null;

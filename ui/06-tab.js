@@ -12,7 +12,7 @@
 
   // Eliminare un alert cancella anche i suoi avvisi, quindi chiediamo conferma.
   function confirmDelete(r) {
-    return window.confirm(`Eliminare l'alert "${r.cardName || r.expansionName}"? Anche i suoi avvisi verranno cancellati.`);
+    return askConfirm(`Anche i suoi avvisi verranno cancellati.`, { title: `Eliminare l'alert "${r.cardName || r.expansionName}"?`, ok: 'Elimina', danger: true });
   }
 
   async function markAlert(a, mark) {

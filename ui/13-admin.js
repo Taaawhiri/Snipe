@@ -73,8 +73,8 @@
           st.lastError ? el('p', { class: 'error small', text: st.lastError }) : null,
           u.me ? null : el('div', { class: 'row-btn' },
             el('button', { class: 'btn mini' + (u.blocked ? '' : ' danger'), type: 'button', text: u.blocked ? 'Riattiva account' : 'Sospendi account',
-              onclick: () => {
-                if (!u.blocked && !window.confirm(`Sospendere ${u.name}? Non potrà più accedere e i suoi alert si fermano.`)) return;
+              onclick: async () => {
+                if (!u.blocked && !(await askConfirm('Non potrà più accedere e i suoi alert si fermano.', { title: `Sospendere ${u.name}?`, ok: 'Sospendi', danger: true }))) return;
                 adminUpdate(u, { blocked: !u.blocked });
               } }),
           ),

@@ -52,3 +52,29 @@
   const cselScan = () => document.querySelectorAll('select').forEach(cselWrap);
   cselScan();
   new MutationObserver(cselScan).observe(document.body, { childList: true, subtree: true });
+
+  // ---------- finestre di conferma ----------
+  // Al posto di alert/confirm/prompt del browser: stesso pannello dal basso dei selettori.
+  function dialog({ title = '', text = '', ok = 'OK', cancel = null, danger = false, input = null }) {
+    return new Promise((resolve) => {
+      let field = null;
+      const done = (v) => { ov.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+      const onKey = (e) => { if (e.key === 'Escape') done(cancel ? (input ? null : false) : true); if (e.key === 'Enter' && !input) done(input ? field.value : true); };
+      if (input) field = el('input', { class: 'cs-input', type: 'text', placeholder: input.placeholder || '', autocomplete: 'off', 'aria-label': title || text });
+      const ov = el('div', { class: 'cs-overlay', onclick: (e) => { if (e.target === ov && cancel) done(input ? null : false); } },
+        el('div', { class: 'cs-sheet cs-dialog', role: 'alertdialog', 'aria-label': title || text },
+          el('div', { class: 'cs-grab' }),
+          title ? el('div', { class: 'cs-title', text: title }) : null,
+          el('p', { class: 'cs-text', text }),
+          field,
+          el('div', { class: 'cs-actions' },
+            cancel ? el('button', { class: 'btn', type: 'button', text: cancel, onclick: () => done(input ? null : false) }) : null,
+            el('button', { class: 'btn ' + (danger ? 'danger-solid' : 'primary'), type: 'button', text: ok, onclick: () => done(input ? field.value : true) }))));
+      document.body.append(ov);
+      document.addEventListener('keydown', onKey);
+      (field || ov.querySelector('.cs-actions .btn:last-child')).focus({ preventScroll: true });
+    });
+  }
+  const askConfirm = (text, opts = {}) => dialog({ cancel: 'Annulla', ok: 'Conferma', ...opts, text });
+  // Sostituisce alert() del browser in tutta l'app (le parti dopo questa usano questo).
+  function alert(text) { return dialog({ text: String(text) }); }

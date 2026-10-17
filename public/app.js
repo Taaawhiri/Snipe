@@ -134,6 +134,32 @@
   const cselScan = () => document.querySelectorAll('select').forEach(cselWrap);
   cselScan();
   new MutationObserver(cselScan).observe(document.body, { childList: true, subtree: true });
+
+  // ---------- finestre di conferma ----------
+  // Al posto di alert/confirm/prompt del browser: stesso pannello dal basso dei selettori.
+  function dialog({ title = '', text = '', ok = 'OK', cancel = null, danger = false, input = null }) {
+    return new Promise((resolve) => {
+      let field = null;
+      const done = (v) => { ov.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+      const onKey = (e) => { if (e.key === 'Escape') done(cancel ? (input ? null : false) : true); if (e.key === 'Enter' && !input) done(input ? field.value : true); };
+      if (input) field = el('input', { class: 'cs-input', type: 'text', placeholder: input.placeholder || '', autocomplete: 'off', 'aria-label': title || text });
+      const ov = el('div', { class: 'cs-overlay', onclick: (e) => { if (e.target === ov && cancel) done(input ? null : false); } },
+        el('div', { class: 'cs-sheet cs-dialog', role: 'alertdialog', 'aria-label': title || text },
+          el('div', { class: 'cs-grab' }),
+          title ? el('div', { class: 'cs-title', text: title }) : null,
+          el('p', { class: 'cs-text', text }),
+          field,
+          el('div', { class: 'cs-actions' },
+            cancel ? el('button', { class: 'btn', type: 'button', text: cancel, onclick: () => done(input ? null : false) }) : null,
+            el('button', { class: 'btn ' + (danger ? 'danger-solid' : 'primary'), type: 'button', text: ok, onclick: () => done(input ? field.value : true) }))));
+      document.body.append(ov);
+      document.addEventListener('keydown', onKey);
+      (field || ov.querySelector('.cs-actions .btn:last-child')).focus({ preventScroll: true });
+    });
+  }
+  const askConfirm = (text, opts = {}) => dialog({ cancel: 'Annulla', ok: 'Conferma', ...opts, text });
+  // Sostituisce alert() del browser in tutta l'app (le parti dopo questa usano questo).
+  function alert(text) { return dialog({ text: String(text) }); }
   // ---------- link esterni ----------
   // Su telefono, toccando un link a CardTrader o Cardmarket si apre il menu "Apri con un'altra app" del sistema:
   // da lì si sceglie il browser, e la pagina si apre fuori dalla webapp. Su computer il link si apre normalmente.
@@ -194,7 +220,7 @@
 
   // Eliminare un alert cancella anche i suoi avvisi, quindi chiediamo conferma.
   function confirmDelete(r) {
-    return window.confirm(`Eliminare l'alert "${r.cardName || r.expansionName}"? Anche i suoi avvisi verranno cancellati.`);
+    return askConfirm(`Anche i suoi avvisi verranno cancellati.`, { title: `Eliminare l'alert "${r.cardName || r.expansionName}"?`, ok: 'Elimina', danger: true });
   }
 
   async function markAlert(a, mark) {
@@ -416,8 +442,8 @@
     $('collList').replaceChildren(
       ...list.map((it) => {
         const step = (d) => el('button', { type: 'button', 'aria-label': d > 0 ? 'Una copia in più' : 'Una copia in meno', text: d > 0 ? '+' : '−',
-          onclick: () => {
-            if (it.qty + d <= 0 && !window.confirm(`Togliere ${it.name} dalla collezione?`)) return;
+          onclick: async () => {
+            if (it.qty + d <= 0 && !(await askConfirm('Puoi sempre aggiungerla di nuovo.', { title: `Togliere ${it.name} dalla collezione?`, ok: 'Togli', danger: true }))) return;
             saveOwn({ ...it, qty: it.qty + d });
           } });
         const g = it.price && it.paidCents ? (it.price.cents - it.paidCents) * it.qty : null;
@@ -829,8 +855,8 @@
       el('button', { class: 'btn mini' + (st === 'fav' ? ' on' : ''), type: 'button', title: st === 'fav' ? 'Togli dai preferiti' : 'Salva venditore', text: st === 'fav' ? '★ Salvato' : '☆ Salva',
         onclick: () => setSeller(username, st === 'fav' ? 'none' : 'fav', country) }),
       el('button', { class: 'btn mini' + (st === 'block' ? ' on-bad' : ''), type: 'button', title: st === 'block' ? 'Riammetti' : 'Escludi venditore', text: st === 'block' ? '⛔ Escluso' : '⛔ Escludi',
-        onclick: () => {
-          if (st !== 'block' && !window.confirm(`Escludere ${username}? I suoi annunci non faranno più scattare alert.`)) return;
+        onclick: async () => {
+          if (st !== 'block' && !(await askConfirm('I suoi annunci non faranno più scattare alert. Puoi riammetterlo quando vuoi.', { title: `Escludere ${username}?`, ok: 'Escludi', danger: true }))) return;
           setSeller(username, st === 'block' ? 'none' : 'block', country);
         } }),
     );
@@ -1045,8 +1071,8 @@
           st.lastError ? el('p', { class: 'error small', text: st.lastError }) : null,
           u.me ? null : el('div', { class: 'row-btn' },
             el('button', { class: 'btn mini' + (u.blocked ? '' : ' danger'), type: 'button', text: u.blocked ? 'Riattiva account' : 'Sospendi account',
-              onclick: () => {
-                if (!u.blocked && !window.confirm(`Sospendere ${u.name}? Non potrà più accedere e i suoi alert si fermano.`)) return;
+              onclick: async () => {
+                if (!u.blocked && !(await askConfirm('Non potrà più accedere e i suoi alert si fermano.', { title: `Sospendere ${u.name}?`, ok: 'Sospendi', danger: true }))) return;
                 adminUpdate(u, { blocked: !u.blocked });
               } }),
           ),
@@ -1312,7 +1338,7 @@
               onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }, ico(r.enabled ? 'pause' : 'play'), el('span', { text: r.enabled ? 'Pausa' : 'Riattiva' })),
             el('button', { class: 'act-btn del', type: 'button', 'aria-label': 'Elimina alert', title: 'Elimina',
               onclick: async () => {
-                if (!confirmDelete(r)) return;
+                if (!(await confirmDelete(r))) return;
                 await api(`/api/rules/${r.id}`, { method: 'DELETE' });
                 refresh();
               } }, ico('trash')),
@@ -1492,12 +1518,12 @@
   });
 
   $('deleteAccount').addEventListener('click', async () => {
-    const ok = window.prompt('Eliminare definitivamente il tuo account Snipe? Alert, collezione, lista dei desideri, avvisi e impostazioni verranno cancellati e non si potranno recuperare. Il tuo account CardTrader non viene toccato.\n\nScarica prima i tuoi dati se vuoi conservarli. Per confermare scrivi ELIMINA.');
+    const ok = await dialog({ title: 'Eliminare definitivamente il tuo account?', text: 'Alert, collezione, lista dei desideri, avvisi e impostazioni verranno cancellati e non si potranno recuperare. Il tuo account CardTrader non viene toccato. Scarica prima i tuoi dati se vuoi conservarli. Per confermare scrivi ELIMINA.', input: { placeholder: 'ELIMINA' }, ok: 'Elimina account', cancel: 'Annulla', danger: true });
     if (ok == null) return;
-    if (ok.trim().toUpperCase() !== 'ELIMINA') { alert('Account non eliminato: conferma non corretta.'); return; }
+    if (ok.trim().toUpperCase() !== 'ELIMINA') { await alert('Account non eliminato: conferma non corretta.'); return; }
     try {
       await api('/api/account/delete', { method: 'POST', body: JSON.stringify({ confirm: 'ELIMINA' }) });
-      alert('Account eliminato. Grazie per aver usato Snipe.');
+      await alert('Account eliminato. Grazie per aver usato Snipe.');
       showLogin('');
     } catch (e) {
       alert(e.message);
@@ -1536,7 +1562,7 @@
   // Scelta dell'espansione: elenco nostro (non la tendina di sistema), più recenti in alto, filtri per regione.
   // La <select id="cardExp"> nascosta resta il "valore": chi la legge (caricamento carte) non cambia.
   const REGION_LABEL = { INT: '🌍 International', JAP: '🇯🇵 Giappone', CN: '🇨🇳 Cina', KR: '🇰🇷 Corea', Asia: '🌏 Asia' };
-  const REGION_CHIPS = [['', 'Tutte'], ['INT', '🌍 Int'], ['JAP', '🇯🇵 Jap'], ['CN', '🇨🇳 Cina'], ['KR', '🇰🇷 Corea'], ['Asia', '🌏 Asia']];
+  const REGION_CHIPS = [['', 'Tutte'], ['vintage', '🕰️ Vintage'], ['INT', '🌍 Int'], ['JAP', '🇯🇵 Jap'], ['CN', '🇨🇳 Cina'], ['KR', '🇰🇷 Corea'], ['Asia', '🌏 Asia']];
   let expRegion = '';
   const recentExp = () => { try { return JSON.parse(localStorage.getItem('snipe.recentExp') || '[]'); } catch { return []; } };
   function pushRecent(id) {
@@ -1546,7 +1572,7 @@
     const cur = $('cardExp').value === String(e.id);
     return el('button', { class: 'exp-row' + (cur ? ' sel' : ''), type: 'button', onclick: () => chooseExp(String(e.id)) },
       el('span', { class: 'exp-code', text: (e.code || '').slice(0, 7) }),
-      el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: e.name }), el('span', { class: 'sub', text: e.code || '' })),
+      el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: e.name }), el('span', { class: 'sub', text: [e.code, e.vintage === 'WOTC' ? '🕰️ WOTC 1999–2003' : e.vintage === 'EX' ? '🕰️ Era EX 2003–2007' : ''].filter(Boolean).join(' · ') })),
       el('span', { class: `exp-reg ${e.region || 'unk'}`, text: e.region ? REGION_LABEL[e.region] || e.region : 'regione in arrivo' }),
     );
   }
@@ -1558,7 +1584,7 @@
     sel.value = prev;
     // In ordine alfabetico: CardTrader non dà la data di uscita, e le fonti online non coprono i set asiatici.
     const byNew = [...expansions].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-    const items = byNew.filter((e) => (!expRegion || e.region === expRegion) && (!q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q)));
+    const items = byNew.filter((e) => (!expRegion || (expRegion === 'vintage' ? !!e.vintage : e.region === expRegion)) && (!q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q)));
     $('expChips').replaceChildren(...REGION_CHIPS.map(([id, label]) => el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(expRegion === id), text: label, onclick: () => { expRegion = id; fillCardExpansions(); } })));
     const recent = !q && !expRegion ? recentExp().map((id) => expansions.find((e) => String(e.id) === id)).filter(Boolean) : [];
     const sec = (t) => el('div', { class: 'exp-sec', text: t });

@@ -127,7 +127,7 @@
               onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, enabled: !r.enabled }) }, ico(r.enabled ? 'pause' : 'play'), el('span', { text: r.enabled ? 'Pausa' : 'Riattiva' })),
             el('button', { class: 'act-btn del', type: 'button', 'aria-label': 'Elimina alert', title: 'Elimina',
               onclick: async () => {
-                if (!confirmDelete(r)) return;
+                if (!(await confirmDelete(r))) return;
                 await api(`/api/rules/${r.id}`, { method: 'DELETE' });
                 refresh();
               } }, ico('trash')),

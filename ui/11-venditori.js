@@ -10,8 +10,8 @@
       el('button', { class: 'btn mini' + (st === 'fav' ? ' on' : ''), type: 'button', title: st === 'fav' ? 'Togli dai preferiti' : 'Salva venditore', text: st === 'fav' ? '★ Salvato' : '☆ Salva',
         onclick: () => setSeller(username, st === 'fav' ? 'none' : 'fav', country) }),
       el('button', { class: 'btn mini' + (st === 'block' ? ' on-bad' : ''), type: 'button', title: st === 'block' ? 'Riammetti' : 'Escludi venditore', text: st === 'block' ? '⛔ Escluso' : '⛔ Escludi',
-        onclick: () => {
-          if (st !== 'block' && !window.confirm(`Escludere ${username}? I suoi annunci non faranno più scattare alert.`)) return;
+        onclick: async () => {
+          if (st !== 'block' && !(await askConfirm('I suoi annunci non faranno più scattare alert. Puoi riammetterlo quando vuoi.', { title: `Escludere ${username}?`, ok: 'Escludi', danger: true }))) return;
           setSeller(username, st === 'block' ? 'none' : 'block', country);
         } }),
     );

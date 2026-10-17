@@ -12,6 +12,7 @@ import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShard
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { regionFromLangs, regionFromName } from './region.js';
+import { vintageEra } from './vintage.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -663,7 +664,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/expansions' && method === 'GET') {
       try {
         const [list, map] = await Promise.all([this.pokemonExpansions(), this.regions()]);
-        return json(list.map((e) => ({ ...e, region: map[e.id] || regionFromName(e.name) })));
+        return json(list.map((e) => ({ ...e, region: map[e.id] || regionFromName(e.name), vintage: vintageEra(e.name) })));
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }

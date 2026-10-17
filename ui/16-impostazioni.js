@@ -164,12 +164,12 @@
   });
 
   $('deleteAccount').addEventListener('click', async () => {
-    const ok = window.prompt('Eliminare definitivamente il tuo account Snipe? Alert, collezione, lista dei desideri, avvisi e impostazioni verranno cancellati e non si potranno recuperare. Il tuo account CardTrader non viene toccato.\n\nScarica prima i tuoi dati se vuoi conservarli. Per confermare scrivi ELIMINA.');
+    const ok = await dialog({ title: 'Eliminare definitivamente il tuo account?', text: 'Alert, collezione, lista dei desideri, avvisi e impostazioni verranno cancellati e non si potranno recuperare. Il tuo account CardTrader non viene toccato. Scarica prima i tuoi dati se vuoi conservarli. Per confermare scrivi ELIMINA.', input: { placeholder: 'ELIMINA' }, ok: 'Elimina account', cancel: 'Annulla', danger: true });
     if (ok == null) return;
-    if (ok.trim().toUpperCase() !== 'ELIMINA') { alert('Account non eliminato: conferma non corretta.'); return; }
+    if (ok.trim().toUpperCase() !== 'ELIMINA') { await alert('Account non eliminato: conferma non corretta.'); return; }
     try {
       await api('/api/account/delete', { method: 'POST', body: JSON.stringify({ confirm: 'ELIMINA' }) });
-      alert('Account eliminato. Grazie per aver usato Snipe.');
+      await alert('Account eliminato. Grazie per aver usato Snipe.');
       showLogin('');
     } catch (e) {
       alert(e.message);

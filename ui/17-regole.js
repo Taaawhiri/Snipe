@@ -2,7 +2,7 @@
   // Scelta dell'espansione: elenco nostro (non la tendina di sistema), più recenti in alto, filtri per regione.
   // La <select id="cardExp"> nascosta resta il "valore": chi la legge (caricamento carte) non cambia.
   const REGION_LABEL = { INT: '🌍 International', JAP: '🇯🇵 Giappone', CN: '🇨🇳 Cina', KR: '🇰🇷 Corea', Asia: '🌏 Asia' };
-  const REGION_CHIPS = [['', 'Tutte'], ['INT', '🌍 Int'], ['JAP', '🇯🇵 Jap'], ['CN', '🇨🇳 Cina'], ['KR', '🇰🇷 Corea'], ['Asia', '🌏 Asia']];
+  const REGION_CHIPS = [['', 'Tutte'], ['vintage', '🕰️ Vintage'], ['INT', '🌍 Int'], ['JAP', '🇯🇵 Jap'], ['CN', '🇨🇳 Cina'], ['KR', '🇰🇷 Corea'], ['Asia', '🌏 Asia']];
   let expRegion = '';
   const recentExp = () => { try { return JSON.parse(localStorage.getItem('snipe.recentExp') || '[]'); } catch { return []; } };
   function pushRecent(id) {
@@ -12,7 +12,7 @@
     const cur = $('cardExp').value === String(e.id);
     return el('button', { class: 'exp-row' + (cur ? ' sel' : ''), type: 'button', onclick: () => chooseExp(String(e.id)) },
       el('span', { class: 'exp-code', text: (e.code || '').slice(0, 7) }),
-      el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: e.name }), el('span', { class: 'sub', text: e.code || '' })),
+      el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: e.name }), el('span', { class: 'sub', text: [e.code, e.vintage === 'WOTC' ? '🕰️ WOTC 1999–2003' : e.vintage === 'EX' ? '🕰️ Era EX 2003–2007' : ''].filter(Boolean).join(' · ') })),
       el('span', { class: `exp-reg ${e.region || 'unk'}`, text: e.region ? REGION_LABEL[e.region] || e.region : 'regione in arrivo' }),
     );
   }
@@ -24,7 +24,7 @@
     sel.value = prev;
     // In ordine alfabetico: CardTrader non dà la data di uscita, e le fonti online non coprono i set asiatici.
     const byNew = [...expansions].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-    const items = byNew.filter((e) => (!expRegion || e.region === expRegion) && (!q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q)));
+    const items = byNew.filter((e) => (!expRegion || (expRegion === 'vintage' ? !!e.vintage : e.region === expRegion)) && (!q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q)));
     $('expChips').replaceChildren(...REGION_CHIPS.map(([id, label]) => el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(expRegion === id), text: label, onclick: () => { expRegion = id; fillCardExpansions(); } })));
     const recent = !q && !expRegion ? recentExp().map((id) => expansions.find((e) => String(e.id) === id)).filter(Boolean) : [];
     const sec = (t) => el('div', { class: 'exp-sec', text: t });
