@@ -412,6 +412,27 @@
     );
   }
 
+
+  // ---------- Regole: alert, desideri e venditori in tre sezioni separate (in alto, senza scorrere) ----------
+  function setRview(v) {
+    const r = document.querySelector(`input[name="rview"][value="${v}"]`);
+    if (!r) return;
+    r.checked = true;
+    $('rvAlertsBox').hidden = v !== 'alerts';
+    $('rvWishBox').hidden = v !== 'wish';
+    $('rvSellersBox').hidden = v !== 'sellers';
+    try { localStorage.setItem('snipe.rview', v); } catch {}
+  }
+  document.querySelectorAll('input[name="rview"]').forEach((r) => r.addEventListener('change', () => setRview(r.value)));
+  try { setRview(localStorage.getItem('snipe.rview') || 'alerts'); } catch { setRview('alerts'); }
+  /** Numeri accanto ai nomi delle sezioni. */
+  function renderRviewCounts() {
+    if (!state) return;
+    const s = state.sellers || { fav: [], block: [] };
+    $('rvAlerts').textContent = `Alert (${state.rules.length})`;
+    $('rvWish').textContent = `Desideri (${(state.wish || []).length})`;
+    $('rvSellers').textContent = `Venditori (${(s.fav || []).length + (s.block || []).length})`;
+  }
   // ---------- tipo di carta (Pokémon / Allenatore / Energie) ----------
   // CardTrader non lo indica: lo ricaviamo dal nome. Se contiene il nome di un Pokémon è un Pokémon
   // (anche "Team Rocket's Persian ex"), se finisce in "Energy" è un'energia, altrimenti un allenatore.
@@ -1975,6 +1996,7 @@
     if (!hviewChosen) { hviewChosen = true; setHview(unseen ? 'alerts' : 'coll'); }
 
     renderWish();
+    renderRviewCounts();
     renderPlan();
     renderSellers();
     $('adminPanel').hidden = !isOwner();

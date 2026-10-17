@@ -253,6 +253,12 @@
     </section>
 
     <section id="tab-rules" class="tab" hidden>
+      <div class="seg seg-sm view-switch" role="radiogroup" aria-label="Sezione">
+        <label><input type="radio" name="rview" value="alerts" checked> <span id="rvAlerts">Alert</span></label>
+        <label><input type="radio" name="rview" value="wish"> <span id="rvWish">Desideri</span></label>
+        <label><input type="radio" name="rview" value="sellers"> <span id="rvSellers">Venditori</span></label>
+      </div>
+      <div id="rvAlertsBox">
       <div class="intro">
         <h1>I tuoi alert</h1>
         <p class="muted">Per crearne uno apri <b>Cerca</b>, scegli la carta e imposta prezzo o sconto, oppure scegli un set e tocca <b>Alert su tutto il set</b>.</p>
@@ -279,18 +285,23 @@
         <p>Creane uno dalla scheda Carte per avviare lo scan.</p>
         <button class="btn primary" type="button" data-go="cards">Vai alle carte</button>
       </div>
+      </div>
+      <div id="rvSellersBox" hidden>
       <div class="intro">
         <h1>Venditori</h1>
         <p class="muted">Salva un venditore con ★ o escludilo con ⛔ dagli annunci nel dettaglio di una carta. Gli esclusi non fanno più scattare alert.</p>
       </div>
       <div id="sellerList" class="list cols"></div>
+      </div>
 
+      <div id="rvWishBox" hidden>
       <div class="intro">
         <h1>Lista dei desideri</h1>
         <p class="muted">Carte che segui senza alert: il prezzo si aggiorna ogni 15 minuti circa. Aggiungile dal dettaglio di una carta o con ♥ dai tuoi alert.</p>
       </div>
       <button id="wishFromRules" class="btn" type="button" hidden>♥ Aggiungi le carte dei tuoi alert</button>
       <div id="wishList" class="list cols"></div>
+      </div>
     </section>
 
     <section id="tab-settings" class="tab" hidden>

@@ -377,6 +377,7 @@
     // Regole specifiche prima di quelle generiche (es. "… Cardmarket", "… carta").
     [/^(\d+) annunci in vendita, i (\d+) più economici qui sotto\.(.*)$/, (m, a, b, r) => `${a} listings on sale, the ${b} cheapest below.${r.replace(' I prezzi arrivano nei prossimi minuti.', ' Prices arrive in the next few minutes.').replace(' Nessuno rispetta i filtri.', ' None matches the filters.').replace(' 1 rispetta i filtri e fa scattare l’alert.', ' 1 matches the filters and triggers the alert.').replace(/ (\d+) rispettano i filtri e fanno scattare l’alert\./, ' $1 match the filters and trigger the alert.')}`],
     [/^Nessuna copia NM in (.+) ora$/, 'No NM copy in $1 now'],
+    [/^Alert \((\d+)\)$/, 'Alerts ($1)'], [/^Desideri \((\d+)\)$/, 'Wishlist ($1)'], [/^Venditori \((\d+)\)$/, 'Sellers ($1)'],
     [/^Mostra (\d+) cart[ae]$/, (m, n) => `Show ${n} ${n === '1' ? 'card' : 'cards'}`],
     [/^Su CardTrader costa il (\d+)% in più della tendenza Cardmarket$/, 'On CardTrader it costs $1% more than the Cardmarket trend'],
     [/^Tutte \((\d+)\)$/, 'All ($1)'], [/^Non gradate \((\d+)\)$/, 'Raw ($1)'], [/^Gradate \((\d+)\)$/, 'Graded ($1)'],

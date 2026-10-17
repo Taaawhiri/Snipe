@@ -142,6 +142,7 @@
     if (!hviewChosen) { hviewChosen = true; setHview(unseen ? 'alerts' : 'coll'); }
 
     renderWish();
+    renderRviewCounts();
     renderPlan();
     renderSellers();
     $('adminPanel').hidden = !isOwner();
