@@ -77,7 +77,7 @@
     'Espansione': 'Expansion', 'Cerca (es. 151, Obsidian, Paldea)': 'Search (e.g. 151, Obsidian, Paldea)',
     'Alert su tutto il set': 'Alert on the whole set', 'Cerca carta': 'Search card', 'es. Charizard': 'e.g. Charizard',
     'Nome del Pokémon (es. Pikachu)': 'Pokémon name (e.g. Pikachu)',
-    'Lingua': 'Language', 'Tutte le lingue': 'All languages', 'Tutti i tipi': 'All types', 'Tutte (lingue non indicate)': 'All (language not stated)',
+    'Lingua': 'Language', 'Tutte le lingue': 'All languages', 'Tutti i tipi': 'All types', 'Rarità': 'Rarity', 'Tutte le rarità': 'All rarities', 'Tutte (lingue non indicate)': 'All (language not stated)',
     'Condizione minima': 'Minimum condition', 'Qualsiasi': 'Any',
     'Near Mint o migliore': 'Near Mint or better', 'Slightly Played o migliore': 'Slightly Played or better',
     'Moderately Played o migliore': 'Moderately Played or better', 'Played o migliore': 'Played or better',

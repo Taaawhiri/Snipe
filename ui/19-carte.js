@@ -87,7 +87,8 @@
     const q = $('cardSearch').value.trim().toLowerCase();
     const zeroMode = $('cardPriceMode').value === 'zero';
     const singlesOnly = $('cardKind').value === 'single';
-    const list = cards.filter((c) => (!singlesOnly || c.single !== false) && (searchMode || !q || cardMatchesQuery(c, q)));
+    const rar = $('cardRarity').value;
+    const list = cards.filter((c) => (!singlesOnly || c.single !== false) && (searchMode || !q || cardMatchesQuery(c, q)) && (!rar || rarityOf(c) === rar));
     const sort = $('cardSort').value;
     const price = (c) => (zeroMode ? view(c).lowestZero : view(c).lowest);
     if (sort === 'price-asc' || sort === 'price-desc') {
@@ -153,6 +154,26 @@
     return parts.length > 1 ? { rarity: parts[0], number: parts[1] } : { rarity: null, number: null };
   }
 
+  // ---------- filtro rarità (dalla versione CardTrader: "Special Illustration Rare | 199/165") ----------
+  let searchAll = []; // risultati completi della ricerca, prima del filtro rarità
+  const rarityOf = (c) => c.rarity || splitVersion(c.version).rarity || '';
+  /** Riempie il menu con le rarità presenti, dalla più frequente; lo nasconde se ce n'è meno di due. */
+  function fillRarities(list) {
+    const count = new Map();
+    for (const c of list) { const r = rarityOf(c); if (r) count.set(r, (count.get(r) || 0) + 1); }
+    const sel = $('cardRarity');
+    const prev = sel.value;
+    const opts = [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    sel.replaceChildren(el('option', { value: '', text: 'Tutte le rarità' }), ...opts.map(([r, n]) => el('option', { value: r, text: `${r} (${n})` })));
+    sel.value = count.has(prev) ? prev : '';
+    $('cardRarityRow').hidden = opts.length < 2 && !sel.value;
+  }
+  /** In ricerca filtra le espansioni prima di caricarle a pagine, così il filtro vale anche per quelle non ancora mostrate. */
+  function applySearchRarity() {
+    const r = $('cardRarity').value;
+    searchSets = !r ? searchAll : searchAll.map((set) => ({ ...set, cards: set.cards.filter((c) => rarityOf(c) === r) })).filter((set) => set.cards.length);
+  }
+
   function searchMessage(list) {
     const q = $('cardSearch').value.trim();
     if (q.replace(/\s/g, '').length < 3) return 'Scrivi il nome di un Pokémon (almeno 3 lettere) per cercarlo in tutte le espansioni.';
@@ -170,10 +191,12 @@
     const q = $('cardSearch').value.trim();
     cards = [];
     searchSets = [];
+    searchAll = [];
     searchTotal = 0;
     shownSets = 0;
     priceNote = '';
     $('moreSets').hidden = true;
+    $('cardRarityRow').hidden = !$('cardRarity').value;
     if (q.replace(/\s/g, '').length < 3) { renderCards(); return; }
     $('cardsMsg').hidden = false;
     $('cardsMsg').textContent = 'Cerco…';
@@ -181,7 +204,9 @@
     try {
       const data = await api(`/api/search?q=${encodeURIComponent(q)}`);
       if (run !== searchRun || !searchMode) return;
-      searchSets = data.sets;
+      searchAll = data.sets;
+      fillRarities(searchAll.flatMap((set) => set.cards));
+      applySearchRarity();
       searchTotal = data.totalCards;
       searchIndex = data.index;
       renderCards();
@@ -281,6 +306,7 @@
     currentExp = id ? expansions.find((e) => String(e.id) === id) : null;
     $('setAlertBtn').hidden = !currentExp;
     cards = [];
+    fillRarities([]);
     renderCards();
     if (!currentExp) return;
     $('cardsMsg').hidden = false;
@@ -291,6 +317,7 @@
       if (!currentExp || String(currentExp.id) !== String(data.expansionId)) return;
       cards = data.cards;
       fillLanguages(languagesOf(cards));
+      fillRarities(cards);
       renderCards();
     } catch (e) {
       $('cardsMsg').hidden = false;
@@ -337,6 +364,15 @@
     renderCards();
   });
   $('cardSort').addEventListener('change', renderCards);
+  $('cardRarity').addEventListener('change', () => {
+    if (!searchMode) { renderCards(); return; }
+    // In ricerca ripartiamo dalla prima pagina di espansioni con il nuovo filtro.
+    searchRun++;
+    applySearchRarity();
+    cards = [];
+    shownSets = 0;
+    loadNextSets(searchRun);
+  });
 
   function renderCmBox(c) {
     const box = $('dlgCm');
