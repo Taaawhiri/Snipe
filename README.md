@@ -40,7 +40,8 @@ Con 50 alert il giro completo dura circa 4–5 minuti al ritmo di 10 s. In Opzio
 ## Regioni delle espansioni e vintage
 
 - **Regione** (International, Giappone, Cina, Corea, Asia): si riconosce dalle lingue degli annunci. Un giro lento nel catalogo condiviso ne fa una al minuto finché non le ha tutte (avanzamento in Opzioni → Stato); quando qualcuno apre un'espansione, la sua regione si salva subito.
-- **Vintage**: elenco curato in `src/vintage.js` dei set WOTC (1999–2003) ed era EX (2003–2007), confrontato con il nome dell'espansione.
+- **Data di uscita**: l'API non la fornisce; `src/expdates.js` contiene le date delle 858 espansioni Pokémon prese dalla pagina pubblica di CardTrader. L'elenco delle espansioni è ordinato dalla più recente; quelle uscite dopo (senza data) compaiono in cima.
+- **Vintage** (`src/vintage.js`): deciso dalla data di uscita. Era WOTC fino a metà 2003 (comprese le prime giapponesi dal 1996, 74 espansioni) ed era EX fino a febbraio 2007 (95 espansioni), escluse le prime giapponesi Diamante & Perla.
 
 ## Importare la collezione (CSV)
 

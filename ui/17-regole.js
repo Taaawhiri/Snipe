@@ -12,7 +12,7 @@
     const cur = $('cardExp').value === String(e.id);
     return el('button', { class: 'exp-row' + (cur ? ' sel' : ''), type: 'button', onclick: () => chooseExp(String(e.id)) },
       el('span', { class: 'exp-code', text: (e.code || '').slice(0, 7) }),
-      el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: e.name }), el('span', { class: 'sub', text: [e.code, e.vintage === 'WOTC' ? '🕰️ WOTC 1999–2003' : e.vintage === 'EX' ? '🕰️ Era EX 2003–2007' : ''].filter(Boolean).join(' · ') })),
+      el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: e.name }), el('span', { class: 'sub', text: [e.code, e.released && e.released.slice(0, 4), e.vintage === 'WOTC' ? '🕰️ Era WOTC' : e.vintage === 'EX' ? '🕰️ Era EX' : ''].filter(Boolean).join(' · ') })),
       el('span', { class: `exp-reg ${e.region || 'unk'}`, text: e.region ? REGION_LABEL[e.region] || e.region : 'regione in arrivo' }),
     );
   }
@@ -22,8 +22,8 @@
     const prev = sel.value;
     sel.replaceChildren(el('option', { value: '' }), el('option', { value: 'all' }), ...expansions.map((e) => el('option', { value: e.id })));
     sel.value = prev;
-    // In ordine alfabetico: CardTrader non dà la data di uscita, e le fonti online non coprono i set asiatici.
-    const byNew = [...expansions].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    // Dalla più recente, con la data di uscita di CardTrader; le espansioni senza data sono le nuovissime.
+    const byNew = [...expansions].sort((a, b) => (b.released || '9999').localeCompare(a.released || '9999') || a.name.localeCompare(b.name, undefined, { numeric: true }));
     const items = byNew.filter((e) => (!expRegion || (expRegion === 'vintage' ? !!e.vintage : e.region === expRegion)) && (!q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q)));
     $('expChips').replaceChildren(...REGION_CHIPS.map(([id, label]) => el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(expRegion === id), text: label, onclick: () => { expRegion = id; fillCardExpansions(); } })));
     const recent = !q && !expRegion ? recentExp().map((id) => expansions.find((e) => String(e.id) === id)).filter(Boolean) : [];
@@ -31,7 +31,7 @@
     $('expList').replaceChildren(
       ...(q || expRegion ? [] : [el('button', { class: 'exp-row all', type: 'button', onclick: () => chooseExp('all') }, el('span', { class: 'exp-code', text: '🔍' }), el('span', { class: 'exp-txt' }, el('span', { class: 'nm', text: 'Tutte le espansioni' }), el('span', { class: 'sub', text: 'cerca un Pokémon per nome in tutti i set' })))]),
       ...(recent.length ? [sec('Usate di recente'), ...recent.map(expRow)] : []),
-      ...(items.length ? [sec(q || expRegion ? `${items.length} espansioni` : 'Tutte (A–Z)'), ...items.slice(0, 300).map(expRow)] : [sec('Nessuna espansione')]),
+      ...(items.length ? [sec(q || expRegion ? `${items.length} espansioni` : 'Dalla più recente'), ...items.slice(0, 300).map(expRow)] : [sec('Nessuna espansione')]),
     );
     const cur = prev === 'all' ? { name: 'Tutte le espansioni' } : expansions.find((e) => String(e.id) === prev);
     $('expPick').querySelector('.ep-name').textContent = cur ? cur.name : 'Scegli un’espansione…';

@@ -1,14 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { vintageEra } from '../src/vintage.js';
+import { RELEASED } from '../src/expdates.js';
 
-test('set vintage riconosciuti', () => {
-  for (const n of ['Base Set', 'Jungle', 'Fossil', 'Team Rocket', 'Neo Genesis', 'Skyridge', 'Legendary Collection']) assert.equal(vintageEra(n), 'WOTC', n);
-  for (const n of ['EX Dragon Frontiers', 'EX Team Rocket Returns', 'Power Keepers', 'EX Ruby & Sapphire']) assert.equal(vintageEra(n), 'EX', n);
+test('era dalla data di uscita', () => {
+  assert.equal(vintageEra(1472), 'WOTC'); // Base Set
+  assert.equal(vintageEra(1486), 'WOTC'); // Neo Destiny
+  assert.equal(vintageEra(1492), 'WOTC'); // Skyridge
+  assert.equal(vintageEra(1970), 'WOTC'); // Expansion Pack (JP 1996)
+  assert.equal(vintageEra(1991), 'EX'); // ADV Expansion Pack (JP 2003)
+  assert.equal(vintageEra(1493), 'EX'); // EX Ruby & Sapphire
+  assert.equal(vintageEra(1515), 'EX'); // EX Power Keepers
+  assert.equal(vintageEra(2007), null); // Space-Time Creation (DP)
+  assert.equal(vintageEra(1518), null); // Diamond & Pearl
+  assert.equal(vintageEra(999999), null); // espansione nuova, senza data
 });
-test('set moderni non vintage', () => {
-  for (const n of ['Paldea Evolved', 'Prismatic Evolutions', '151', 'Surging Sparks', '30th Celebration JP', 'Shiny Treasure ex', 'Terastal Festival ex', 'Mega Evolution']) assert.equal(vintageEra(n), null, n);
-});
-test('nomi ambigui moderni', () => {
-  for (const n of ['Sword & Shield Base Set', 'Scarlet & Violet Base Set', "McDonald's Collection 2023", 'Fossil Expansion Pack 2024 Promo']) assert.equal(vintageEra(n), null, n);
+test('elenco delle date completo', () => {
+  assert.ok(Object.keys(RELEASED).length >= 850);
 });
