@@ -768,6 +768,12 @@ export class Scanner extends DurableObject {
           cmTrend = e.trend;
           rule = { ...rule, maxPriceCents: maxCentsBelow(e.trend, rule.cmDiscount) };
         }
+        // Diagnostica: cosa vedeva lo scan in background PRIMA di questa lettura, e cosa ricorda già.
+        const expHit = this.productCache.get(rule.expansionId);
+        const bpHit = rule.blueprintId && this.bpCache.get(rule.blueprintId);
+        const scanTs = Math.max(expHit ? expHit.ts : 0, bpHit ? bpHit.ts : 0) || null;
+        const seenMap = await this.get('seen', {});
+        const seenCount = Object.keys(seenMap).filter((k) => k.startsWith(`${rule.id}:`)).length;
         const data = rule.blueprintId ? await this.productsForCard(rule.blueprintId, 60_000) : await this.productsFor(rule.expansionId, 60_000);
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const rows = all
@@ -788,7 +794,8 @@ export class Scanner extends DurableObject {
               reasons,
             };
           });
-        return json({ rows, total: all.length, cmTrend });
+        const status = await this.status();
+        return json({ rows, total: all.length, cmTrend, diag: { scanTs, seenCount, enabled: !!rule.enabled, lastScan: status.lastScan || null, lastError: status.lastError || null } });
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }

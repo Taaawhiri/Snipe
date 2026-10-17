@@ -773,3 +773,4 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .cs-actions{display:flex;gap:10px}
 .cs-actions .btn{flex:1}
 .btn.danger-solid{background:var(--bad);color:#fff;border-color:var(--bad)}
+.ex-diag{display:block;margin-top:6px;font-size:12.5px;color:var(--muted)}

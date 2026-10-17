@@ -121,6 +121,13 @@
       $('exInfo').textContent = data.rows.length
         ? `${data.cmTrend ? `Tendenza Cardmarket ${money(Math.round(data.cmTrend * 100))}. ` : ''}${data.total} annunci in vendita, i ${data.rows.length} più economici qui sotto. ${ok ? `${ok} rispettano i filtri e fanno scattare l’alert.` : 'Nessuno rispetta i filtri.'}`
         : 'CardTrader non mostra annunci per questa carta.';
+      const dg = data.diag;
+      if (dg) {
+        const parts = [dg.scanTs ? `prezzi letti dallo scan ${ago(dg.scanTs)}` : 'lo scan non ha ancora letto i prezzi di questa carta', `${dg.seenCount} annunci già segnalati`];
+        if (!dg.enabled) parts.unshift('alert in pausa');
+        if (dg.lastError) parts.push(`ultimo errore: ${dg.lastError}`);
+        $('exInfo').append(el('span', { class: 'ex-diag', text: `Controllo in background: ${parts.join(' · ')}.` }));
+      }
       $('exRows').replaceChildren(
         ...data.rows.map((x) =>
           el('a', { class: 'lrow', href: x.url, target: '_blank', rel: 'noopener', title: 'Apri su CardTrader' },
