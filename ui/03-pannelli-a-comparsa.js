@@ -2,6 +2,9 @@
   const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'sellerDialog', 'ownDialog', 'scanDialog', 'batchDialog'].map((id) => $(id));
   function openSheet(d) {
     if (!d.open) d.show(); // non modale: il browser non usa il livello superiore
+    // L'ultima scheda aperta va sopra le altre (es. "Ce l'ho" aperta dalla scansione).
+    sheets.forEach((s) => { s.style.zIndex = ''; });
+    d.style.zIndex = 49;
     $('sheetBackdrop').hidden = false;
     document.documentElement.classList.add('noscroll');
     d.scrollTop = 0;
