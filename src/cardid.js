@@ -83,24 +83,29 @@ export function scoreRow(row, scan, setCode = '', expName = '') {
   const name = normText(row[1]);
   const version = String(row[2] || '');
   let score = 0;
+  let nameOk = true;
   const want = normText(scan.name);
   if (want) {
-    if (name === want) score += 6;
+    nameOk = false;
+    if (name === want) { score += 6; nameOk = true; }
     else {
       const words = want.split(' ').filter((w) => w.length > 1);
       const hit = words.filter((w) => name.split(' ').includes(w)).length;
-      if (words.length && hit === words.length) score += 4;
+      if (words.length && hit === words.length) { score += 4; nameOk = true; }
       else if (hit) score += 2 * (hit / words.length);
     }
   }
+  // Il numero conta meno se il nome letto non torna: in set diversi lo stesso numero è un'altra carta
+  // (es. 119/098 Persian coreana contro Ariana 119/098 giapponese).
+  const nk = nameOk ? 1 : 0.4;
   if (scan.number) {
     const nums = [...version.matchAll(/([A-Za-z]*\d+[A-Za-z]*)\s*\/\s*([A-Za-z]*\d+)/g)];
     const single = /(?:^|[|\s#])([A-Za-z]{0,4}\d{1,4}[A-Za-z]?)\s*$/.exec(version);
     const n = stripZeros(scan.number);
     if (nums.some((x) => stripZeros(x[1]) === n)) {
-      score += 5;
-      if (scan.total && nums.some((x) => stripZeros(x[1]) === n && stripZeros(x[2]) === stripZeros(scan.total))) score += 3;
-    } else if (single && stripZeros(single[1]) === n) score += 3;
+      score += 5 * nk;
+      if (scan.total && nums.some((x) => stripZeros(x[1]) === n && stripZeros(x[2]) === stripZeros(scan.total))) score += 3 * nk;
+    } else if (single && stripZeros(single[1]) === n) score += 3 * nk;
   }
   if (scan.setCode && setCode && normText(scan.setCode) === normText(setCode)) score += 2;
   // Lingua dell'espansione (CardTrader separa le edizioni giapponesi, cinesi, coreane, thai).
