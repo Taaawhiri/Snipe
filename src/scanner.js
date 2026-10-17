@@ -393,6 +393,8 @@ export class Scanner extends DurableObject {
       indexError: (status && status.indexError) || null,
       cm: await this.get('cmmeta', null),
       cmError: (status && status.cmError) || null,
+      regions: (status && status.regions) || null,
+      regionError: (status && status.regionError) || null,
     };
   }
 
@@ -1364,30 +1366,34 @@ export class Scanner extends DurableObject {
     await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromProducts(cards, products), itemsZero: zeroDealsFromProducts(cards, products) });
   }
 
-  /** Giro lento: a ogni controllo (10 min) riconosce la regione di 2 espansioni che non l'hanno ancora. */
-  async regionStep() {
+  /**
+   * Giro lento: ogni 5 minuti riconosce la regione di un'espansione che non l'ha ancora.
+   * La lettura aspetta il suo turno come una richiesta dell'utente (lasciando sempre un gettone libero):
+   * in background, subito dopo lo scan, i gettoni non bastavano mai e il giro non avanzava.
+   */
+  async regionStep(status) {
     if (!(await this.isCatalog())) return;
-    const last = await this.get('regionAt', 0);
-    if (Date.now() - last < 10 * 60_000) return;
-    await this.ctx.storage.put('regionAt', Date.now());
+    if (Date.now() - (await this.get('regionAt', 0)) < 5 * 60_000) return;
     const [exps, map] = await Promise.all([this.pokemonExpansions(), this.get('expRegion', {})]);
     const tried = await this.get('regionTried', {});
     const week = 7 * 86400_000;
-    const todo = exps.filter((e) => !map[e.id] && !regionFromName(e.name) && !(tried[e.id] && Date.now() - tried[e.id] < week)).slice(0, 2);
-    for (const e of todo) {
-      tried[e.id] = Date.now();
-      const data = await this.productsFor(e.id, 6 * 3600_000, true);
-      const langCount = {};
-      for (const list of Object.values(data || {})) {
-        for (const p of list || []) {
-          const l = listingLang(p);
-          if (l) langCount[normLang(l)] = (langCount[normLang(l)] || 0) + 1;
-        }
+    const todo = exps.filter((e) => !map[e.id] && !regionFromName(e.name) && !(tried[e.id] && Date.now() - tried[e.id] < week));
+    status.regions = { done: exps.length - todo.length, total: exps.length };
+    const e = todo[0];
+    if (!e) return;
+    const data = await this.productsFor(e.id, 6 * 3600_000);
+    const langCount = {};
+    for (const list of Object.values(data || {})) {
+      for (const p of list || []) {
+        const l = listingLang(p);
+        if (l) langCount[normLang(l)] = (langCount[normLang(l)] || 0) + 1;
       }
-      const region = regionFromLangs(langCount);
-      if (region) await this.saveRegion(e.id, region);
     }
-    if (todo.length) await this.ctx.storage.put('regionTried', tried);
+    const region = regionFromLangs(langCount);
+    if (region) await this.saveRegion(e.id, region);
+    tried[e.id] = Date.now();
+    await this.ctx.storage.put({ regionTried: tried, regionAt: Date.now() });
+    status.regions.done++;
   }
 
   async dealsList() {
@@ -1610,7 +1616,12 @@ export class Scanner extends DurableObject {
     } catch (e) {
       status.dealsError = String(e.message || e);
     }
-    await this.regionStep().catch(() => null);
+    try {
+      await this.regionStep(status);
+      status.regionError = null;
+    } catch (e) {
+      status.regionError = String(e.message || e);
+    }
     try {
       await this.indexStep();
       status.indexError = null;
