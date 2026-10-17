@@ -302,9 +302,15 @@
     'Succede entro pochi minuti': 'It happens within a few minutes',
     'Elimina avviso': 'Delete notification',
     'Gli avvisi segnati come comprati restano.': 'Notifications marked as bought are kept.',
+    'Stato del controllo': 'Check status',
+    'Apri Opzioni ›': 'Open Settings ›',
+    'Scan in pausa da Opzioni': 'Scanning paused in Settings',
+    'Nessun alert attivo': 'No active alerts',
   };
 
   const R = [
+    [/^1 alert attivo · giro ogni (.+)$/, '1 active alert · cycle every $1'], [/^1 alert attivo$/, '1 active alert'],
+    [/^(\d+) alert attivi · giro ogni (.+)$/, '$1 active alerts · cycle every $2'], [/^(\d+) alert attivi$/, '$1 active alerts'], [/^Stato del controllo: (.+)$/, 'Check status: $1'],
     [/^Elimina i visti \((\d+)\)$/, 'Delete seen ($1)'], [/^Eliminare (\d+) avvis[io] vist[io]\?$/, 'Delete $1 seen notification(s)?'],
     [/^Controlli in ripartenza: (\d+) alert su (\d+) già ricontrollati$/, 'Checks restarting: $1 of $2 alerts already rechecked'],
     [/^([\d,]+) mila$/, (m, n) => `${n.replace(',', '.')}k`], [/^([\d,]+) Mln$/, (m, n) => `${n.replace(',', '.')}M`],

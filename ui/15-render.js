@@ -72,6 +72,7 @@
         ? `Ultimo scan ${ago(s.lastScan)}`
         : 'In avvio…';
     updateBall(s, active);
+    tickRing();
     $('statusError').hidden = !err;
     $('statusError').textContent = err || '';
 

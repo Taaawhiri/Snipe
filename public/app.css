@@ -921,3 +921,20 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .al-btn.del{display:grid;place-items:center;color:#ff8a8a;padding:8px 0}
 .al-btn.del svg{width:18px;height:18px}
 .filterbar #clearSeen{margin-left:auto}
+
+/* anello del prossimo controllo (in alto a destra) */
+.status.ring-status{position:relative;flex:none;width:42px;height:42px;padding:0;border:0;border-radius:50%;background:#1b1430;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.25);backdrop-filter:none}
+.ring-status .ring{position:absolute;inset:4px;width:34px;height:34px;transform:rotate(-90deg)}
+.ring-status .rg-track{fill:none;stroke:#3a2a55;stroke-width:3}
+.ring-status .rg-prog{fill:none;stroke:#3fbf75;stroke-width:3;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .3s}
+.ring-status[data-mode="late"] .rg-prog{stroke:#e0a92a}
+.ring-status[data-mode="err"] .rg-track{stroke:#e5484d}
+.ring-status[data-mode="off"] .rg-prog{stroke:transparent}
+.ring-status #ringLabel{position:relative;font:800 10.5px var(--sans);color:#fff;letter-spacing:-.02em}
+.ring-status:focus-visible{outline:2px solid #fff;outline-offset:2px}
+header.top.ball-err .status.ring-status{background:#3a1420}
+.ring-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:50;min-width:200px;background:#1b1430;border:1px solid #3a2a55;border-radius:12px;padding:9px 11px;box-shadow:0 10px 24px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:3px;text-align:left;cursor:pointer;animation:cs-fade .15s ease}
+.ring-pop .rp-row{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:#fff;white-space:nowrap}
+.ring-pop small{font-size:11.5px;color:var(--muted);font-weight:600}
+.ring-pop .rp-go{font-size:11.5px;font-weight:800;color:var(--blue);margin-top:3px}
+.ring-pop #statusText{overflow:visible;white-space:nowrap}
