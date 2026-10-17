@@ -1374,26 +1374,36 @@ export class Scanner extends DurableObject {
   async regionStep(status) {
     if (!(await this.isCatalog())) return;
     if (Date.now() - (await this.get('regionAt', 0)) < 60_000) return;
-    const [exps, map] = await Promise.all([this.pokemonExpansions(), this.get('expRegion', {})]);
+    const [all, map, meta] = await Promise.all([this.pokemonExpansions(), this.get('expRegion', {}), this.get('ixmeta', null)]);
+    // Solo le espansioni con carte singole (le stesse dell'indice): le altre sono solo prodotti sigillati.
+    const withCards = meta && meta.complete && meta.have && meta.have.length ? new Set(meta.have.map(Number)) : null;
+    const exps = withCards ? all.filter((e) => withCards.has(Number(e.id))) : all;
     const tried = await this.get('regionTried', {});
+    const stats = await this.get('regionStats', { ok: 0, none: 0, err: 0 });
     const week = 7 * 86400_000;
     const todo = exps.filter((e) => !map[e.id] && !regionFromName(e.name) && !(tried[e.id] && Date.now() - tried[e.id] < week));
-    status.regions = { done: exps.length - todo.length, total: exps.length };
+    status.regions = { done: exps.length - todo.length, total: exps.length, ...stats };
     const e = todo[0];
     if (!e) return;
-    const data = await this.productsFor(e.id, 6 * 3600_000);
-    const langCount = {};
-    for (const list of Object.values(data || {})) {
-      for (const p of list || []) {
-        const l = listingLang(p);
-        if (l) langCount[normLang(l)] = (langCount[normLang(l)] || 0) + 1;
+    try {
+      const data = await this.productsFor(e.id, 6 * 3600_000);
+      const langCount = {};
+      for (const list of Object.values(data || {})) {
+        for (const p of list || []) {
+          const l = listingLang(p);
+          if (l) langCount[normLang(l)] = (langCount[normLang(l)] || 0) + 1;
+        }
       }
+      const region = regionFromLangs(langCount);
+      if (region) { await this.saveRegion(e.id, region); stats.ok++; } else stats.none++;
+      tried[e.id] = Date.now();
+    } catch (err) {
+      stats.err++;
+      tried[e.id] = Date.now() - 6 * 86400_000; // errore: si riprova tra un giorno, intanto si passa alla prossima
+      status.regionError = `${e.name}: ${String(err.message || err).slice(0, 80)}`;
     }
-    const region = regionFromLangs(langCount);
-    if (region) await this.saveRegion(e.id, region);
-    tried[e.id] = Date.now();
-    await this.ctx.storage.put({ regionTried: tried, regionAt: Date.now() });
-    status.regions.done++;
+    await this.ctx.storage.put({ regionTried: tried, regionStats: stats, regionAt: Date.now() });
+    status.regions = { done: status.regions.done + 1, total: exps.length, ...stats };
   }
 
   async dealsList() {
@@ -1618,7 +1628,6 @@ export class Scanner extends DurableObject {
     }
     try {
       await this.regionStep(status);
-      status.regionError = null;
     } catch (e) {
       status.regionError = String(e.message || e);
     }

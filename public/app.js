@@ -1338,6 +1338,19 @@
     );
   }
 
+  /** Avanzamento del riconoscimento delle regioni: trovate in verde, senza annunci in giallo, errori in rosso. */
+  function regionsRow(r, error) {
+    const left = r.total - r.done;
+    const row = kvRow('Regioni delle espansioni', left > 0 ? `${r.done} su ${r.total} · ne mancano ${left}` : `tutte fatte (${r.total})`, '', r.total ? r.done / r.total : null);
+    row.append(el('div', { class: 'reg-stats' },
+      el('span', { class: 'rs ok', text: `+${r.ok || 0} trovate` }),
+      r.none ? el('span', { class: 'rs none', text: `${r.none} senza annunci` }) : null,
+      r.err ? el('span', { class: 'rs err', text: `${r.err} errori` }) : null,
+    ));
+    if (error && r.err) row.append(el('span', { class: 'small muted', text: `Ultimo errore: ${error}` }));
+    return row;
+  }
+
   function renderSettings() {
     if (!state || !state.settings) return;
     const s = state.settings;
@@ -1358,7 +1371,7 @@
       kvRow('Scansione', s.paused ? 'In pausa' : active ? (st.lastScan ? `ultimo controllo ${ago(st.lastScan)}` : 'in avvio…') : 'nessun alert attivo'),
       kvRow('Alert attivi', `${active} su ${state.rules.length}`),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? st.lastError : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
-      ...(sys.regions ? [kvRow('Regioni delle espansioni', sys.regions.done >= sys.regions.total ? `tutte riconosciute (${sys.regions.total})` : `${sys.regions.done} su ${sys.regions.total}${sys.regionError ? ` · ${sys.regionError}` : ''}`)] : []),
+      ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
       kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
       kvRow('Prezzi Cardmarket', sys.cm ? `aggiornati ${ago(sys.cm.ts)}` : sys.cmError ? `non disponibili: ${sys.cmError}` : 'in scaricamento…', !sys.cm && sys.cmError ? 'bad' : ''),
       kvRow('Iscrizioni alle notifiche', String(state.pushDevices)),

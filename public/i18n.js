@@ -246,6 +246,7 @@
   };
 
   const R = [
+    [/^(\d+) su (\d+) · ne mancano (\d+)$/, '$1 of $2 · $3 left'], [/^tutte fatte \((\d+)\)$/, 'all done ($1)'], [/^\+(\d+) trovate$/, '+$1 found'], [/^(\d+) senza annunci$/, '$1 without listings'], [/^(\d+) errori$/, '$1 errors'], [/^Ultimo errore: (.+)$/, 'Last error: $1'],
     [/^tutte riconosciute \((\d+)\)$/, 'all recognised ($1)'], [/^(\d+) su (\d+) · (.+)$/, '$1 of $2 · $3'],
     [/^(\d+) espansioni$/, '$1 expansions'],
     [/^(.+) · 🇯🇵 Giapponese$/, '$1 · 🇯🇵 Japanese'], [/^(.+) · 🇨🇳 Cinese$/, '$1 · 🇨🇳 Chinese'], [/^(.+) · 🇰🇷 Coreana$/, '$1 · 🇰🇷 Korean'],

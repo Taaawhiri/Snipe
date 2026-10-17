@@ -763,3 +763,6 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 @keyframes cs-up{from{transform:translateY(30px);opacity:.6}}
 @keyframes cs-fade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){.cs-overlay,.cs-sheet{animation:none}}
+.reg-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.reg-stats .rs{font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 9px}
+.reg-stats .ok{background:#1d3d2e;color:#7fe0a6}.reg-stats .none{background:#4a3c12;color:#ffd66b}.reg-stats .err{background:#4a1d27;color:#ff9aac}
