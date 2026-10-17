@@ -1047,3 +1047,10 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 .rt td.rt-few{opacity:.45}
 .rt td.rt-none{color:var(--muted)}
 .rt .rt-group th{text-align:left;padding-top:14px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--yellow,#ffcb05);border-bottom:0}
+
+/* Scheda carta: valore della propria copia */
+.dlg-mine{margin:12px 0 0;display:flex;flex-direction:column;gap:6px}
+.dm-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.dm-k{font-size:13px;font-weight:700;color:var(--muted);min-width:0}
+.dm-v{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.dm-v b{font-family:var(--display,inherit);font-size:16px}

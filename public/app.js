@@ -986,10 +986,18 @@
     const mine = ((coll && coll.items) || []).filter((it) => it.bp === current.id);
     const n = mine.reduce((t, it) => t + it.qty, 0);
     $('ownTitle').textContent = n ? `✓ Ce l'ho · ${n}` : "＋ Ce l'ho";
+    // Nella scheda della carta: quanto vale la tua copia (lo stesso valore della collezione, con STIMA se stimato).
+    const mineBox = $('dlgMine');
+    mineBox.hidden = !mine.length;
+    mineBox.replaceChildren(...mine.map((it) => el('div', { class: 'dm-row' },
+      el('span', { class: 'dm-k', text: `La tua copia · ${[it.first ? '1ª ed.' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}${it.qty > 1 ? ` · ×${it.qty}` : ''}` }),
+      el('span', { class: 'dm-v' },
+        it.price && isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
+        el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents)}` : '…' })))));
     $('ownOpen').classList.toggle('on', n > 0);
     $('ownList').replaceChildren(...mine.map((it) => el('span', { class: 'own-chip' },
       el('b', { text: `${it.qty}×` }),
-      document.createTextNode(` ${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents != null ? ` · ${money(it.paidCents)}` : ''}`),
+      document.createTextNode(` ${it.first ? '1ª ed. · ' : ''}${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents != null ? ` · ${money(it.paidCents)}` : ''}`),
       el('button', { type: 'button', 'aria-label': 'Togli', text: '✕', onclick: () => saveOwn({ ...it, qty: 0 }) }),
     )));
   }
