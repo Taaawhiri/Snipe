@@ -268,9 +268,20 @@
     'Con “Ce l’ho” o scansionando le carte: vedi quanto vale.': 'With “I own it” or by scanning cards: see what it is worth.',
     'Scansiona': 'Scan',
     'Ho capito': 'Got it',
+    'Importa la collezione': 'Import collection',
+    'Da un file CSV (Excel): prima di aggiungere ti mostro cosa ho riconosciuto': 'From a CSV file (Excel): you review what was recognised before adding',
+    'Da scegliere: tocca la carta giusta': 'To choose: tap the right card',
+    'Trovate (tocca per escludere)': 'Found (tap to exclude)',
+    'Non trovate': 'Not found',
+    'Nessuna corrispondenza': 'No match',
+    'Nessuna carta corrisponde: controlla nome, numero o espansione nel file.': 'No card matches: check name, number or expansion in the file.',
+    'Nessuna carta da importare': 'No cards to import',
+    'Leggo il file e cerco le carte…': 'Reading the file and looking for cards…',
+    'Annulla': 'Cancel',
   };
 
   const R = [
+    [/^✅ (\d+) trovate$/, '✅ $1 found'], [/^🟡 (\d+) da scegliere$/, '🟡 $1 to choose'], [/^🔴 (\d+) non trovate$/, '🔴 $1 not found'], [/^Importa (\d+) carte?$/, 'Import $1 cards'], [/^Riga (\d+)$/, 'Row $1'],
     [/^tutti gli alert ricontrollati in (.+) min$/, 'all alerts rechecked in $1 min'], [/^tutti gli alert ricontrollati in (.+) s$/, 'all alerts rechecked in $1 s'], [/^tutti gli alert ricontrollati in (.+) ore$/, 'all alerts rechecked in $1 h'],
     [/^tendenza (.+)$/, 'trend $1'], [/^\+ (.+) spedizione tracciata = (.+)$/, '+ $1 tracked shipping = $2'], [/^\+ (.+) spedizione = (.+)$/, '+ $1 shipping = $2'], [/^(.+) Cardmarket$/, '$1 Cardmarket'], [/^(.+) 7 giorni fa$/, '$1 7 days ago'],
     [/^(\d+) alert su (\d+)$/, '$1 of $2 alerts'], [/^Nessun alert per “(.+)”$/, 'No alerts for “$1”'],

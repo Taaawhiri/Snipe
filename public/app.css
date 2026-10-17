@@ -824,3 +824,16 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .wl-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wl-txt b{font-weight:700}
 .wl-txt span{font-size:13px;color:var(--muted);font-weight:600}
+.cs-sheet.im{max-height:90vh}
+.im-sum{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.im-list{padding:0 0 12px;max-height:60vh}
+.im-row{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:8px}
+.im-row.none{border-color:#7a2a36}
+.im-line{display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+.im-line span{color:var(--muted);font-weight:600;overflow-wrap:anywhere}
+.im-cands{display:flex;gap:8px;overflow-x:auto;padding-top:8px}
+.im-cand{flex:none;width:76px;display:flex;flex-direction:column;gap:4px;align-items:center;background:none;border:2px solid transparent;border-radius:10px;padding:3px;color:var(--muted);font:inherit;font-size:11px;cursor:pointer}
+.im-cand img,.im-cand .noimg{width:66px;aspect-ratio:63/88;border-radius:6px;object-fit:cover;display:grid;place-items:center;background:var(--surface)}
+.im-cand span{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.im-cand.sel{border-color:var(--green);background:var(--surface)}
+.im-row.found .im-cand:not(.sel){opacity:.45}

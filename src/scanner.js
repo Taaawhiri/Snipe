@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settin
 import { generateVapidKeys, sendPush } from './push.js';
 import { regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
-import { expScore } from './importcsv.js';
+import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -268,7 +268,8 @@ export class Scanner extends DurableObject {
         for (const r of ix.get(expId) || []) {
           const sc = scoreRow(r, scan, e.code, e.name);
           const nameOk = !it.name || normText(r[1]).split(' ').some((w) => normText(it.name).split(' ').includes(w));
-          if (nameOk && sc >= 4) best.push({ sc, c: card(r, expId) });
+          // Nome scritto male: basta il numero completo (numero/totale), e la carta finisce tra quelle da scegliere.
+          if ((nameOk && sc >= 4) || (it.number && it.total && sc >= 8)) best.push({ sc, c: card(r, expId) });
         }
       }
       best.sort((a, b) => b.sc - a.sc);
@@ -1010,8 +1011,11 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/collection/match' && method === 'POST') {
       const b = await req.json().catch(() => ({}));
-      const items = Array.isArray(b.items) ? b.items.slice(0, 1000) : [];
-      return json({ rows: await this.matchImport(items) });
+      const parsed = mapRows(parseCsv(String(b.csv || '').slice(0, 2_000_000)));
+      if (parsed.error) return json({ error: parsed.error }, 400);
+      if (!parsed.items.length) return json({ error: 'Nel file non ci sono carte.' }, 400);
+      if (parsed.items.length > 1000) return json({ error: 'Al massimo 1000 righe per file: dividilo in più file.' }, 400);
+      return json({ rows: await this.matchImport(parsed.items) });
     }
 
     if (path === '/api/collection/import' && method === 'POST') {

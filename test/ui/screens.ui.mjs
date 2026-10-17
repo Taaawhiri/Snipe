@@ -91,3 +91,29 @@ test('opzioni: nessuno scorrimento orizzontale su telefono', async () => {
   assert.equal(sw, w);
   await page.close();
 });
+
+test('importa collezione: riepilogo con trovate, da scegliere e non trovate', async () => {
+  const c = (id, v) => ({ id, name: 'Umbreon ex', version: `SIR | ${v}`, image: null, expansionId: 5, expName: '30th Deck' });
+  const rows = [
+    { line: 2, name: 'Umbreon ex', number: '044', total: '040', set: '30th', lang: 'jp', cond: 'Near Mint', qty: 1, status: 'found', candidates: [c(1, '044/040')] },
+    { line: 3, name: 'Umbreon', number: '', total: '', set: '', lang: '', cond: 'Near Mint', qty: 2, status: 'choose', candidates: [c(2, '010/040'), c(3, '044/040')] },
+    { line: 4, name: 'Pippo', number: '', total: '', set: '', lang: '', cond: 'Near Mint', qty: 1, status: 'none', candidates: [] },
+  ];
+  let sent = null;
+  const { page, errors } = await openApp(browser, srv.url, {
+    'GET /api/state': baseState(),
+    'POST /api/collection/match': { rows },
+    'POST /api/collection/import': (req) => { sent = JSON.parse(req.postData()); return { added: 2, merged: 0, limited: 0, limit: 500 }; },
+  });
+  await page.click('[data-tab=settings]');
+  await page.setInputFiles('#importCollFile', { name: 'c.csv', mimeType: 'text/csv', buffer: Buffer.from('Carta\nUmbreon ex\n') });
+  await page.waitForSelector('.im');
+  assert.match(await page.textContent('.im .btn.primary'), /Importa 1 carta/);
+  await page.click('.im-row.choose .im-cand >> nth=1');
+  assert.match(await page.textContent('.im .btn.primary'), /Importa 2 carte/);
+  await page.click('.im .btn.primary');
+  await page.waitForSelector('.cs-dialog:not(.im)');
+  assert.deepEqual(sent.items.map((x) => x.bp), [1, 3]);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
