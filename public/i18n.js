@@ -127,7 +127,7 @@
     // affari del giorno
     'Affari del giorno': 'Deals of the day',
     'Annunci delle espansioni più recenti e più ricercate su Snipe che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest and most searched expansions on Snipe at least 25% cheaper than the typical price of the same card on CardTrader, compared only with listings in the same language. Near Mint or better, from €5. Updates by itself during the day.',
-    'Carico gli affari…': 'Loading deals…', 'Italiano o inglese': 'Italian or English', 'Inglese o giapponese': 'English or Japanese', 'Tutti gli scan in corso': 'All scans running', 'Cerca un Pokémon (es. Charizard)': 'Search a Pokémon (e.g. Charizard)',
+    'Carico gli affari…': 'Loading deals…', 'Italiano o inglese': 'Italian or English', 'Cinese': 'Chinese', 'Coreano': 'Korean', 'Inglese o giapponese': 'English or Japanese', 'Tutti gli scan in corso': 'All scans running', 'Cerca un Pokémon (es. Charizard)': 'Search a Pokémon (e.g. Charizard)',
     'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 10 minuti. Riprova più tardi.': 'Collecting the first data: one expansion is checked every 10 minutes. Try again later.',
 
     // regole, venditori, desideri
@@ -246,6 +246,7 @@
   };
 
   const R = [
+    [/^CardTrader conviene: −(\d+)% rispetto alla tendenza Cardmarket$/, 'CardTrader is cheaper: −$1% vs Cardmarket trend'], [/^Su CardTrader costa il (\d+)% in più della tendenza Cardmarket$/, 'On CardTrader it costs $1% more than the Cardmarket trend'],
     [/^Cardmarket tendenza (.+)$/, 'Cardmarket trend $1'], [/^(\d+) limiti CardTrader \(429\) nell’ultima ora$/, '$1 CardTrader limits (429) in the last hour'], [/^(\d+) con ritmo rallentato$/, '$1 with slowed pace'],
     [/^(\d+) scan fermi?: (.+)$/, '$1 stalled scan(s): $2'], [/^(\d+) × 429 in 1 h$/, '$1 × 429 in 1 h'], [/^ritmo (.+) s$/, 'pace $1 s'],
     [/^Nessun affare per “(.+)” tra quelli di oggi\.$/, 'No deals for “$1” today.'],
