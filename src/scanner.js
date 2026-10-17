@@ -437,6 +437,7 @@ export class Scanner extends DurableObject {
       const old = h.length > 1 ? h[Math.max(0, h.length - 8)] : null;
       const last = h[h.length - 1];
       it.change7 = old && last && old.min ? last.min / old.min - 1 : null;
+      it.spark30 = h.slice(-30).map((x) => x.min || null);
     }
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
     return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, refreshing };

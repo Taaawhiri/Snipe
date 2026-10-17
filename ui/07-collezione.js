@@ -15,25 +15,70 @@
     }
   }
 
-  function spark(points, keys) {
+  let collRange = 30;
+  try { collRange = Number(localStorage.getItem('snipe.collRange')) || 30; } catch {}
+
+  /** Grafico del valore della collezione: linea con area, punto finale, e al passaggio del dito data e valore. */
+  function valueChart(points) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const W = 300, H = 120, top = 8, bot = 112;
+    const vals = points.map((p) => p.value).filter((v) => v > 0);
+    const wrap = el('div', { class: 'vchart' });
+    if (vals.length < 2) return wrap;
+    const min = Math.min(...vals), max = Math.max(...vals), pad = (max - min) * 0.15 || max * 0.05 || 100;
+    const lo = min - pad, hi = max + pad;
+    const X = (i) => 2 + (i * (W - 4)) / (points.length - 1);
+    const Y = (v) => top + (1 - (v - lo) / (hi - lo)) * (bot - top);
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Valore della collezione nel tempo');
+    const mk = (tag, attrs) => { const n = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); svg.append(n); return n; };
+    for (const f of [0.25, 0.5, 0.75]) mk('line', { x1: 0, x2: W, y1: top + f * (bot - top), y2: top + f * (bot - top), class: 'vc-grid' });
+    const pts = points.map((p, i) => (p.value > 0 ? `${X(i).toFixed(1)},${Y(p.value).toFixed(1)}` : null)).filter(Boolean);
+    mk('polygon', { points: `${X(0)},${bot} ${pts.join(' ')} ${X(points.length - 1)},${bot}`, class: 'vc-area' });
+    mk('polyline', { points: pts.join(' '), class: 'vc-line' });
+    const lastI = points.length - 1;
+    mk('circle', { cx: X(lastI), cy: Y(points[lastI].value || vals[vals.length - 1]), r: 4, class: 'vc-dot' });
+    const xh = mk('line', { x1: 0, x2: 0, y1: top, y2: bot, class: 'vc-xh', visibility: 'hidden' });
+    const tip = el('div', { class: 'vc-tip', hidden: '' });
+    const fmtDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    const move = (e) => {
+      const r = svg.getBoundingClientRect();
+      const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+      const i = Math.max(0, Math.min(lastI, Math.round((cx / r.width) * lastI)));
+      const p = points[i];
+      if (!(p.value > 0)) return;
+      xh.setAttribute('x1', X(i)); xh.setAttribute('x2', X(i)); xh.setAttribute('visibility', 'visible');
+      tip.hidden = false;
+      tip.textContent = `${p.d ? fmtDay(p.d) : ''} · ${money(p.value)}`;
+      tip.style.left = `${Math.max(56, Math.min(r.width - 56, (X(i) / W) * r.width))}px`;
+      tip.style.top = `${(Y(p.value) / H) * r.height}px`;
+    };
+    const hide = () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); };
+    svg.addEventListener('mousemove', move);
+    svg.addEventListener('touchstart', move, { passive: true });
+    svg.addEventListener('touchmove', move, { passive: true });
+    svg.addEventListener('mouseleave', hide);
+    svg.addEventListener('touchend', () => setTimeout(hide, 1500));
+    wrap.append(svg, tip);
+    return wrap;
+  }
+
+  /** Mini linea degli ultimi 30 giorni di una carta: verde se sale, rossa se scende. */
+  function miniSpark(vals) {
+    const v = (vals || []).filter((x) => x > 0);
+    if (v.length < 3) return null;
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 300 70');
-    svg.setAttribute('preserveAspectRatio', 'none');
-    svg.setAttribute('class', 'spark');
-    const vals = points.flatMap((p) => keys.map(([k]) => p[k])).filter((v) => v > 0);
-    if (points.length < 2 || !vals.length) return svg;
-    const lo = Math.min(...vals), hi = Math.max(...vals);
-    const x = (i) => (i * 300) / (points.length - 1);
-    const y = (v) => (hi === lo ? 35 : 64 - ((v - lo) * 58) / (hi - lo));
-    for (const [k, cls] of keys) {
-      const pts = points.map((p, i) => (p[k] > 0 ? `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}` : null)).filter(Boolean);
-      if (pts.length < 2) continue;
-      const pl = document.createElementNS(ns, 'polyline');
-      pl.setAttribute('points', pts.join(' '));
-      pl.setAttribute('class', cls);
-      svg.append(pl);
-    }
+    svg.setAttribute('viewBox', '0 0 64 22');
+    svg.setAttribute('class', 'mini-spark ' + (v[v.length - 1] >= v[0] ? 'up' : 'dn'));
+    svg.setAttribute('aria-hidden', 'true');
+    const lo = Math.min(...v), hi = Math.max(...v);
+    const pl = document.createElementNS(ns, 'polyline');
+    pl.setAttribute('points', v.map((x, i) => `${((i * 62) / (v.length - 1) + 1).toFixed(1)},${(hi === lo ? 11 : 20 - ((x - lo) * 18) / (hi - lo)).toFixed(1)}`).join(' '));
+    svg.append(pl);
     return svg;
   }
 
@@ -44,18 +89,21 @@
     $('collTypical').checked = !!coll.typical;
     const { items, summary: sm, history } = coll;
     const hist = history || [];
-    const old = hist.length > 1 ? hist[Math.max(0, hist.length - 31)] : null;
+    const days = Math.min(collRange, hist.length - 1);
+    const old = hist.length > 1 ? hist[Math.max(0, hist.length - 1 - collRange)] : null;
     const ch = old && old.value ? sm.value / old.value - 1 : null;
+    const chEur = old && old.value ? sm.value - old.value : null;
     const pct = (v) => `${v >= 0 ? '▲ +' : '▼ '}${(v * 100).toFixed(1).replace('.', ',')}%`;
     const gain = sm.paidPriced ? sm.value - sm.paidPriced : null;
     $('collHero').replaceChildren(...[
       el('div', { class: 'cv-k', text: `Valore attuale (prezzo ${coll.typical ? 'tipico' : 'più basso'} CardTrader${coll.zeroOnly ? ' Zero' : ''})` }),
       el('div', { class: 'cv-row' },
         el('span', { class: 'cv-v', text: money(sm.value) }),
-        ch != null ? el('span', { class: ch >= 0 ? 'up' : 'dn', text: `${pct(ch)} in ${Math.min(30, hist.length - 1)} giorni` }) : null,
+        ch != null ? el('span', { class: ch >= 0 ? 'up' : 'dn', text: `${chEur >= 0 ? '+' : '−'}${money(Math.abs(chEur))} (${pct(ch).replace(/^[▲▼] /, '')}) in ${days} ${days === 1 ? 'giorno' : 'giorni'}` }) : null,
       ),
-      hist.length > 1 ? spark(hist, [['cm', 'cm'], ['value', 'ct']]) : el('p', { class: 'small muted', text: items.length ? 'Il grafico del valore compare dal secondo giorno.' : 'La collezione è vuota: aggiungi la prima carta.' }),
-      sm.cm ? el('div', { class: 'small muted legend' }, el('span', { class: 'lg-ct', text: 'CardTrader' }), el('span', { class: 'lg-cm', text: `Cardmarket (tendenza ${money(sm.cm)})` })) : null,
+      hist.length > 1 ? el('div', { class: 'chips cv-range' }, ...[[7, '7 giorni'], [30, '30 giorni'], [90, '90 giorni']].map(([d, l]) =>
+        el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collRange === d), text: l, onclick: () => { collRange = d; try { localStorage.setItem('snipe.collRange', String(d)); } catch {} renderCollection(); } }))) : null,
+      hist.length > 1 ? valueChart(hist.slice(-1 - collRange)) : el('p', { class: 'small muted', text: items.length ? 'Il grafico del valore compare dal secondo giorno.' : 'La collezione è vuota: aggiungi la prima carta.' }),
       el('div', { class: 'cv-stats' },
         el('div', null, el('b', { text: String(sm.qty) }), el('span', { text: `carte (${sm.distinct} diverse)` })),
         el('div', null, el('b', { text: sm.paid ? money(sm.paid) : '—' }), el('span', { text: 'spesi' })),
@@ -95,6 +143,7 @@
             el('b', { text: it.price ? money(it.price.cents * it.qty) : '…' }),
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
+            miniSpark(it.spark30),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
           ),

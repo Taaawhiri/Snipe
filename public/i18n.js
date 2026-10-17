@@ -278,9 +278,18 @@
     'Nessuna carta da importare': 'No cards to import',
     'Leggo il file e cerco le carte…': 'Reading the file and looking for cards…',
     'Annulla': 'Cancel',
+    'Attivi': 'Active',
+    '★ Con stella': '★ Starred',
+    'Set interi': 'Whole sets',
+    'Nessun alert con questi filtri': 'No alerts match these filters',
+    'Nessun affare in questa lingua oggi.': 'No deals in this language today.',
+    '7 giorni': '7 days',
+    '30 giorni': '30 days',
+    '90 giorni': '90 days',
   };
 
   const R = [
+    [/^([+−])(.+) \((.+)\) in (\d+) giorni?$/, '$1$2 ($3) in $4 days'],
     [/^✅ (\d+) trovate$/, '✅ $1 found'], [/^🟡 (\d+) da scegliere$/, '🟡 $1 to choose'], [/^🔴 (\d+) non trovate$/, '🔴 $1 not found'], [/^Importa (\d+) carte?$/, 'Import $1 cards'], [/^Riga (\d+)$/, 'Row $1'],
     [/^tutti gli alert ricontrollati in (.+) min$/, 'all alerts rechecked in $1 min'], [/^tutti gli alert ricontrollati in (.+) s$/, 'all alerts rechecked in $1 s'], [/^tutti gli alert ricontrollati in (.+) ore$/, 'all alerts rechecked in $1 h'],
     [/^tendenza (.+)$/, 'trend $1'], [/^\+ (.+) spedizione tracciata = (.+)$/, '+ $1 tracked shipping = $2'], [/^\+ (.+) spedizione = (.+)$/, '+ $1 shipping = $2'], [/^(.+) Cardmarket$/, '$1 Cardmarket'], [/^(.+) 7 giorni fa$/, '$1 7 days ago'],

@@ -380,25 +380,70 @@
     }
   }
 
-  function spark(points, keys) {
+  let collRange = 30;
+  try { collRange = Number(localStorage.getItem('snipe.collRange')) || 30; } catch {}
+
+  /** Grafico del valore della collezione: linea con area, punto finale, e al passaggio del dito data e valore. */
+  function valueChart(points) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const W = 300, H = 120, top = 8, bot = 112;
+    const vals = points.map((p) => p.value).filter((v) => v > 0);
+    const wrap = el('div', { class: 'vchart' });
+    if (vals.length < 2) return wrap;
+    const min = Math.min(...vals), max = Math.max(...vals), pad = (max - min) * 0.15 || max * 0.05 || 100;
+    const lo = min - pad, hi = max + pad;
+    const X = (i) => 2 + (i * (W - 4)) / (points.length - 1);
+    const Y = (v) => top + (1 - (v - lo) / (hi - lo)) * (bot - top);
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Valore della collezione nel tempo');
+    const mk = (tag, attrs) => { const n = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); svg.append(n); return n; };
+    for (const f of [0.25, 0.5, 0.75]) mk('line', { x1: 0, x2: W, y1: top + f * (bot - top), y2: top + f * (bot - top), class: 'vc-grid' });
+    const pts = points.map((p, i) => (p.value > 0 ? `${X(i).toFixed(1)},${Y(p.value).toFixed(1)}` : null)).filter(Boolean);
+    mk('polygon', { points: `${X(0)},${bot} ${pts.join(' ')} ${X(points.length - 1)},${bot}`, class: 'vc-area' });
+    mk('polyline', { points: pts.join(' '), class: 'vc-line' });
+    const lastI = points.length - 1;
+    mk('circle', { cx: X(lastI), cy: Y(points[lastI].value || vals[vals.length - 1]), r: 4, class: 'vc-dot' });
+    const xh = mk('line', { x1: 0, x2: 0, y1: top, y2: bot, class: 'vc-xh', visibility: 'hidden' });
+    const tip = el('div', { class: 'vc-tip', hidden: '' });
+    const fmtDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    const move = (e) => {
+      const r = svg.getBoundingClientRect();
+      const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+      const i = Math.max(0, Math.min(lastI, Math.round((cx / r.width) * lastI)));
+      const p = points[i];
+      if (!(p.value > 0)) return;
+      xh.setAttribute('x1', X(i)); xh.setAttribute('x2', X(i)); xh.setAttribute('visibility', 'visible');
+      tip.hidden = false;
+      tip.textContent = `${p.d ? fmtDay(p.d) : ''} · ${money(p.value)}`;
+      tip.style.left = `${Math.max(56, Math.min(r.width - 56, (X(i) / W) * r.width))}px`;
+      tip.style.top = `${(Y(p.value) / H) * r.height}px`;
+    };
+    const hide = () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); };
+    svg.addEventListener('mousemove', move);
+    svg.addEventListener('touchstart', move, { passive: true });
+    svg.addEventListener('touchmove', move, { passive: true });
+    svg.addEventListener('mouseleave', hide);
+    svg.addEventListener('touchend', () => setTimeout(hide, 1500));
+    wrap.append(svg, tip);
+    return wrap;
+  }
+
+  /** Mini linea degli ultimi 30 giorni di una carta: verde se sale, rossa se scende. */
+  function miniSpark(vals) {
+    const v = (vals || []).filter((x) => x > 0);
+    if (v.length < 3) return null;
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 300 70');
-    svg.setAttribute('preserveAspectRatio', 'none');
-    svg.setAttribute('class', 'spark');
-    const vals = points.flatMap((p) => keys.map(([k]) => p[k])).filter((v) => v > 0);
-    if (points.length < 2 || !vals.length) return svg;
-    const lo = Math.min(...vals), hi = Math.max(...vals);
-    const x = (i) => (i * 300) / (points.length - 1);
-    const y = (v) => (hi === lo ? 35 : 64 - ((v - lo) * 58) / (hi - lo));
-    for (const [k, cls] of keys) {
-      const pts = points.map((p, i) => (p[k] > 0 ? `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}` : null)).filter(Boolean);
-      if (pts.length < 2) continue;
-      const pl = document.createElementNS(ns, 'polyline');
-      pl.setAttribute('points', pts.join(' '));
-      pl.setAttribute('class', cls);
-      svg.append(pl);
-    }
+    svg.setAttribute('viewBox', '0 0 64 22');
+    svg.setAttribute('class', 'mini-spark ' + (v[v.length - 1] >= v[0] ? 'up' : 'dn'));
+    svg.setAttribute('aria-hidden', 'true');
+    const lo = Math.min(...v), hi = Math.max(...v);
+    const pl = document.createElementNS(ns, 'polyline');
+    pl.setAttribute('points', v.map((x, i) => `${((i * 62) / (v.length - 1) + 1).toFixed(1)},${(hi === lo ? 11 : 20 - ((x - lo) * 18) / (hi - lo)).toFixed(1)}`).join(' '));
+    svg.append(pl);
     return svg;
   }
 
@@ -409,18 +454,21 @@
     $('collTypical').checked = !!coll.typical;
     const { items, summary: sm, history } = coll;
     const hist = history || [];
-    const old = hist.length > 1 ? hist[Math.max(0, hist.length - 31)] : null;
+    const days = Math.min(collRange, hist.length - 1);
+    const old = hist.length > 1 ? hist[Math.max(0, hist.length - 1 - collRange)] : null;
     const ch = old && old.value ? sm.value / old.value - 1 : null;
+    const chEur = old && old.value ? sm.value - old.value : null;
     const pct = (v) => `${v >= 0 ? '▲ +' : '▼ '}${(v * 100).toFixed(1).replace('.', ',')}%`;
     const gain = sm.paidPriced ? sm.value - sm.paidPriced : null;
     $('collHero').replaceChildren(...[
       el('div', { class: 'cv-k', text: `Valore attuale (prezzo ${coll.typical ? 'tipico' : 'più basso'} CardTrader${coll.zeroOnly ? ' Zero' : ''})` }),
       el('div', { class: 'cv-row' },
         el('span', { class: 'cv-v', text: money(sm.value) }),
-        ch != null ? el('span', { class: ch >= 0 ? 'up' : 'dn', text: `${pct(ch)} in ${Math.min(30, hist.length - 1)} giorni` }) : null,
+        ch != null ? el('span', { class: ch >= 0 ? 'up' : 'dn', text: `${chEur >= 0 ? '+' : '−'}${money(Math.abs(chEur))} (${pct(ch).replace(/^[▲▼] /, '')}) in ${days} ${days === 1 ? 'giorno' : 'giorni'}` }) : null,
       ),
-      hist.length > 1 ? spark(hist, [['cm', 'cm'], ['value', 'ct']]) : el('p', { class: 'small muted', text: items.length ? 'Il grafico del valore compare dal secondo giorno.' : 'La collezione è vuota: aggiungi la prima carta.' }),
-      sm.cm ? el('div', { class: 'small muted legend' }, el('span', { class: 'lg-ct', text: 'CardTrader' }), el('span', { class: 'lg-cm', text: `Cardmarket (tendenza ${money(sm.cm)})` })) : null,
+      hist.length > 1 ? el('div', { class: 'chips cv-range' }, ...[[7, '7 giorni'], [30, '30 giorni'], [90, '90 giorni']].map(([d, l]) =>
+        el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collRange === d), text: l, onclick: () => { collRange = d; try { localStorage.setItem('snipe.collRange', String(d)); } catch {} renderCollection(); } }))) : null,
+      hist.length > 1 ? valueChart(hist.slice(-1 - collRange)) : el('p', { class: 'small muted', text: items.length ? 'Il grafico del valore compare dal secondo giorno.' : 'La collezione è vuota: aggiungi la prima carta.' }),
       el('div', { class: 'cv-stats' },
         el('div', null, el('b', { text: String(sm.qty) }), el('span', { text: `carte (${sm.distinct} diverse)` })),
         el('div', null, el('b', { text: sm.paid ? money(sm.paid) : '—' }), el('span', { text: 'spesi' })),
@@ -460,6 +508,7 @@
             el('b', { text: it.price ? money(it.price.cents * it.qty) : '…' }),
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
+            miniSpark(it.spark30),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
           ),
@@ -800,6 +849,13 @@
   document.querySelectorAll('input[name="dmode"]').forEach((r) => r.addEventListener('change', () => dealsData && renderDeals(dealsData)));
   const plain = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   $('dealsSearch').addEventListener('input', () => dealsData && renderDeals(dealsData));
+  let dealsLang = '';
+  const LANG_CHIP = { en: '🇬🇧 EN', jp: '🇯🇵 JP', it: '🇮🇹 IT', fr: '🇫🇷 FR', de: '🇩🇪 DE', es: '🇪🇸 ES', pt: '🇵🇹 PT', ko: '🇰🇷 KR', zh: '🇨🇳 CN', ru: '🇷🇺 RU', th: '🇹🇭 TH' };
+  const normL = (l) => { const x = String(l || '').toLowerCase(); return x === 'ja' ? 'jp' : x.startsWith('zh') ? 'zh' : x === 'kr' ? 'ko' : x; };
+  /** Pillole di filtro: [valore, etichetta], quella scelta evidenziata. */
+  function filterChips(box, opts, cur, onPick) {
+    box.replaceChildren(...opts.map(([v, l]) => el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(cur === v), text: l, onclick: () => onPick(v) })));
+  }
   async function loadDeals() {
     if (Date.now() - dealsAt < 5 * 60_000 && dealsData) return;
     dealsAt = Date.now();
@@ -817,9 +873,16 @@
       const zero = (document.querySelector('input[name="dmode"]:checked') || {}).value === 'zero';
       const q = plain($('dealsSearch').value).trim();
       const base = zero ? all.itemsZero || [] : all.items;
-      const d = { ...all, items: q ? base.filter((it) => plain(it.name).includes(q)) : base };
-      $('dealsMsg').textContent = q && !d.items.length
-        ? `Nessun affare per “${$('dealsSearch').value.trim()}” tra quelli di oggi.`
+      // Lingue presenti negli affari di oggi, dalla più frequente.
+      const counts = {};
+      for (const it of base) { const l = normL(it.language); if (l) counts[l] = (counts[l] || 0) + 1; }
+      const langs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+      if (dealsLang && !langs.includes(dealsLang)) dealsLang = '';
+      $('dealsLang').hidden = langs.length < 2;
+      filterChips($('dealsLang'), [['', 'Tutte le lingue'], ...langs.map((l) => [l, LANG_CHIP[l] || l.toUpperCase()])], dealsLang, (v) => { dealsLang = v; renderDeals(all); });
+      const d = { ...all, items: base.filter((it) => (!q || plain(it.name).includes(q)) && (!dealsLang || normL(it.language) === dealsLang)) };
+      $('dealsMsg').textContent = (q || dealsLang) && !d.items.length
+        ? (q ? `Nessun affare per “${$('dealsSearch').value.trim()}” tra quelli di oggi.` : 'Nessun affare in questa lingua oggi.')
         : d.items.length
         ? `${d.items.length} affari · aggiornati ${ago(d.ts)} · ${d.sets.length} espansioni controllate${d.popular && d.popular.length ? ` (${d.popular.length} tra le più ricercate)` : ''}`
         : zero && all.items.length ? 'Per ora nessun annuncio Zero è abbastanza sotto gli altri. Riprova più tardi.' : 'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 10 minuti. Riprova più tardi.';
@@ -1210,6 +1273,8 @@
   document.querySelector('header.top .status').addEventListener('click', () => goTab('settings'));
 
   // ---------- render ----------
+  let ruleState = 'all';
+  let ruleLang = '';
   function render() {
     if (!state) return;
     const active = state.rules.filter((r) => r.enabled).length;
@@ -1303,10 +1368,22 @@
     // regole
     const rl = $('ruleList');
     const rq = plainText($('ruleSearch').value).trim();
-    $('ruleSearch').hidden = state.rules.length < 6;
-    const shownRules = rq ? state.rules.filter((r) => plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)) : state.rules;
-    $('ruleCount').hidden = !rq;
-    $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : `Nessun alert per “${$('ruleSearch').value.trim()}”`;
+    const many = state.rules.length >= 6;
+    $('ruleSearch').hidden = !many;
+    $('ruleFilters').hidden = !many;
+    // Filtri: stato (attivi, in pausa, con stella, set interi) e lingua, insieme alla ricerca per nome.
+    const STATES = [['all', 'Tutti'], ['on', 'Attivi'], ['off', 'In pausa'], ['star', '★ Con stella'], ['set', 'Set interi']];
+    const ruleLangs = [...new Set(state.rules.flatMap((r) => String(r.language || '').split(',').filter(Boolean)).map((l) => (l === 'ja' ? 'jp' : l)))];
+    if (ruleLang && !ruleLangs.includes(ruleLang)) ruleLang = '';
+    filterChips($('ruleState'), STATES.filter(([v]) => v !== 'set' || state.rules.some((r) => !r.blueprintId)).filter(([v]) => v !== 'star' || state.rules.some((r) => r.priority)), ruleState, (v) => { ruleState = v; render(); });
+    $('ruleLang').hidden = ruleLangs.length < 2;
+    filterChips($('ruleLang'), [['', 'Tutte le lingue'], ...ruleLangs.map((l) => [l, LANG_CHIP[l] || l.toUpperCase()])], ruleLang, (v) => { ruleLang = v; render(); });
+    const stateOk = (r) => ruleState === 'all' || (ruleState === 'on' && r.enabled) || (ruleState === 'off' && !r.enabled) || (ruleState === 'star' && r.priority) || (ruleState === 'set' && !r.blueprintId);
+    const langOk = (r) => !ruleLang || String(r.language || '').split(',').map((l) => (l === 'ja' ? 'jp' : l)).includes(ruleLang);
+    const shownRules = state.rules.filter((r) => stateOk(r) && langOk(r) && (!rq || plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)));
+    const filtering = !!rq || ruleState !== 'all' || !!ruleLang;
+    $('ruleCount').hidden = !filtering;
+    $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : rq ? `Nessun alert per “${$('ruleSearch').value.trim()}”` : 'Nessun alert con questi filtri';
     rl.replaceChildren(
       ...shownRules.map((r) => {
         const title = r.cardName || r.expansionName || `Espansione ${r.expansionId}`;

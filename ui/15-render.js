@@ -1,4 +1,6 @@
   // ---------- render ----------
+  let ruleState = 'all';
+  let ruleLang = '';
   function render() {
     if (!state) return;
     const active = state.rules.filter((r) => r.enabled).length;
@@ -92,10 +94,22 @@
     // regole
     const rl = $('ruleList');
     const rq = plainText($('ruleSearch').value).trim();
-    $('ruleSearch').hidden = state.rules.length < 6;
-    const shownRules = rq ? state.rules.filter((r) => plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)) : state.rules;
-    $('ruleCount').hidden = !rq;
-    $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : `Nessun alert per “${$('ruleSearch').value.trim()}”`;
+    const many = state.rules.length >= 6;
+    $('ruleSearch').hidden = !many;
+    $('ruleFilters').hidden = !many;
+    // Filtri: stato (attivi, in pausa, con stella, set interi) e lingua, insieme alla ricerca per nome.
+    const STATES = [['all', 'Tutti'], ['on', 'Attivi'], ['off', 'In pausa'], ['star', '★ Con stella'], ['set', 'Set interi']];
+    const ruleLangs = [...new Set(state.rules.flatMap((r) => String(r.language || '').split(',').filter(Boolean)).map((l) => (l === 'ja' ? 'jp' : l)))];
+    if (ruleLang && !ruleLangs.includes(ruleLang)) ruleLang = '';
+    filterChips($('ruleState'), STATES.filter(([v]) => v !== 'set' || state.rules.some((r) => !r.blueprintId)).filter(([v]) => v !== 'star' || state.rules.some((r) => r.priority)), ruleState, (v) => { ruleState = v; render(); });
+    $('ruleLang').hidden = ruleLangs.length < 2;
+    filterChips($('ruleLang'), [['', 'Tutte le lingue'], ...ruleLangs.map((l) => [l, LANG_CHIP[l] || l.toUpperCase()])], ruleLang, (v) => { ruleLang = v; render(); });
+    const stateOk = (r) => ruleState === 'all' || (ruleState === 'on' && r.enabled) || (ruleState === 'off' && !r.enabled) || (ruleState === 'star' && r.priority) || (ruleState === 'set' && !r.blueprintId);
+    const langOk = (r) => !ruleLang || String(r.language || '').split(',').map((l) => (l === 'ja' ? 'jp' : l)).includes(ruleLang);
+    const shownRules = state.rules.filter((r) => stateOk(r) && langOk(r) && (!rq || plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)));
+    const filtering = !!rq || ruleState !== 'all' || !!ruleLang;
+    $('ruleCount').hidden = !filtering;
+    $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : rq ? `Nessun alert per “${$('ruleSearch').value.trim()}”` : 'Nessun alert con questi filtri';
     rl.replaceChildren(
       ...shownRules.map((r) => {
         const title = r.cardName || r.expansionName || `Espansione ${r.expansionId}`;
