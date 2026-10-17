@@ -5,7 +5,7 @@ export const SCAN_PROMPT = `You identify Pokémon trading cards from a photo.
 Look at the card and answer with ONLY a JSON object, no other text:
 {"name": "...", "number": "...", "total": "...", "set_code": "...", "language": "...", "text_sample": "...", "variant": "...", "confidence": 0.0}
 - name: the Pokémon or trainer card name in ENGLISH (translate if the card is in another language), e.g. "Charizard ex". Use the official English card name, not a literal translation: trainers and items often have different names (Italian "Lucinda" is "Dawn", "Camilla" is "Cynthia", "Ruggero" is "Lance").
-- number: the collector number printed at the bottom (the part before the slash), e.g. "137" or "TG05" or "SV001".
+- number: the collector number printed at the bottom (the part before the slash), e.g. "137" or "TG05" or "SV001". Old Japanese cards (1996-2005) often have no collector number: their "No. 040" is the Pokédex number, not the collector number, so leave number empty.
 - total: the part after the slash, e.g. "103"; empty if there is no slash. Collector numbers rarely exceed 3 digits: on small print (Chinese cards) do not merge digits, "200/207" is number "200", total "207".
 - set_code: the small set code printed in the bottom-left corner next to the number, copied exactly (e.g. "M6a", "sv3", "PAL"); empty if you cannot read it clearly. Never guess.
 - language: the language the card is PRINTED in, as a 2-letter code: en, ja, it, fr, de, es, pt, ko, zh.
@@ -124,8 +124,9 @@ export function scoreRow(row, scan, setCode = '', expName = '', region = '') {
   // Lingua dell'espansione (CardTrader separa le edizioni giapponesi, cinesi, coreane, thai).
   // La regione dell'espansione (stessa usata nel selettore) vale più del nome: i set giapponesi vintage non dicono "Japanese".
   const el = REGION_LANG[region] || expLang(`${expName} ${setCode}`) || (region === 'INT' ? 'int' : null);
-  if (el === 'int') { if (scan.language) score += ASIAN.includes(scan.language) ? -3 : 1; }
-  else if (scan.language && el) score += el === scan.language ? 3 : -3;
+  // Lingua sbagliata pesa più di un numero giusto: la stessa carta esiste in più edizioni con lo stesso numero.
+  if (el === 'int') { if (scan.language) score += ASIAN.includes(scan.language) ? -5 : 1; }
+  else if (scan.language && el) score += el === scan.language ? 3 : -5;
   else if (scan.language === 'en' && el && el !== 'en') score -= 3;
   return score;
 }
