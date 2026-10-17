@@ -3,7 +3,7 @@ import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, list
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
-import { addPoint, refWeekAgo } from './history.js';
+import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
 import { checkAgainstHistory, collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
@@ -818,7 +818,10 @@ export class Scanner extends DurableObject {
         conditions: CONDITIONS,
         wish: await Promise.all((await this.get('wish', [])).map(async (w) => {
           const h = await this.get(`h:${w.id}`, []);
-          return { ...w, last: h[h.length - 1] || null, prev: h[h.length - 8] || h[0] || null };
+          // "Da" = prezzo più basso di adesso dagli annunci in memoria; lo storico (minimo del giorno) solo se non ci sono.
+          const hit = this.bpCache.get(w.id);
+          const now = hit && Date.now() - hit.ts < 3 * 3600_000 ? currentLow(hit.data[w.id] || hit.data[String(w.id)]) : null;
+          return { ...w, last: now || h[h.length - 1] || null, prev: h[h.length - 8] || h[0] || null };
         })),
       });
     }
