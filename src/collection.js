@@ -1,5 +1,6 @@
 // Collezione: prezzo attuale di ogni carta posseduta (logica pura, testabile).
 import { condRank, gradeOf, isListable, isZero, listingLang, normLang, parseGradeLabel } from './deals.js';
+import { estimateFrom, isFirstEd } from './ratios.js';
 
 export const COLL_LANGS = ['en', 'it', 'jp', 'fr', 'de', 'es', 'pt', 'ko', 'zh'];
 
@@ -7,12 +8,7 @@ export function collKey(bp, lang, cond, first = false) {
   return `${bp}|${lang || ''}|${cond || ''}${first ? '|1st' : ''}`;
 }
 
-/** Annuncio di una 1ª edizione: proprietà CardTrader o scritto nel commento del venditore. */
-export function isFirstEd(p) {
-  const h = (p && p.properties_hash) || {};
-  if (h.first_edition === true || h.first_edition === 'true') return true;
-  return /\b(1st|first)\s*ed(ition|\.)?\b|prima edizione|1a edizione|1ª edizione/i.test(String((p && p.description) || ''));
-}
+export { isFirstEd } from './ratios.js';
 
 /** Stima di una gradata da un prezzo di base (copia non gradata o tendenza Cardmarket). */
 export function gradedFromBase(base, grade) {
@@ -88,11 +84,36 @@ export function priceFor(list, lang, cond, opts = {}) {
     const g = gradeOf(p);
     return g && g.co === grade.co && g.g === grade.g;
   }).sort((a, b) => a.price.cents - b.price.cents);
-  // 1ª edizione: si confronta con le 1ª edizione (e viceversa); se non ce ne sono, con tutte, segnato come approssimato.
-  if (!ok.length) return grade ? estimateGraded(list, lang, grade, opts) : null;
   const want = normLang(lang);
   const min = condRank(cond);
   const fitsLC = (p) => (!want || normLang(listingLang(p)) === want) && (grade || min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);
+  const label = grade ? `${grade.co} ${grade.g}` : null;
+  const stats = (arr) => (arr.length ? { low: arr[0].price.cents, typ: median(arr.slice(0, TYPICAL_N).map((p) => p.price.cents)) } : null);
+
+  // 1) Combinazione esatta (lingua, condizione o voto, edizione): il prezzo vero, il più basso.
+  const exact = ok.filter((p) => fitsLC(p) && (opts.first == null || isFirstEd(p) === !!opts.first));
+  if (exact.length) {
+    const all = stats(exact);
+    const zero = stats(exact.filter(isZero)); // nessuno Zero giusto: pickPrice usa il prezzo di tutti, segnato "non Zero"
+    return {
+      cents: all.low, typCents: all.typ, approx: false, edApprox: false, lowLang: want || '', listings: exact.length, graded: label,
+      zeroCents: zero ? zero.low : null, zeroTypCents: zero ? zero.typ : null, zeroApprox: zero ? false : null, zeroLowLang: zero ? want || '' : null,
+    };
+  }
+
+  // 2) Combinazione assente: stima dall'annuncio più vicino con i rapporti di mercato ricavati da CardTrader.
+  if (opts.ratios) {
+    const est = estimateFrom(list, { lang: want || 'en', cond, grade: label, first: !!opts.first }, opts.ratios, opts.era || 'modern', blocked);
+    if (est) {
+      return {
+        cents: est.cents, typCents: est.cents, zeroCents: est.cents, zeroTypCents: est.cents, zeroApprox: true,
+        approx: true, estimated: true, est: { from: est.from, parts: est.parts }, listings: 0, graded: label,
+      };
+    }
+  }
+
+  // 3) Senza rapporti affidabili: i ripieghi di prima (altra edizione, altra lingua, stima fissa delle gradate).
+  if (!ok.length) return grade ? estimateGraded(list, lang, grade, opts) : null;
   // Edizione: lingua e condizione contano di più (l'edizione spesso non è indicata nell'annuncio).
   // Tra gli annunci giusti per lingua e condizione si preferiscono quelli della stessa edizione; se non ce ne sono, si usano gli altri.
   let edApprox = false;

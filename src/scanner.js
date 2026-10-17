@@ -13,12 +13,13 @@ import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settin
 import { generateVapidKeys, sendPush } from './push.js';
 import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
+import { addSamples, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
 import { RELEASED } from './expdates.js';
 import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 6; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 7; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -390,6 +391,7 @@ export class Scanner extends DurableObject {
     const prices = await this.get('collPrices', {});
     // I venditori esclusi dall'utente non contano neanche per il valore della collezione.
     const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
+    const ratios = await this.marketRatios().catch(() => null);
     let changed = false;
     for (const c of coll) {
       const hit = this.bpCache.get(c.bp);
@@ -399,7 +401,8 @@ export class Scanner extends DurableObject {
       if (hit.slim && (c.first || parseGradeLabel(c.cond))) continue;
       const old = prices[c.key];
       if (!force && old && old.ts >= hit.ts && old.v === PRICE_V) continue;
-      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first });
+      const era = c.expansionId && vintageEra(Number(c.expansionId)) ? 'vintage' : 'modern';
+      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, ratios, era });
       prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
       changed = true;
     }
@@ -453,7 +456,7 @@ export class Scanner extends DurableObject {
       const old = await this.get('collPrices', {});
       // Da rileggere: prezzi senza "tipico" (con Zero/tipico attivi) e, sempre, gradate e 1ª edizione calcolate con una versione vecchia.
       const stale = coll.filter((c) => ((zeroOnly || typical) && (!old[c.key] || !('typCents' in old[c.key])))
-        || ((c.first || parseGradeLabel(c.cond)) && (!old[c.key] || old[c.key].v !== PRICE_V))).slice(0, 10);
+        || ((c.first || parseGradeLabel(c.cond) || (old[c.key] && old[c.key].approx)) && (!old[c.key] || old[c.key].v !== PRICE_V))).slice(0, 5);
       refreshing = stale.length;
       if (stale.length && !this.collRefreshing) {
         // In sottofondo: la risposta arriva subito e la pagina si aggiorna da sola quando i prezzi sono pronti.
@@ -461,7 +464,8 @@ export class Scanner extends DurableObject {
         this.ctx.waitUntil((async () => {
           try {
             for (const c of stale) {
-              await this.productsForCard(c.bp, 60 * 60_000, false, { full: true }).catch(() => null);
+              // In "background": usa solo letture libere, così gli alert hanno sempre la precedenza.
+              await this.productsForCard(c.bp, 60 * 60_000, true, { full: true }).catch(() => null);
               await this.collectionPrices(true).catch(() => null);
             }
           } finally {
@@ -796,6 +800,7 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/_regions') return json(await this.get('expRegion', {}));
+    if (path === '/api/_ratios') return json(await this.get('ratios', {}));
     // Espansioni senza regione (senza annunci o con errore): il proprietario può indicarla a mano.
     if (path === '/api/regions/problems' && method === 'GET') {
       return json(await this.openRegionProblems());
@@ -1343,6 +1348,54 @@ export class Scanner extends DurableObject {
       priority: b.priority === true,
       enabled: b.enabled !== false,
     };
+  }
+
+  // ---------- Rapporti di mercato (per stimare le copie senza un annuncio uguale) ----------
+
+  /**
+   * Ogni 3 ore confronta le varianti delle carte già lette (per espansione e per carta) e aggiorna i rapporti:
+   * condizione, lingua, 1ª edizione e voti. Nessuna lettura in più da CardTrader: usa solo gli annunci in memoria.
+   */
+  async ratioStep(force = false) {
+    const last = await this.get('ratioAt', 0);
+    if (!force && Date.now() - last < 3 * 3600_000) return;
+    const keys = await this.get('rtKeys', []);
+    const store = {};
+    if (keys.length) {
+      const got = await this.ctx.storage.get(keys.map((k) => `rt:${k}`));
+      for (const [k, v] of got) store[k.slice(3)] = v || {};
+    }
+    const touched = new Set();
+    const eraOf = (expId) => (expId ? (vintageEra(Number(expId)) ? 'vintage' : 'modern') : null);
+    const feed = (bp, list, expId) => {
+      if (!list || !list.length) return;
+      const era = eraOf(expId || (list[0] && (list[0].expansion_id || (list[0].expansion && list[0].expansion.id))));
+      for (const k of addSamples(store, String(bp), era, samplesFromCard(list))) touched.add(k);
+    };
+    for (const [expId, hit] of this.productCache) for (const [bp, list] of Object.entries(hit.data || {})) feed(bp, list, expId);
+    for (const [bp, hit] of this.bpCache) if (!hit.slim) for (const list of Object.values(hit.data || {})) feed(bp, list, null);
+    if (touched.size) {
+      const put = {};
+      for (const k of touched) put[`rt:${k}`] = store[k];
+      const entries = Object.entries(put);
+      for (let i = 0; i < entries.length; i += 100) await this.ctx.storage.put(Object.fromEntries(entries.slice(i, i + 100)));
+      await this.ctx.storage.put('rtKeys', Object.keys(store));
+      await this.ctx.storage.put('ratios', summarizeRatios(store));
+      this.ratioCache = null;
+    }
+    await this.ctx.storage.put('ratioAt', Date.now());
+  }
+
+  /** Rapporti da usare: i propri uniti a quelli del catalogo condiviso (per ogni rapporto vince quello con più carte). */
+  async marketRatios() {
+    if (this.ratioCache && Date.now() - this.ratioCache.ts < 3600_000) return this.ratioCache.r;
+    let r = await this.get('ratios', {});
+    if (!(await this.isCatalog())) {
+      const cat = await this.catalog().fetch('https://do.internal/api/_ratios').then((x) => x.json()).catch(() => ({}));
+      r = mergeRatios(r, cat);
+    }
+    this.ratioCache = { ts: Date.now(), r };
+    return r;
   }
 
   /** Regioni delle espansioni (INT/JAP/CN/KR/Asia) imparate dagli annunci: le tiene il catalogo condiviso. */
@@ -1911,6 +1964,11 @@ export class Scanner extends DurableObject {
       await this.regionStep(status);
     } catch (e) {
       status.regionError = String(e.message || e);
+    }
+    try {
+      await this.ratioStep();
+    } catch (e) {
+      status.ratioError = String(e.message || e);
     }
     try {
       await this.indexStep();

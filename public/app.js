@@ -438,26 +438,44 @@
   }
   let hviewChosen = false;
 
+  /** Spiegazione del prezzo di una copia: da quale annuncio parte e quali rapporti di mercato usa. */
+  function explainPrice(it) {
+    const p = it.price;
+    const lines = [];
+    const LN = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH' };
+    if (p.est && p.est.from) {
+      const f = p.est.from;
+      lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
+      lines.push(`Si parte dall'annuncio più vicino: ${money(f.cents)} · ${[f.first ? '1ª ed.' : '', f.q, LN[f.lang] || f.lang.toUpperCase()].filter(Boolean).join(' · ')}.`);
+      for (const x of p.est.parts) lines.push(`× ${String(x.r).replace('.', ',')}  ${x.label} (${x.scope}, ${x.n} carte)`);
+      lines.push(`= ${money(p.cents)}. I rapporti sono le mediane dei prezzi delle stesse carte in vendita su CardTrader e si aggiornano da soli.`);
+    } else if (p.estimated) {
+      lines.push(p.fromCm ? 'Nessun annuncio su CardTrader: si parte dalla tendenza Cardmarket della carta.' : `Nessun annuncio ${it.cond}: si parte da ${p.how || 'copie non gradate'}.`);
+      if (p.rawCents != null) lines.push(`Valore di base: ${money(p.rawCents)}, poi il premio medio del voto ${it.cond}. Rapporti di mercato non ancora sufficienti per questo caso.`);
+    } else {
+      if (p.edApprox) lines.push('Nessun annuncio 1ª edizione: è il prezzo delle copie normali.');
+      if (p.approx && !p.edApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
+      if (!p.approx) lines.push('Annuncio con la stessa combinazione della tua copia: il più basso.');
+    }
+    if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
+    if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
+    dialog({ title: 'Come è calcolato', text: lines.join('\n\n') });
+  }
+  const isEstimate = (p) => !!(p && (p.estimated || p.approx));
+
   /** Scritta sotto il prezzo (stima, altra edizione/lingua, non Zero): si tocca per sapere come è calcolato. */
   function collPriceNote(it) {
     const p = it.price;
     if (!p) return null;
-    const text = p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
+    const text = p.est ? '≈ stima di mercato'
+      : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
       : p.edApprox ? '≈ altra edizione'
       : p.approx ? `≈ altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
       : p.notZero ? '≈ non Zero' : '';
     if (!text) return null;
-    const lines = [];
-    if (p.estimated) {
-      lines.push(p.fromCm ? 'Nessun annuncio su CardTrader: si parte dalla tendenza Cardmarket della carta.' : `Nessun annuncio ${it.cond}: si parte da ${p.how || 'copie non gradate'}.`);
-      if (p.rawCents != null) lines.push(`Valore di base: ${money(p.rawCents)}, poi il premio medio del voto ${it.cond}.`);
-    }
-    if (p.edApprox) lines.push('Nessun annuncio 1ª edizione: è il prezzo delle copie normali.');
-    if (p.approx && !p.estimated && !p.edApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
-    if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
-    if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
-    return el('button', { class: 's linklike', type: 'button', text, onclick: () => dialog({ title: 'Come è calcolato', text: lines.join('\n\n') }) });
+    return el('button', { class: 's linklike', type: 'button', text, onclick: () => explainPrice(it) });
   }
+
 
   let collPoll = null;
   async function loadCollection() {
@@ -634,7 +652,9 @@
               it.paidCents != null ? el('span', { class: 's', text: it.paidCents === 0 ? (it.qty > 1 ? 'trovate (0 €)' : 'trovata (0 €)') : it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
           ),
           el('div', { class: 'r' },
-            el('b', { text: it.price ? money(it.price.cents * it.qty) : '…' }),
+            el('div', { class: 'price-line' },
+              isEstimate(it.price) ? el('button', { class: 'est-badge', type: 'button', title: 'Valore stimato: tocca per sapere come', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
+              el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : '…' })),
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
             miniSpark(it.spark30),
