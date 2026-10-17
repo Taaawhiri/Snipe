@@ -19,7 +19,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 7; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 8; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.

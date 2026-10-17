@@ -25,7 +25,8 @@ export function gradedFromBase(base, grade) {
  * Valore di una copia: il prezzo più basso tra gli annunci nella stessa lingua e in condizione
  * uguale o migliore. Se non ce ne sono, il più basso in assoluto, segnato come approssimato.
  */
-const TYPICAL_N = 5; // il prezzo "tipico" è la mediana dei 5 annunci adatti più economici
+const TYPICAL_N = 5;
+const OUTLIER_RATIO = 0.6; // il prezzo "tipico" è la mediana dei 5 annunci adatti più economici
 
 function median(nums) {
   const m = nums.length >> 1;
@@ -88,7 +89,22 @@ export function priceFor(list, lang, cond, opts = {}) {
   const min = condRank(cond);
   const fitsLC = (p) => (!want || normLang(listingLang(p)) === want) && (grade || min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);
   const label = grade ? `${grade.co} ${grade.g}` : null;
-  const stats = (arr) => (arr.length ? { low: arr[0].price.cents, typ: median(arr.slice(0, TYPICAL_N).map((p) => p.price.cents)) } : null);
+  // "Più basso affidabile": un annuncio molto sotto i successivi (meno del 60% della mediana dei 3 dopo) è un'anomalia
+  // (errore, copia rovinata, svendita) e si scarta, al massimo 2 volte. Con meno di 3 annunci dopo non si può dire: si tiene.
+  const stats = (arr) => {
+    if (!arr.length) return null;
+    let i = 0;
+    const skipped = [];
+    while (i < 2 && arr.length - i - 1 >= 3) {
+      const ref = median(arr.slice(i + 1, i + 4).map((p) => p.price.cents));
+      if (arr[i].price.cents >= OUTLIER_RATIO * ref) break;
+      skipped.push(arr[i].price.cents);
+      i++;
+    }
+    const rest = arr.slice(i);
+    const ref = skipped.length ? median(rest.slice(0, 3).map((p) => p.price.cents)) : null;
+    return { low: rest[0].price.cents, typ: median(arr.slice(0, TYPICAL_N).map((p) => p.price.cents)), skipped, ref };
+  };
 
   // 1) Combinazione esatta (lingua, condizione o voto, edizione): il prezzo vero, il più basso.
   const exact = ok.filter((p) => fitsLC(p) && (opts.first == null || isFirstEd(p) === !!opts.first));
@@ -97,6 +113,8 @@ export function priceFor(list, lang, cond, opts = {}) {
     const zero = stats(exact.filter(isZero)); // nessuno Zero giusto: pickPrice usa il prezzo di tutti, segnato "non Zero"
     return {
       cents: all.low, typCents: all.typ, approx: false, edApprox: false, lowLang: want || '', listings: exact.length, graded: label,
+      skipped: all.skipped.length ? all.skipped : undefined, skipRef: all.skipped.length ? all.ref : undefined,
+      zeroSkipped: zero && zero.skipped.length ? zero.skipped : undefined, zeroSkipRef: zero && zero.skipped.length ? zero.ref : undefined,
       zeroCents: zero ? zero.low : null, zeroTypCents: zero ? zero.typ : null, zeroApprox: zero ? false : null, zeroLowLang: zero ? want || '' : null,
     };
   }
@@ -155,9 +173,9 @@ export function pickPrice(p, zeroOnly, typical = false) {
   if (zeroOnly) {
     // Nessun annuncio Zero adatto: si usa il prezzo di tutti i venditori, segnato.
     if (p.zeroCents == null) return p.cents == null ? null : { ...p, cents: typical && p.typCents != null ? p.typCents : p.cents, notZero: true };
-    return { ...p, cents: typical && p.zeroTypCents != null ? p.zeroTypCents : p.zeroCents, approx: p.zeroApprox, lowLang: p.zeroLowLang };
+    return { ...p, cents: typical && p.zeroTypCents != null ? p.zeroTypCents : p.zeroCents, approx: p.zeroApprox, lowLang: p.zeroLowLang, skipped: typical ? undefined : p.zeroSkipped, skipRef: p.zeroSkipRef };
   }
-  return typical && p.typCents != null ? { ...p, cents: p.typCents } : p;
+  return typical && p.typCents != null ? { ...p, cents: p.typCents, skipped: undefined } : p;
 }
 
 /** Totali: valore, speso, quantità, copie senza prezzo. */

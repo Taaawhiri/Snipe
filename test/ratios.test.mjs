@@ -59,3 +59,11 @@ test('prezzo esatto: lingua e condizione uguali vincono sempre sulla stima', () 
   assert.equal(p.cents, 700);
   assert.equal(p.approx, false);
 });
+
+test('più basso affidabile: prezzo anomalo scartato solo con abbastanza annunci', () => {
+  const p = priceFor([L(400, 'en', 'Near Mint'), L(1200, 'en', 'Near Mint'), L(1300, 'en', 'Near Mint'), L(1400, 'en', 'Near Mint')], 'en', 'Near Mint');
+  assert.equal(p.cents, 1200);
+  assert.deepEqual(p.skipped, [400]);
+  assert.equal(priceFor([L(1000, 'en', 'Near Mint'), L(1100, 'en', 'Near Mint'), L(1200, 'en', 'Near Mint'), L(1300, 'en', 'Near Mint')], 'en', 'Near Mint').cents, 1000);
+  assert.equal(priceFor([L(2025, 'jp', 'Near Mint'), L(9250, 'jp', 'Near Mint')], 'jp', 'Near Mint').cents, 2025); // pochi annunci: si tiene
+});
