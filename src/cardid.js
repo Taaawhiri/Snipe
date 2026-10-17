@@ -91,7 +91,12 @@ export function scoreRow(row, scan, setCode = '', expName = '') {
     else {
       const words = want.split(' ').filter((w) => w.length > 1);
       const hit = words.filter((w) => name.split(' ').includes(w)).length;
-      if (words.length && hit === words.length) { score += 4; nameOk = true; }
+      // "Umbreon V" non è "Umbreon": il suffisso (V, VMAX, ex, GX…) deve esserci anche nel nome della carta.
+      const SUF = ['v', 'vmax', 'vstar', 'ex', 'gx', 'lv x', 'break', 'prime'];
+      const suf = (t) => SUF.find((x) => new RegExp(`(^| )${x}$`).test(t)) || '';
+      const sameSuffix = suf(want) === suf(name);
+      if (words.length && hit === words.length && sameSuffix) { score += 4; nameOk = true; }
+      else if (words.length && hit === words.length) score += 2;
       else if (hit) score += 2 * (hit / words.length);
     }
   }
