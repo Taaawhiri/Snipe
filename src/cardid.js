@@ -4,7 +4,7 @@ import { normText } from './search.js';
 export const SCAN_PROMPT = `You identify Pokémon trading cards from a photo.
 Look at the card and answer with ONLY a JSON object, no other text:
 {"name": "...", "number": "...", "total": "...", "set_code": "...", "language": "...", "text_sample": "...", "variant": "...", "confidence": 0.0}
-- name: the Pokémon or trainer card name in ENGLISH (translate if the card is in another language), e.g. "Charizard ex".
+- name: the Pokémon or trainer card name in ENGLISH (translate if the card is in another language), e.g. "Charizard ex". Use the official English card name, not a literal translation: trainers and items often have different names (Italian "Lucinda" is "Dawn", "Camilla" is "Cynthia", "Ruggero" is "Lance").
 - number: the collector number printed at the bottom (the part before the slash), e.g. "137" or "TG05" or "SV001".
 - total: the part after the slash, e.g. "103"; empty if there is no slash. Collector numbers rarely exceed 3 digits: on small print (Chinese cards) do not merge digits, "200/207" is number "200", total "207".
 - set_code: the small set code printed in the bottom-left corner next to the number, copied exactly (e.g. "M6a", "sv3", "PAL"); empty if you cannot read it clearly. Never guess.

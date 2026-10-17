@@ -228,7 +228,10 @@ export class Scanner extends DurableObject {
           // Con un nome letto serve che il nome corrisponda; senza, numero e totale esatti.
           const nameOk = !scan.name || normText(r[1]).split(' ').some((w) => normText(scan.name).split(' ').includes(w));
           // Sotto 8 teniamo solo chi ha il nome giusto: serve quando il numero è letto male (es. carte cinesi).
-          if (!nameOk || score < (scan.name ? 5 : 8)) continue;
+          // Nome tradotto diverso (es. "Lucinda" = Dawn): basta numero, totale e codice del set esatti.
+          const byNumber = !nameOk && scan.number && scan.total && scan.setCode
+            && scoreRow(r, { number: scan.number, total: scan.total, setCode: scan.setCode }, e.code, '') >= 10;
+          if (!byNumber && (!nameOk || score < (scan.name ? 5 : 8))) continue;
           const numHit = !scan.number || scoreRow(r, { number: scan.number }, '', '') > 0;
           best.push({ score, numHit, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
         }
