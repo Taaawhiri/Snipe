@@ -20,7 +20,28 @@
       r.err ? el('span', { class: 'rs err', text: `${r.err} errori` }) : null,
     ));
     if (error && r.err) row.append(el('span', { class: 'small muted', text: `Ultimo errore: ${error}` }));
+    if (isOwner() && (r.none || r.err)) row.append(el('button', { class: 'btn mini', type: 'button', text: 'Vedi e indica la regione', onclick: openRegionProblems }));
     return row;
+  }
+
+  /** Espansioni senza regione: per ognuna si sceglie a mano (solo proprietario). */
+  async function openRegionProblems() {
+    let list;
+    try { list = await api('/api/regions/problems'); } catch (e) { await alert(e.message); return; }
+    const ov = el('div', { class: 'cs-overlay', onclick: (e) => { if (e.target === ov) ov.remove(); } });
+    const REG = [['INT', '🌍 Int'], ['JAP', '🇯🇵 Jap'], ['CN', '🇨🇳 Cina'], ['KR', '🇰🇷 Corea'], ['Asia', '🌏 Asia']];
+    const body = el('div', { class: 'cs-list im-list' });
+    const draw = () => body.replaceChildren(...(list.length ? list.map((p) => el('div', { class: 'im-row ' + (p.kind === 'err' ? 'none' : '') },
+      el('div', { class: 'im-line' }, el('b', { text: p.name }), el('span', { text: [p.code, p.kind === 'err' ? `errore: ${p.note}` : p.note].filter(Boolean).join(' · ') })),
+      el('div', { class: 'fg-chips', style: 'margin-top:8px' }, ...REG.map(([v, l]) => el('button', { class: 'chip-btn', type: 'button', text: l, onclick: async () => {
+        try { await api('/api/regions/set', { method: 'POST', body: JSON.stringify({ id: p.id, region: v }) }); list = list.filter((x) => x !== p); draw(); } catch (e) { await alert(e.message); }
+      } }))))) : [el('p', { class: 'muted', text: 'Nessuna espansione da sistemare.' })]));
+    draw();
+    ov.append(el('div', { class: 'cs-sheet cs-dialog im', role: 'dialog', 'aria-label': 'Regioni da indicare' },
+      el('div', { class: 'cs-grab' }), el('div', { class: 'cs-title', text: 'Regioni da indicare' }),
+      el('p', { class: 'cs-text', text: 'Espansioni che il giro automatico non ha potuto riconoscere. Tocca la regione giusta: vale per tutti gli utenti.' }),
+      body, el('div', { class: 'cs-actions' }, el('button', { class: 'btn primary', type: 'button', text: 'Fatto', onclick: () => ov.remove() }))));
+    document.body.append(ov);
   }
 
   const dur = (ms) => (ms < 90_000 ? `${Math.max(1, Math.round(ms / 1000))} s` : ms < 90 * 60_000 ? `${Math.round(ms / 60_000)} min` : `${(ms / 3600_000).toFixed(1).replace('.', ',')} ore`);

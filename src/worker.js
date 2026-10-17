@@ -272,6 +272,10 @@ async function handle(req, env) {
     if (url.pathname === '/api/search') return forward(env, 'main', req, headers);
     if (url.pathname === '/api/deals') return forward(env, 'main', req, headers);
     if (url.pathname === '/api/collection/match') return forward(env, 'main', req, headers);
+    if (url.pathname.startsWith('/api/regions/')) {
+      if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può modificare le regioni.' }, 403);
+      return forward(env, 'main', req, headers);
+    }
     if (url.pathname === '/api/index/refresh') {
       if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può rinnovare l’indice.' }, 403);
       return forward(env, 'main', req, headers);

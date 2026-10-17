@@ -307,6 +307,12 @@
     'Scan in pausa da Opzioni': 'Scanning paused in Settings',
     'Nessun alert attivo': 'No active alerts',
     'CardTrader ha chiesto una pausa: riprende da solo': 'CardTrader asked for a pause: it resumes on its own',
+    'Vedi e indica la regione': 'Review and set region',
+    'Regioni da indicare': 'Regions to set',
+    'Espansioni che il giro automatico non ha potuto riconoscere. Tocca la regione giusta: vale per tutti gli utenti.': 'Expansions the automatic pass could not recognise. Tap the right region: it applies to all users.',
+    'Nessuna espansione da sistemare.': 'Nothing to fix.',
+    'nessun annuncio in vendita': 'no listings for sale',
+    'Fatto': 'Done',
   };
 
   const R = [

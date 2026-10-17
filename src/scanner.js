@@ -745,6 +745,21 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/_regions') return json(await this.get('expRegion', {}));
+    // Espansioni senza regione (senza annunci o con errore): il proprietario può indicarla a mano.
+    if (path === '/api/regions/problems' && method === 'GET') {
+      const problems = await this.get('regionProblems', {});
+      return json(Object.entries(problems).map(([id, p]) => ({ id: Number(id), ...p })).sort((a, b) => a.name.localeCompare(b.name)));
+    }
+    if (path === '/api/regions/set' && method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      const id = parseInt(b.id, 10);
+      if (!Number.isInteger(id) || !['INT', 'JAP', 'CN', 'KR', 'Asia'].includes(b.region)) return json({ error: 'Regione non valida' }, 400);
+      await this.saveRegion(id, b.region);
+      const problems = await this.get('regionProblems', {});
+      delete problems[id];
+      await this.ctx.storage.put('regionProblems', problems);
+      return json({ ok: true });
+    }
     if (path === '/api/_region' && method === 'POST') {
       const b = await req.json().catch(() => ({}));
       if (Number.isInteger(b.id) && ['INT', 'JAP', 'CN', 'KR', 'Asia'].includes(b.region)) await this.saveRegion(b.id, b.region);
@@ -1559,12 +1574,24 @@ export class Scanner extends DurableObject {
         }
       }
       const region = regionFromLangs(langCount);
-      if (region) { await this.saveRegion(e.id, region); stats.ok++; } else stats.none++;
+      const problems = await this.get('regionProblems', {});
+      if (region) { await this.saveRegion(e.id, region); stats.ok++; delete problems[e.id]; }
+      else {
+        stats.none++;
+        const n = Object.values(langCount).reduce((a, b) => a + b, 0);
+        problems[e.id] = { name: e.name, code: e.code, kind: 'none', note: n ? `${n} annunci, lingue miste` : 'nessun annuncio in vendita', ts: Date.now() };
+      }
+      await this.ctx.storage.put('regionProblems', problems);
       tried[e.id] = Date.now();
     } catch (err) {
+      // Limiti di CardTrader (429) o letture finite: non è un errore dell'espansione, si riprova al prossimo giro.
+      if (err.rateLimited || err.budget) { await this.ctx.storage.put('regionAt', Date.now()); return; }
       stats.err++;
-      tried[e.id] = Date.now() - 6 * 86400_000; // errore: si riprova tra un giorno, intanto si passa alla prossima
+      tried[e.id] = Date.now() - 6 * 86400_000; // errore vero: si riprova tra un giorno, intanto si passa alla prossima
       status.regionError = `${e.name}: ${String(err.message || err).slice(0, 80)}`;
+      const problems = await this.get('regionProblems', {});
+      problems[e.id] = { name: e.name, code: e.code, kind: 'err', note: String(err.message || err).slice(0, 120), ts: Date.now() };
+      await this.ctx.storage.put('regionProblems', problems);
     }
     await this.ctx.storage.put({ regionTried: tried, regionStats: stats, regionAt: Date.now() });
     status.regions = { done: status.regions.done + 1, total: exps.length, ...stats };
