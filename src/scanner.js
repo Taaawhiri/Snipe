@@ -1376,7 +1376,7 @@ export class Scanner extends DurableObject {
     if (Date.now() - (await this.get('regionAt', 0)) < 60_000) return;
     const [all, map, meta] = await Promise.all([this.pokemonExpansions(), this.get('expRegion', {}), this.get('ixmeta', null)]);
     // Solo le espansioni con carte singole (le stesse dell'indice): le altre sono solo prodotti sigillati.
-    const withCards = meta && meta.complete && meta.have && meta.have.length ? new Set(meta.have.map(Number)) : null;
+    const withCards = meta && Array.isArray(meta.have) && meta.have.length ? new Set(meta.have.map(Number)) : null;
     const exps = withCards ? all.filter((e) => withCards.has(Number(e.id))) : all;
     const tried = await this.get('regionTried', {});
     const stats = await this.get('regionStats', { ok: 0, none: 0, err: 0 });
