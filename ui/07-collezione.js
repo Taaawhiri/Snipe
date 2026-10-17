@@ -25,9 +25,11 @@
       for (const x of p.est.parts) lines.push(`× ${String(x.r).replace('.', ',')}  ${x.label} (${x.scope}, ${x.n} carte)`);
       lines.push(`= ${money(p.cents)}. I rapporti sono le mediane dei prezzi delle stesse carte in vendita su CardTrader e si aggiornano da soli.`);
     } else if (p.estimated) {
+      lines.push('RIPIEGO: i rapporti di mercato per questo caso si basano ancora su meno di 20 carte, quindi si usano regole fisse.');
       lines.push(p.fromCm ? 'Nessun annuncio su CardTrader: si parte dalla tendenza Cardmarket della carta.' : `Nessun annuncio ${it.cond}: si parte da ${p.how || 'copie non gradate'}.`);
-      if (p.rawCents != null) lines.push(`Valore di base: ${money(p.rawCents)}, poi il premio medio del voto ${it.cond}. Rapporti di mercato non ancora sufficienti per questo caso.`);
+      if (p.rawCents != null) lines.push(`Valore di base: ${money(p.rawCents)} × premio fisso del voto ${it.cond}, mai meno della carta più una quota del costo di gradazione.`);
     } else {
+      if (p.approx) lines.push('RIPIEGO: i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
       if (p.edApprox) lines.push('Nessun annuncio 1ª edizione: è il prezzo delle copie normali.');
       if (p.approx && !p.edApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
       if (!p.approx) lines.push('Annuncio con la stessa combinazione della tua copia: il più basso.');
@@ -43,9 +45,9 @@
     const p = it.price;
     if (!p) return null;
     const text = p.est ? '≈ stima di mercato'
-      : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
-      : p.edApprox ? '≈ altra edizione'
-      : p.approx ? `≈ altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
+      : p.estimated ? (p.fromCm ? '≈ ripiego: Cardmarket' : '≈ ripiego: voto fisso')
+      : p.edApprox ? '≈ ripiego: altra edizione'
+      : p.approx ? `≈ ripiego: altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
       : p.notZero ? '≈ non Zero' : '';
     if (!text) return null;
     return el('button', { class: 's linklike', type: 'button', text, onclick: () => explainPrice(it) });
@@ -228,7 +230,8 @@
           ),
           el('div', { class: 'r' },
             el('div', { class: 'price-line' },
-              isEstimate(it.price) ? el('button', { class: 'est-badge', type: 'button', title: 'Valore stimato: tocca per sapere come', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
+              // STIMA (ambra) = calcolata con i rapporti di mercato; RIPIEGO (grigio) = regole fisse, dati di mercato ancora insufficienti.
+              isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', title: 'Valore stimato: tocca per sapere come', text: it.price.est ? 'STIMA' : 'RIPIEGO', onclick: () => explainPrice(it) }) : null,
               el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : '…' })),
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
