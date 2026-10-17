@@ -1465,15 +1465,16 @@
   }
 
   // ---------- regole ----------
+  const REGION_LABEL = { INT: '🌍 International', JAP: '🇯🇵 Giapponese', CN: '🇨🇳 Cinese', KR: '🇰🇷 Coreana', Asia: '🌏 Asia' };
   function fillCardExpansions() {
     const q = $('cardExpFilter').value.trim().toLowerCase();
     const sel = $('cardExp');
     const prev = sel.value;
-    const items = expansions.filter((e) => !q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q));
+    const items = expansions.filter((e) => !q || e.name.toLowerCase().includes(q) || (e.code || '').toLowerCase().includes(q) || (e.region && (REGION_LABEL[e.region] || '').toLowerCase().includes(q)));
     sel.replaceChildren(
       el('option', { value: '', text: items.length ? 'Scegli un’espansione…' : 'Nessun risultato' }),
       el('option', { value: 'all', text: 'Tutte le espansioni (cerca per nome)' }),
-      ...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})` })),
+      ...items.map((e) => el('option', { value: e.id, text: `${e.name} (${e.code})${e.region ? ` · ${REGION_LABEL[e.region] || e.region}` : ''}` })),
     );
     if (prev === 'all' || items.some((e) => String(e.id) === prev)) sel.value = prev;
     // mentre scrivi l'elenco resta aperto e mostra le espansioni che corrispondono

@@ -11,6 +11,7 @@ import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
+import { regionFromLangs, regionFromName } from './region.js';
 import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
@@ -650,9 +651,17 @@ export class Scanner extends DurableObject {
       });
     }
 
+    if (path === '/api/_regions') return json(await this.get('expRegion', {}));
+    if (path === '/api/_region' && method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      if (Number.isInteger(b.id) && ['INT', 'JAP', 'CN', 'KR', 'Asia'].includes(b.region)) await this.saveRegion(b.id, b.region);
+      return json({ ok: true });
+    }
+
     if (path === '/api/expansions' && method === 'GET') {
       try {
-        return json(await this.pokemonExpansions());
+        const [list, map] = await Promise.all([this.pokemonExpansions(), this.regions()]);
+        return json(list.map((e) => ({ ...e, region: map[e.id] || regionFromName(e.name) })));
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
@@ -1143,6 +1152,26 @@ export class Scanner extends DurableObject {
     };
   }
 
+  /** Regioni delle espansioni (INT/JAP/CN/KR/Asia) imparate dagli annunci: le tiene il catalogo condiviso. */
+  async saveRegion(id, region) {
+    if (!(await this.isCatalog())) {
+      await this.catalog().fetch('https://do.internal/api/_region', { method: 'POST', body: JSON.stringify({ id, region }) });
+      return;
+    }
+    const map = await this.get('expRegion', {});
+    if (map[id] === region) return;
+    map[id] = region;
+    await this.ctx.storage.put('expRegion', map);
+  }
+
+  async regions() {
+    if (await this.isCatalog()) return this.get('expRegion', {});
+    if (this.regionCache && Date.now() - this.regionCache.ts < 3600_000) return this.regionCache.map;
+    const map = await this.catalog().fetch('https://do.internal/api/_regions').then((r) => r.json()).catch(() => ({}));
+    this.regionCache = { ts: Date.now(), map };
+    return map;
+  }
+
   async pokemonExpansions() {
     const cached = await this.get('expansions', null);
     const savedGame = await this.get('gameId', null);
@@ -1290,7 +1319,9 @@ export class Scanner extends DurableObject {
     });
 
     const languages = Object.keys(langCount).sort((a, b) => langCount[b] - langCount[a]);
-    const data = { expansionId, cards, languages };
+    const region = regionFromLangs(langCount);
+    if (region) this.saveRegion(expansionId, region).catch(() => null);
+    const data = { expansionId, cards, languages, region };
     this.cardCache.set(expansionId, { ts: Date.now(), data });
     return data;
   }

@@ -246,6 +246,7 @@
   };
 
   const R = [
+    [/^(.+) · 🇯🇵 Giapponese$/, '$1 · 🇯🇵 Japanese'], [/^(.+) · 🇨🇳 Cinese$/, '$1 · 🇨🇳 Chinese'], [/^(.+) · 🇰🇷 Coreana$/, '$1 · 🇰🇷 Korean'],
     [/^CardTrader conviene: −(\d+)% rispetto alla tendenza Cardmarket$/, 'CardTrader is cheaper: −$1% vs Cardmarket trend'], [/^Su CardTrader costa il (\d+)% in più della tendenza Cardmarket$/, 'On CardTrader it costs $1% more than the Cardmarket trend'],
     [/^Cardmarket tendenza (.+)$/, 'Cardmarket trend $1'], [/^(\d+) limiti CardTrader \(429\) nell’ultima ora$/, '$1 CardTrader limits (429) in the last hour'], [/^(\d+) con ritmo rallentato$/, '$1 with slowed pace'],
     [/^(\d+) scan fermi?: (.+)$/, '$1 stalled scan(s): $2'], [/^(\d+) × 429 in 1 h$/, '$1 × 429 in 1 h'], [/^ritmo (.+) s$/, 'pace $1 s'],
