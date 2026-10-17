@@ -93,6 +93,13 @@ const stripZeros = (s) => String(s || '').replace(/^0+(?=\d)/, '').toLowerCase()
 // δ (Delta Species) e "Star" ★ diventano parole, così "Meganium δ" non è un Meganium qualsiasi.
 const cardName = (t) => normText(String(t || '').replace(/δ/g, ' delta ').replace(/delta species/gi, 'delta').replace(/[★☆]/g, ' star ')).replace(/\b(delta|star)( \1\b)+/g, '$1');
 
+// Nomi inglesi dei set vintage e nome dell'edizione giapponese corrispondente (come lo scrive CardTrader).
+const SET_ALIAS = {
+  'base set': 'expansion pack', 'jungle': 'pokemon jungle', 'fossil': 'mystery of the fossils', 'team rocket': 'rocket gang',
+  'gym heroes': 'leaders stadium', 'gym challenge': 'challenge from the darkness',
+  'neo genesis': 'gold silver to a new world', 'neo discovery': 'crossing the ruins', 'neo revelation': 'awakening legends', 'neo destiny': 'darkness and to light',
+};
+
 const REGION_LANG = { JAP: 'jp', CN: 'zh', KR: 'ko' };
 const ASIAN = ['jp', 'zh', 'ko', 'th', 'id'];
 
@@ -137,10 +144,11 @@ export function scoreRow(row, scan, setCode = '', expName = '', region = '', opt
   if (scan.era && opts.era === scan.era) score += 3;
   // Set riconosciuto dal modello (meno sicuro dell'etichetta della slab).
   if (scan.setGuess && expName) {
-    const gw = normText(scan.setGuess).split(' ').filter((w) => w.length > 2 && !['and', 'the', 'set'].includes(w));
     const ew = normText(expName).split(' ');
-    if (gw.length && gw.filter((w) => ew.includes(w)).length / gw.length >= 0.6) score += 4;
+    const hits = (t) => { const w = normText(t).split(' ').filter((x) => x.length > 2 && !['and', 'the', 'set'].includes(x)); return w.length && w.filter((x) => ew.includes(x)).length / w.length >= 0.6; };
+    if (hits(scan.setGuess) || (SET_ALIAS[normText(scan.setGuess)] && hits(SET_ALIAS[normText(scan.setGuess)]))) score += 4;
   }
+
   // Set scritto sull'etichetta della slab: se le parole tornano col nome dell'espansione, è quasi certamente lei.
   if (scan.slab && scan.slab.set && expName) {
     const sw = normText(scan.slab.set).split(' ').filter((w) => w.length > 2 && !['and', 'the', 'pokemon', 'japanese'].includes(w));
