@@ -233,7 +233,8 @@ export class Scanner extends DurableObject {
           // Nome tradotto diverso (es. "Lucinda" = Dawn): basta numero, totale e codice del set esatti.
           // Numero e totale esatti (con la lingua compatibile) bastano anche senza codice del set.
           const byNumber = !nameOk && scan.number && scan.total
-            && scoreRow(r, { number: scan.number, total: scan.total, setCode: scan.setCode, language: scan.language }, e.code, e.name, regionOf(e)) >= 8;
+            && scoreRow(r, { number: scan.number, total: scan.total }, '', '') >= 8 // numero E totale esatti
+            && scoreRow(r, { language: scan.language }, '', e.name, regionOf(e)) >= 0; // lingua non in contrasto
           if (!byNumber && (!nameOk || score < (scan.name ? 5 : 8))) continue;
           const numHit = !scan.number || scoreRow(r, { number: scan.number }, '', '') > 0;
           best.push({ score: byNumber ? Math.max(score, 8) : score, numHit, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
