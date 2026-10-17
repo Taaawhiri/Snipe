@@ -425,6 +425,7 @@
   }
   // ---------- collezione ----------
   let coll = null;
+  let collEra = 'all'; // filtro epoca: moderne o vintage (WOTC ed EX, come nel selettore delle espansioni)
   let collType = 'all'; // filtro per tipo: Pokémon, allenatori, energie
   let collKind = 'all'; // filtro rapido: tutte, non gradate, gradate
   /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
@@ -744,6 +745,16 @@
       .filter(([v]) => v === 'all' || nT[v]).map(([v, l]) =>
         el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collType === v), text: l, onclick: () => { collType = v; renderCollection(); } })));
     const typeOk = (it) => collType === 'all' || cardType(it.name) === collType;
+    // Epoca: dall'elenco delle espansioni (vintage = era WOTC o EX).
+    const vint = new Map(expansions.map((e) => [e.id, !!e.vintage]));
+    const eraOf = (it) => (vint.get(it.expansionId) ? 'vintage' : 'modern');
+    const nE = { modern: 0, vintage: 0 };
+    items.forEach((it) => { nE[eraOf(it)]++; });
+    $('collEra').hidden = !expansions.length || !nE.modern || !nE.vintage;
+    if ($('collEra').hidden) collEra = 'all';
+    $('collEra').replaceChildren(...[['all', 'Tutte le epoche'], ['modern', `Moderne (${nE.modern})`], ['vintage', `🕰️ Vintage (${nE.vintage})`]].map(([v, l]) =>
+      el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collEra === v), text: l, onclick: () => { collEra = v; renderCollection(); } })));
+    const eraOk = (it) => collEra === 'all' || eraOf(it) === collEra;
     // Rarità: dal nome salvato "Charizard ex (Special Illustration Rare | 199/165)".
     const rarOf = (it) => { const m = /\(([^()]*)\)\s*$/.exec(it.name || ''); return m ? rarityFromVersion(m[1]) : ''; };
     const rc = new Map();
@@ -756,8 +767,8 @@
     $('collRarityBox').hidden = rc.size < 2 && !rsel.value;
     const rar = rsel.value;
     const rarOk = (it) => !rar || rarOf(it) === rar;
-    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
-    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && !rar;
+    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
+    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && !rar;
     $('collCount').textContent = shownItems.length ? `${shownItems.length} carte su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
@@ -3160,7 +3171,7 @@
     maybeWelcome();
     // Collezione caricata subito: serve al badge "Ce l'ho" in Cerca, Affari e Regole.
     if (!coll) api('/api/collection').then((d) => { if (!coll) coll = d; render(); renderCards(); if (dealsData) renderDeals(dealsData); }).catch(() => null);
-    api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); }).catch((e) => {
+    api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); if (coll) renderCollection(); }).catch((e) => {
       $('cardsMsg').textContent = `Elenco espansioni non disponibile: ${e.message}`;
       $('cardsMsg').hidden = false;
     });
