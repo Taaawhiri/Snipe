@@ -39,7 +39,7 @@
   function openExpPanel(open) {
     $('expPanel').hidden = !open;
     $('expPick').setAttribute('aria-expanded', String(open));
-    if (open) { fillCardExpansions(); $('cardExpFilter').focus({ preventScroll: true }); }
+    if (open) fillCardExpansions();
   }
   function chooseExp(id) {
     const sel = $('cardExp');
