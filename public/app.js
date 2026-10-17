@@ -439,7 +439,7 @@
   let hviewChosen = false;
 
   /** Scritta sotto il prezzo (stima, altra edizione/lingua, non Zero): si tocca per sapere come è calcolato. */
-  function priceNote(it) {
+  function collPriceNote(it) {
     const p = it.price;
     if (!p) return null;
     const text = p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
@@ -639,7 +639,7 @@
             gainPill(it),
             miniSpark(it.spark30),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
-            priceNote(it),
+            collPriceNote(it),
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
         );
