@@ -971,7 +971,8 @@ export class Scanner extends DurableObject {
         const recent = rule.blueprintId ? (bpHit && !bpHit.slim ? bpHit : null) : expHit;
         const useScan = !url.searchParams.get('fresh') && recent && Date.now() - recent.ts < 5 * 60_000;
         const data = useScan ? recent.data
-          : await (rule.blueprintId ? this.productsForCard(rule.blueprintId, 60_000) : this.productsFor(rule.expansionId, 60_000))
+          // "Leggi ora" (fresh): sempre una lettura nuova, senza la cache di un minuto.
+          : await (rule.blueprintId ? this.productsForCard(rule.blueprintId, url.searchParams.get('fresh') ? 0 : 60_000) : this.productsFor(rule.expansionId, url.searchParams.get('fresh') ? 0 : 60_000))
             .catch((e) => { const old = rule.blueprintId ? bpHit : expHit; if (old) return old.data; throw e; }); // pausa di CardTrader: dati già letti
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const rows = all
@@ -993,7 +994,7 @@ export class Scanner extends DurableObject {
             };
           });
         const status = await this.status();
-        return json({ rows, total: all.length, cmTrend, fromScan: !!useScan, diag: { scanTs, seenCount, enabled: !!rule.enabled, lastScan: status.lastScan || null, lastError: status.lastError || null } });
+        return json({ rows, total: all.length, cmTrend, fromScan: !!useScan, readAt: useScan ? recent.ts : Date.now(), diag: { scanTs, seenCount, enabled: !!rule.enabled, lastScan: status.lastScan || null, lastError: status.lastError || null } });
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }

@@ -2585,6 +2585,7 @@
         if (dg.lastError) parts.push(`ultimo errore: ${dg.lastError}`);
         $('exInfo').append(el('span', { class: 'ex-diag', text: `Controllo in background: ${parts.join(' · ')}.` }));
         // Annunci appena comparsi: si può chiedere una lettura fresca a CardTrader.
+        if (!data.fromScan) $('exInfo').append(el('span', { class: 'ex-diag', text: 'Annunci letti adesso da CardTrader.' }));
         if (data.fromScan) $('exInfo').append(el('button', { class: 'btn mini ex-fresh', type: 'button', text: '↻ Leggi ora da CardTrader', onclick: () => explainRule(r, true) }));
       }
       $('exRows').replaceChildren(

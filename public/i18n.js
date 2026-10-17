@@ -326,6 +326,7 @@
     'Società di gradazione': 'Grading company',
     'Voto': 'Grade',
     "gratis": "free",
+    "Annunci letti adesso da CardTrader.": "Listings read just now from CardTrader.",
     "1 rispetta i filtri e fa scattare l’alert.": "1 matches the filters and triggers the alert.",
     "1 annuncio già segnalato": "1 listing already notified",
     "↻ Leggi ora da CardTrader": "↻ Read now from CardTrader",
