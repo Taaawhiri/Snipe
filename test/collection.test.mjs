@@ -44,7 +44,8 @@ test('prezzo tipico e venditori esclusi', () => {
   const U = (c, user, zero = false) => ({ ...L(c, 'en', 'Near Mint', zero), user: { username: user, can_sell_via_hub: zero } });
   const list = [U(100, 'furbo'), U(1000, 'a'), U(1100, 'b'), U(1200, 'c'), U(1300, 'd', true), U(5000, 'e', true)];
   const p = priceFor(list, 'en', 'Near Mint');
-  assert.equal(p.cents, 100);
+  assert.equal(p.cents, 1000); // 100 è molto sotto gli altri: prezzo anomalo, ignorato
+  assert.deepEqual(p.skipped, [100]);
   assert.equal(p.typCents, 1100); // mediana di 100, 1000, 1100, 1200, 1300
   assert.equal(pickPrice(p, false, true).cents, 1100);
   assert.equal(pickPrice(p, true, true).cents, 3150);
