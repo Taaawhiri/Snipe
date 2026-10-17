@@ -227,13 +227,16 @@ export class Scanner extends DurableObject {
           const score = scoreRow(r, scan, e.code, e.name);
           // Con un nome letto serve che il nome corrisponda; senza, numero e totale esatti.
           const nameOk = !scan.name || normText(r[1]).split(' ').some((w) => normText(scan.name).split(' ').includes(w));
-          if (!nameOk || score < 8) continue;
+          // Sotto 8 teniamo solo chi ha il nome giusto: serve quando il numero è letto male (es. carte cinesi).
+          if (!nameOk || score < (scan.name ? 5 : 8)) continue;
           best.push({ score, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
         }
       }
     }
     best.sort((a, b) => b.score - a.score || b.expansionId - a.expansionId);
-    return { candidates: best.slice(0, 6), indexComplete: !!meta.complete };
+    // Se c'è almeno una corrispondenza piena mostriamo solo quelle; altrimenti le carte con lo stesso nome.
+    const strong = best.filter((x) => x.score >= 8);
+    return { candidates: (strong.length ? strong : best).slice(0, strong.length ? 6 : 12), indexComplete: !!meta.complete };
   }
 
   /**
