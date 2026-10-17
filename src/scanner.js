@@ -18,6 +18,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
+const PRICE_V = 2; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -394,9 +395,9 @@ export class Scanner extends DurableObject {
       const hit = this.bpCache.get(c.bp);
       if (!hit) continue;
       const old = prices[c.key];
-      if (!force && old && old.ts >= hit.ts) continue;
+      if (!force && old && old.ts >= hit.ts && old.v === PRICE_V) continue;
       const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first });
-      prices[c.key] = pr ? { ...pr, ts: hit.ts } : { cents: null, ts: hit.ts };
+      prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
       changed = true;
     }
     // Gradate senza nessun annuncio su CardTrader: stima dalla tendenza Cardmarket della carta.

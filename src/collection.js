@@ -49,10 +49,20 @@ export function estimateGraded(list, lang, grade, opts = {}) {
   // Sotto 8 la slab vale circa come una copia non gradata nella condizione corrispondente.
   const rawCond = g >= 8 ? 'Near Mint' : g >= 7 ? 'Slightly Played' : g >= 5 ? 'Moderately Played' : 'Played';
   const raw = priceFor(list, lang, rawCond, opts);
-  if (!raw) return null;
-  const base = raw.typCents || raw.cents;
+  let base = raw ? raw.typCents || raw.cents : null;
+  if (base == null) {
+    // Nessuna copia non gradata: si parte dalle gradate con altri voti, riportate a "non gradata" col loro moltiplicatore.
+    const want = normLang(lang);
+    const others = (list || []).filter((p) => p && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 && gradeOf(p))
+      .map((p) => ({ p, gr: gradeOf(p) })).filter(({ gr }) => GRADE_MULT[gr.g]);
+    const sameLang = others.filter(({ p }) => !want || normLang(listingLang(p)) === want);
+    const pool = sameLang.length ? sameLang : others;
+    if (!pool.length) return null;
+    const bases = pool.map(({ p, gr }) => p.price.cents / Math.max(1, GRADE_MULT[gr.g] * (GRADER_FACTOR[gr.co] || 0.75))).sort((a, b) => a - b);
+    base = Math.round(median(bases.slice(0, TYPICAL_N)));
+  }
   const cents = gradedFromBase(base, grade);
-  return { cents, typCents: cents, approx: true, estimated: true, rawCents: base, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
+  return { cents, typCents: cents, approx: true, estimated: true, fromGraded: !raw, rawCents: base, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
 }
 
 export function priceFor(list, lang, cond, opts = {}) {
