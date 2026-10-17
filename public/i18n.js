@@ -306,6 +306,7 @@
     'Apri Opzioni ›': 'Open Settings ›',
     'Scan in pausa da Opzioni': 'Scanning paused in Settings',
     'Nessun alert attivo': 'No active alerts',
+    'CardTrader ha chiesto una pausa: riprende da solo': 'CardTrader asked for a pause: it resumes on its own',
   };
 
   const R = [

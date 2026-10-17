@@ -1264,7 +1264,8 @@
     const until = sys.limitUntil && sys.limitUntil > Date.now() ? sys.limitUntil : null;
     const bad = !!(until || s.lastError);
     top.classList.toggle('ball-err', bad);
-    if (bad) $('dot').className = 'dot err';
+    top.classList.toggle('ball-wait', !!until && !s.lastError);
+    if (bad) $('dot').className = until && !s.lastError ? 'dot wait' : 'dot err';
     clearInterval(pauseTimer);
     if (until) {
       // Conto alla rovescia fino alla fine della pausa chiesta da CardTrader.
@@ -1307,7 +1308,13 @@
     const err = top.classList.contains('ball-err');
     const age = s.lastScan ? Date.now() - s.lastScan : null;
     let label = '…', frac = 0, mode = 'ok';
-    if (err) { label = '!'; mode = 'err'; frac = 0; }
+    const until = state.system && state.system.limitUntil > Date.now() ? state.system.limitUntil : null;
+    if (until && top.classList.contains('ball-wait')) {
+      // Pausa chiesta da CardTrader: normale, si attende. Anello ambra che si riempie fino alla ripresa.
+      const left = Math.ceil((until - Date.now()) / 1000);
+      label = left < 60 ? `${left}s` : `${Math.ceil(left / 60)}m`; mode = 'wait';
+      frac = Math.min(1, left / 300);
+    } else if (err) { label = '!'; mode = 'err'; frac = 0; }
     else if (paused || !active) { label = paused ? 'II' : '–'; mode = 'off'; }
     else if (top.classList.contains('ball-scan')) { label = '•••'; frac = 1; }
     else if (age != null) {
@@ -1322,7 +1329,7 @@
     $('ringProg').style.strokeDashoffset = String(RING * (1 - frac));
     const cyc = s.cycle && s.cycle.ms ? ` · giro ogni ${dur(s.cycle.ms)}` : '';
     const n = state.rules.filter((r) => r.enabled).length;
-    $('ringSub').textContent = mode === 'off' ? (paused ? 'Scan in pausa da Opzioni' : 'Nessun alert attivo') : `${n} ${n === 1 ? 'alert attivo' : 'alert attivi'}${cyc}`;
+    $('ringSub').textContent = mode === 'wait' ? 'CardTrader ha chiesto una pausa: riprende da solo' : mode === 'off' ? (paused ? 'Scan in pausa da Opzioni' : 'Nessun alert attivo') : `${n} ${n === 1 ? 'alert attivo' : 'alert attivi'}${cyc}`;
     if ((mode === 'ok' || mode === 'late') && label !== '•••' && s.lastScan) $('statusText').textContent = `Ultimo scan ${ago(s.lastScan)}`;
     st.setAttribute('aria-label', `Stato del controllo: ${$('statusText').textContent}`);
   }
