@@ -55,7 +55,8 @@ export function estimateGraded(list, lang, grade, opts = {}) {
   let base = null;
   let how = '';
   // 1) Copie non gradate nella stessa lingua e condizione.
-  if (rawAny && !rawAny.approx) { base = rawAny.typCents || rawAny.cents; how = `copie non gradate ${rawCond}`; }
+  // Si parte dal prezzo più basso: il "tipico" su carte con pochi annunci è falsato da quelli molto cari.
+  if (rawAny && !rawAny.approx) { base = rawAny.cents; how = `copia non gradata ${rawCond} più economica`; }
   // 2) Gradate con altri voti (prima nella stessa lingua), riportate a "non gradata" col loro moltiplicatore.
   if (base == null) {
     const want = normLang(lang);
@@ -65,12 +66,12 @@ export function estimateGraded(list, lang, grade, opts = {}) {
     const pool = sameLang.length ? sameLang : others;
     if (pool.length) {
       const bases = pool.map(({ p, gr }) => p.price.cents / Math.max(1, GRADE_MULT[gr.g] * (GRADER_FACTOR[gr.co] || 0.75))).sort((x, y) => x - y);
-      base = Math.round(median(bases.slice(0, TYPICAL_N)));
+      base = Math.round(bases[0]);
       how = `${pool.length} annunci gradati con altri voti`;
     }
   }
   // 3) Ultima risorsa: copie non gradate di altre lingue o condizioni.
-  if (base == null && rawAny) { base = rawAny.typCents || rawAny.cents; how = 'copie non gradate di altre lingue o condizioni'; }
+  if (base == null && rawAny) { base = rawAny.cents; how = 'copie non gradate di altre lingue o condizioni'; }
   if (base == null) return null;
   const cents = gradedFromBase(base, grade);
   return { cents, typCents: cents, approx: true, estimated: true, rawCents: base, how, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
