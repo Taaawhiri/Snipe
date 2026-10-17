@@ -326,6 +326,7 @@
     'Società di gradazione': 'Grading company',
     'Voto': 'Grade',
     "gratis": "free",
+    "↻ Leggi ora da CardTrader": "↻ Read now from CardTrader",
     "trovata (0 €)": "found (€0)",
     "trovate (0 €)": "found (€0)",
     "Prezzo pagato": "Price paid",

@@ -1061,3 +1061,4 @@ header.top.ball-paused .brand svg .ball-top, header.top.ball-err.ball-wait .bran
 header.top.ball-err:not(.ball-wait) .brand svg .ball-top { fill: #e5484d; }
 header.top.ball-err .brand svg .ball-bottom { fill: #fff; }
 header.top.ball-err .brand svg .ball-btn { fill: #fff; }
+.ex-fresh{display:block;margin-top:8px}

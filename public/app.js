@@ -2565,14 +2565,14 @@
     }
   });
 
-  async function explainRule(r) {
+  async function explainRule(r, fresh = false) {
     const d = $('explainDialog');
     $('exTitle').textContent = r.cardName || r.expansionName || 'Alert';
     $('exInfo').textContent = 'Controllo gli annunci attuali…';
     $('exRows').replaceChildren();
     openSheet(d);
     try {
-      const data = await api(`/api/explain?rule_id=${r.id}`);
+      const data = await api(`/api/explain?rule_id=${r.id}${fresh ? '&fresh=1' : ''}`);
       const ok = data.rows.filter((x) => !x.reasons.length).length;
       if (data.note) { $('exInfo').textContent = data.note; return; }
       $('exInfo').textContent = data.rows.length
@@ -2584,6 +2584,8 @@
         if (!dg.enabled) parts.unshift('alert in pausa');
         if (dg.lastError) parts.push(`ultimo errore: ${dg.lastError}`);
         $('exInfo').append(el('span', { class: 'ex-diag', text: `Controllo in background: ${parts.join(' · ')}.` }));
+        // Annunci appena comparsi: si può chiedere una lettura fresca a CardTrader.
+        if (data.fromScan) $('exInfo').append(el('button', { class: 'btn mini ex-fresh', type: 'button', text: '↻ Leggi ora da CardTrader', onclick: () => explainRule(r, true) }));
       }
       $('exRows').replaceChildren(
         ...data.rows.map((x) =>

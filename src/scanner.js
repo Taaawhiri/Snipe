@@ -969,7 +969,8 @@ export class Scanner extends DurableObject {
         // Verifica veloce: se lo scan ha letto gli annunci da poco (meno di 5 minuti) si usano quelli, senza chiedere
         // di nuovo a CardTrader. Così passare da un alert all'altro è immediato e non consuma il limite di richieste.
         const recent = rule.blueprintId ? (bpHit && !bpHit.slim ? bpHit : null) : expHit;
-        const data = recent && Date.now() - recent.ts < 5 * 60_000 ? recent.data
+        const useScan = !url.searchParams.get('fresh') && recent && Date.now() - recent.ts < 5 * 60_000;
+        const data = useScan ? recent.data
           : await (rule.blueprintId ? this.productsForCard(rule.blueprintId, 60_000) : this.productsFor(rule.expansionId, 60_000))
             .catch((e) => { const old = rule.blueprintId ? bpHit : expHit; if (old) return old.data; throw e; }); // pausa di CardTrader: dati già letti
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
@@ -992,7 +993,7 @@ export class Scanner extends DurableObject {
             };
           });
         const status = await this.status();
-        return json({ rows, total: all.length, cmTrend, diag: { scanTs, seenCount, enabled: !!rule.enabled, lastScan: status.lastScan || null, lastError: status.lastError || null } });
+        return json({ rows, total: all.length, cmTrend, fromScan: !!useScan, diag: { scanTs, seenCount, enabled: !!rule.enabled, lastScan: status.lastScan || null, lastError: status.lastError || null } });
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
