@@ -725,7 +725,7 @@ export class Scanner extends DurableObject {
       ]);
       return json({
         rules,
-        checks: this.ruleChecks(rules),
+        checks: (await this.loadReadLog(), this.ruleChecks(rules)),
         alerts: alerts.slice(0, 60),
         status,
         pushDevices: subs.length,
@@ -1804,6 +1804,7 @@ export class Scanner extends DurableObject {
     await this.checkStuck(status);
     await this.maybeSummary();
     await this.saveStatus(status);
+    await this.saveReadLog().catch(() => null);
 
     const settings = await this.settings();
     const scanning = !settings.paused && (await this.get('rules', [])).some((r) => r.enabled);
@@ -1826,11 +1827,44 @@ export class Scanner extends DurableObject {
   /** Letture dell'ultima ora per carta o set: servono a mostrare su ogni alert che il controllo è regolare. */
   noteRead(key, ts = Date.now()) {
     this.readLog = this.readLog || new Map();
+    this.readDirty = true;
     const list = (this.readLog.get(key) || []).filter((t) => ts - t < 3600_000);
     list.push(ts);
     this.readLog.set(key, list);
     this.lastRead = this.lastRead || new Map();
     this.lastRead.set(key, ts);
+  }
+
+  /**
+   * Le letture dell'ultima ora si salvano su disco (al massimo una volta al minuto), così dopo un
+   * aggiornamento dell'app le barrette e "controllato X fa" non ripartono da zero.
+   */
+  async loadReadLog() {
+    if (this.readLoaded) return;
+    this.readLoaded = true;
+    const saved = await this.get('readLog', null);
+    if (!saved) return;
+    const now = Date.now();
+    this.readLog = this.readLog || new Map();
+    this.lastRead = this.lastRead || new Map();
+    for (const [k, list] of Object.entries(saved.log || {})) {
+      const keep = list.filter((t) => now - t < 3600_000);
+      const cur = this.readLog.get(k) || [];
+      this.readLog.set(k, [...new Set([...keep, ...cur])].sort((a, b) => a - b));
+    }
+    for (const [k, t] of Object.entries(saved.last || {})) if (!this.lastRead.has(k) || this.lastRead.get(k) < t) this.lastRead.set(k, t);
+  }
+
+  async saveReadLog(force = false) {
+    if (!this.readDirty || (!force && Date.now() - (this.readSavedAt || 0) < 60_000)) return;
+    this.readDirty = false;
+    this.readSavedAt = Date.now();
+    const now = Date.now();
+    const log = {};
+    for (const [k, list] of this.readLog || []) { const keep = list.filter((t) => now - t < 3600_000); if (keep.length) log[k] = keep; }
+    const last = {};
+    for (const [k, t] of this.lastRead || []) if (now - t < 24 * 3600_000) last[k] = t;
+    await this.ctx.storage.put('readLog', { log, last });
   }
 
   /** Stato del controllo di ogni alert: ultima lettura, letture dell'ultima ora, annunci e più economico valido. */
@@ -1851,6 +1885,7 @@ export class Scanner extends DurableObject {
   }
 
   async refreshSources(rules, status) {
+    await this.loadReadLog();
     this.ruleCards = new Set(rules.filter((r) => r.blueprintId).map((r) => Number(r.blueprintId)));
     await this.warmCards([...this.ruleCards]);
     const sources = new Map();
