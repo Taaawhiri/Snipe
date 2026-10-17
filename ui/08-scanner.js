@@ -76,16 +76,13 @@
         el('div', { class: 't', text: c.name }),
         el('div', { class: 's', text: [c.version, c.expName].filter(Boolean).join(' · ') }),
       ),
-      el('button', { class: 'btn mini', type: 'button', title: 'Aggiungi alla collezione', text: "＋ Ce l'ho", onclick: async (ev) => {
-        ev.target.disabled = true;
-        try {
-          await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: lang || 'en', cond: 'Near Mint', qty: 1, add: true });
-          ev.target.textContent = '✓ Aggiunta';
-          toast('✓ Aggiunta alla collezione');
-        } catch (e) {
-          ev.target.disabled = false;
-          alert(e.message);
-        }
+      // Si apre "Ce l'ho" con la lingua letta dalla foto: condizione, copie, gradata e prezzo li scegli tu.
+      el('button', { class: 'btn mini', type: 'button', title: 'Aggiungi alla collezione', text: "＋ Ce l'ho", onclick: (ev) => {
+        const btn = ev.currentTarget;
+        openOwnAdd({ id: c.id, name: c.name, version: c.version, image: c.image, expansionId: c.expansionId, expName: c.expName }, lang, () => {
+          btn.textContent = '✓ Aggiunta';
+          btn.disabled = true;
+        });
       } }),
     )));
   }

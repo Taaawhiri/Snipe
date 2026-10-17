@@ -53,6 +53,11 @@ test('scanner: risultato con lingua e candidati', async () => {
   const read = await page.textContent('#scanRead');
   assert.ok(read.includes('Magikarp') && read.includes('Giapponese') && read.includes('165/103'), read);
   assert.ok((await page.textContent('#scanList')).includes('30th Celebration JP'));
+  // "Ce l'ho" dallo scanner apre il pannello con la lingua letta (JP), dove si sceglie condizione e prezzo.
+  await page.click("#scanList button >> text=Ce l'ho");
+  await page.waitForTimeout(300);
+  assert.ok(await page.isVisible('#ownDialog'));
+  assert.equal(await page.textContent('#ownLangs .pill.on'), 'JP');
   assert.deepEqual(errors, []);
 });
 
