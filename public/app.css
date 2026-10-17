@@ -893,3 +893,13 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 @media (prefers-reduced-motion:reduce){.cdot.ok::after{animation:none}}
 .rule > .chk-wrap{grid-column:1/-1}
 @media (max-width:400px){.brand .logo{font-size:22px}}
+
+/* logo: HOLO | Poké Ball | Snipe in un blocco unico (la Poké Ball fa da giuntura e continua ad animarsi) */
+.brand.lockup{gap:0}
+.lockup .lk-holo{font:900 12px var(--sans);letter-spacing:.14em;color:#2a1840;padding:7px 18px 7px 9px;border:2px solid #1b2340;border-right:0;border-radius:10px 0 0 10px;
+  background:linear-gradient(100deg,#ff9ad5 0%,#ffe36b 22%,#8affc1 42%,#7ec8ff 62%,#c59bff 82%,#ff9ad5 100%);background-size:250% 100%;animation:holo-sh 7s linear infinite}
+.lockup svg{margin:0 -14px;position:relative;z-index:1}
+.lockup .lk-snipe{font-size:22px;line-height:1;background:#141a3a;border:2px solid #1b2340;border-left:0;border-radius:0 10px 10px 0;padding:5px 11px 6px 20px;text-shadow:none}
+@keyframes holo-sh{to{background-position:250% 0}}
+@media (prefers-reduced-motion:reduce){.lockup .lk-holo{animation:none}}
+@media (max-width:400px){.brand .logo.lk-snipe{font-size:19px}.lockup .lk-holo{font-size:11px;padding:6px 16px 6px 8px}}
