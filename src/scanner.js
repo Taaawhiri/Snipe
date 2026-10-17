@@ -524,12 +524,17 @@ export class Scanner extends DurableObject {
 
   async ct(path, background = false) {
     await this.throttle(path, background);
+    // Tempo massimo per risposta: una richiesta appesa non deve bloccare la coda (e quindi lo scan).
     const res = await fetch((this.env.CARDTRADER_API || API) + path, {
       headers: { Authorization: `Bearer ${await this.token()}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(25_000),
     });
     if (res.status === 429) {
       const retry = parseInt(res.headers.get('retry-after'), 10);
-      // 429 di fila: la pausa raddoppia (30s, 1, 2, 4 min, poi massimo 5) finché CardTrader non risponde di nuovo.
+      // 429 di fila: la pausa raddoppia (30s, 1 min, poi massimo 2) finché CardTrader non risponde di nuovo.
+      // Più lunga di così fermava gli alert per molti minuti dopo qualche apertura di troppo dall'app.
+      if (Date.now() - (this.lastStrikeAt || 0) > 10 * 60_000) this.strikes = 0;
+      this.lastStrikeAt = Date.now();
       this.strikes = (this.strikes || 0) + 1;
       if (path.startsWith('/marketplace')) {
         this.mktGap = Math.min(MKT_GAP_MAX, Math.round(this.mktGap * 1.5));
@@ -538,7 +543,7 @@ export class Scanner extends DurableObject {
         this.recent429 = [...this.recent429, { ts: Date.now(), path: path.split('&')[0] }].slice(-10);
         await this.ctx.storage.put('mktGap', this.mktGap);
       }
-      const backoff = Math.min(MIN_BACKOFF_MS * 2 ** (this.strikes - 1), 5 * 60_000);
+      const backoff = Math.min(MIN_BACKOFF_MS * 2 ** (this.strikes - 1), 2 * 60_000);
       const pause = Math.max(backoff, Number.isFinite(retry) ? retry * 1000 : 0);
       this.blockedUntil = Date.now() + pause;
       const err = new Error(`CardTrader ha risposto 429 (troppe richieste): pausa di ${Math.round(pause / 1000)}s`);
@@ -1826,6 +1831,15 @@ export class Scanner extends DurableObject {
   }
 
   async alarm() {
+    try {
+      await this.alarmWork();
+    } finally {
+      // Qualunque cosa succeda nel giro, il prossimo controllo resta in calendario.
+      if (!(await this.ctx.storage.getAlarm()) && !(await this.get('suspended', false))) await this.ctx.storage.setAlarm(Date.now() + 60_000);
+    }
+  }
+
+  async alarmWork() {
     if (await this.get('suspended', false)) return; // account sospeso dalla pagina admin
     const status = await this.status();
     const day = new Date().toISOString().slice(0, 10);
