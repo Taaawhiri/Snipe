@@ -22,6 +22,25 @@ function median(nums) {
  * opts.blocked: venditori esclusi dall'utente (Set di username), ignorati anche qui.
  * Restituisce per tutti i venditori e per i soli Zero sia il più basso sia il tipico.
  */
+// Stima di una gradata senza annunci con lo stesso voto: prezzo della copia non gradata × moltiplicatore del voto.
+// Valori prudenti e medi: il premio reale cambia molto da carta a carta.
+const GRADE_MULT = { '10': 2.5, '9.5': 1.8, '9': 1.4, '8.5': 1.2, '8': 1.1, '7.5': 1, '7': 1, '6.5': 1, '6': 1, '5.5': 1, '5': 1 };
+const GRADER_FACTOR = { PSA: 1, BGS: 1, CGC: 0.85, SGC: 0.85 }; // le altre società: 0.75
+const GRADING_COST_CENTS = 2500; // costo indicativo di una gradazione: una 9 o 10 vale almeno la carta più questo
+
+export function estimateGraded(list, lang, grade, opts = {}) {
+  const g = Number(grade.g);
+  // Sotto 8 la slab vale circa come una copia non gradata nella condizione corrispondente.
+  const rawCond = g >= 8 ? 'Near Mint' : g >= 7 ? 'Slightly Played' : g >= 5 ? 'Moderately Played' : 'Played';
+  const raw = priceFor(list, lang, rawCond, opts);
+  if (!raw) return null;
+  const base = raw.typCents || raw.cents;
+  const k = (GRADE_MULT[grade.g] || 1) * (GRADER_FACTOR[grade.co] || 0.75);
+  let cents = Math.round(base * Math.max(k, g >= 8 ? 1 : k));
+  if (g >= 9) cents = Math.max(cents, base + Math.round(GRADING_COST_CENTS * (g >= 10 ? 1.6 : g >= 9.5 ? 1.3 : 1) * (GRADER_FACTOR[grade.co] || 0.75)));
+  return { cents, typCents: cents, approx: true, estimated: true, rawCents: base, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
+}
+
 export function priceFor(list, lang, cond, opts = {}) {
   const blocked = opts.blocked || new Set();
   // Copia gradata ("PSA 10"): si confronta solo con annunci della stessa società e dello stesso voto.
@@ -33,7 +52,7 @@ export function priceFor(list, lang, cond, opts = {}) {
     const g = gradeOf(p);
     return g && g.co === grade.co && g.g === grade.g;
   }).sort((a, b) => a.price.cents - b.price.cents);
-  if (!ok.length) return null;
+  if (!ok.length) return grade ? estimateGraded(list, lang, grade, opts) : null;
   const want = normLang(lang);
   const min = condRank(cond);
   const fits = (p) => (!want || normLang(listingLang(p)) === want) && (grade || min < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= min);

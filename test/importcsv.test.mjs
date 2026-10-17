@@ -46,5 +46,9 @@ test('gradate: voto letto dal commento', () => {
   const list = [mk(5000, 'PSA 10'), mk(3000, 'PSA 9'), mk(800, ''), mk(7000, 'PSA 10', true)];
   assert.equal(pf(list, 'jp', 'PSA 10').cents, 5000);
   assert.equal(pf(list, 'jp', 'Near Mint').cents, 800);
-  assert.equal(pf(list, 'jp', 'BGS 10'), null);
+  // Nessuna BGS 10 in vendita: stima dalla copia non gradata (800) col premio del voto, segnata come stima.
+  const est = pf(list, 'jp', 'BGS 10');
+  assert.equal(est.estimated, true);
+  assert.ok(est.cents > 800);
+  assert.equal(pf([], 'jp', 'BGS 10'), null);
 });

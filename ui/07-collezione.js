@@ -193,7 +193,8 @@
             gainPill(it),
             miniSpark(it.spark30),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
-            it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
+            it.price && it.price.estimated ? el('span', { class: 's', title: 'Nessun annuncio con questo voto: stima dal prezzo della copia non gradata, con il premio medio del voto', text: '≈ stima dal voto' })
+            : it.price && it.price.approx ? el('span', { class: 's', title: 'Nessun annuncio nella tua lingua e condizione: prezzo più basso in assoluto', text: '≈ altra lingua' }) : null,
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
         );
@@ -248,7 +249,7 @@
   const OWN_CONDS = [['Mint', 'M'], ['Near Mint', 'NM'], ['Slightly Played', 'SP'], ['Moderately Played', 'MP'], ['Played', 'PL'], ['Heavily Played', 'HP'], ['Poor', 'PO']];
   const own = { qty: 1, lang: 'en', cond: 'Near Mint', gco: '', g: '10' };
   const GRADE_COS = [['', 'No'], ['PSA', 'PSA'], ['BGS', 'BGS'], ['CGC', 'CGC'], ['SGC', 'SGC'], ['ACE', 'ACE'], ['TAG', 'TAG'], ['PCG', 'PCG']];
-  const GRADES = ['10', '9.5', '9', '8.5', '8', '7', '6', '5'].map((g) => [g, g]);
+  const GRADES = ['10', '9.5', '9', '8.5', '8', '7.5', '7', '6', '5'].map((g) => [g, g]);
   const isGradeLabel = (c) => /^(PSA|BGS|CGC|SGC|ACE|TAG|PCG) /.test(String(c || ''));
   // Condizione da salvare: per una copia gradata è "PSA 10", e il valore si calcola solo sulle gradate uguali.
   const ownCond = () => (own.gco ? `${own.gco} ${own.g}` : own.cond);
