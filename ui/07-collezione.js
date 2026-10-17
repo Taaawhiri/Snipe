@@ -149,7 +149,7 @@
         el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collType === v), text: l, onclick: () => { collType = v; renderCollection(); } })));
     const typeOk = (it) => collType === 'all' || cardType(it.name) === collType;
     // Rarità: dal nome salvato "Charizard ex (Special Illustration Rare | 199/165)".
-    const rarOf = (it) => { const m = /\(([^()|]+)\|[^()]*\)\s*$/.exec(it.name || ''); return m ? m[1].trim() : ''; };
+    const rarOf = (it) => { const m = /\(([^()]*)\)\s*$/.exec(it.name || ''); return m ? rarityFromVersion(m[1]) : ''; };
     const rc = new Map();
     items.forEach((it) => { const r = rarOf(it); if (r) rc.set(r, (rc.get(r) || 0) + 1); });
     const rsel = $('collRarity');

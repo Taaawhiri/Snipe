@@ -66,6 +66,13 @@
     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
   }
 
+
+  /** Rarità da una versione CardTrader: "Illustration Rare | 075/066", "CSFC | Gold Secret Rare | 026/021", "001/028".
+   *  Prende il pezzo che sembra una rarità; codici di set e numeri non contano. */
+  function rarityFromVersion(v) {
+    const parts = String(v || '').split('|').map((x) => x.trim()).filter(Boolean);
+    return parts.find((p) => /rare|art\b|-art|holo|promo|common|uncommon|ace spec|radiant|amazing|shiny|reverse/i.test(p) && !/^\S*\d+\s*\/\s*\S*\d+$/.test(p)) || '';
+  }
   // ---------- pannelli a comparsa ----------
   const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'sellerDialog', 'ownDialog', 'scanDialog', 'batchDialog'].map((id) => $(id));
   function openSheet(d) {
@@ -567,7 +574,7 @@
         el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collType === v), text: l, onclick: () => { collType = v; renderCollection(); } })));
     const typeOk = (it) => collType === 'all' || cardType(it.name) === collType;
     // Rarità: dal nome salvato "Charizard ex (Special Illustration Rare | 199/165)".
-    const rarOf = (it) => { const m = /\(([^()|]+)\|[^()]*\)\s*$/.exec(it.name || ''); return m ? m[1].trim() : ''; };
+    const rarOf = (it) => { const m = /\(([^()]*)\)\s*$/.exec(it.name || ''); return m ? rarityFromVersion(m[1]) : ''; };
     const rc = new Map();
     items.forEach((it) => { const r = rarOf(it); if (r) rc.set(r, (rc.get(r) || 0) + 1); });
     const rsel = $('collRarity');
@@ -2461,7 +2468,7 @@
 
   // ---------- filtro rarità (dalla versione CardTrader: "Special Illustration Rare | 199/165") ----------
   let searchAll = []; // risultati completi della ricerca, prima del filtro rarità
-  const rarityOf = (c) => c.rarity || splitVersion(c.version).rarity || '';
+  const rarityOf = (c) => rarityFromVersion(c.version) || '';
   /** Riempie il menu con le rarità presenti, dalla più frequente; lo nasconde se ce n'è meno di due. */
   function fillRarities(list) {
     const count = new Map();

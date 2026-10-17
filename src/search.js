@@ -72,7 +72,7 @@ export function splitQuery(q) {
 /** La rarità della carta (dalla versione) rispetta le sigle cercate? */
 export function matchesRarity(version, rarity) {
   if (!rarity || !rarity.length) return true;
-  const v = String(version || '').split('|')[0].toLowerCase();
+  const v = String(version || '').toLowerCase();
   return rarity.every((r) => RARITY[r].test(v));
 }
 

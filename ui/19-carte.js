@@ -156,7 +156,7 @@
 
   // ---------- filtro rarità (dalla versione CardTrader: "Special Illustration Rare | 199/165") ----------
   let searchAll = []; // risultati completi della ricerca, prima del filtro rarità
-  const rarityOf = (c) => c.rarity || splitVersion(c.version).rarity || '';
+  const rarityOf = (c) => rarityFromVersion(c.version) || '';
   /** Riempie il menu con le rarità presenti, dalla più frequente; lo nasconde se ce n'è meno di due. */
   function fillRarities(list) {
     const count = new Map();

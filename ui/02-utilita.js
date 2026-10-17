@@ -39,3 +39,10 @@
     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
   }
 
+
+  /** Rarità da una versione CardTrader: "Illustration Rare | 075/066", "CSFC | Gold Secret Rare | 026/021", "001/028".
+   *  Prende il pezzo che sembra una rarità; codici di set e numeri non contano. */
+  function rarityFromVersion(v) {
+    const parts = String(v || '').split('|').map((x) => x.trim()).filter(Boolean);
+    return parts.find((p) => /rare|art\b|-art|holo|promo|common|uncommon|ace spec|radiant|amazing|shiny|reverse/i.test(p) && !/^\S*\d+\s*\/\s*\S*\d+$/.test(p)) || '';
+  }
