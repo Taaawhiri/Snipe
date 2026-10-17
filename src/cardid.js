@@ -79,12 +79,18 @@ const stripZeros = (s) => String(s || '').replace(/^0+(?=\d)/, '').toLowerCase()
  * Punteggio di una carta dell'indice rispetto a quanto letto sulla foto.
  * row = [id, name, version, ...]; version contiene di solito "Rarità | 137/103".
  */
-export function scoreRow(row, scan, setCode = '', expName = '') {
-  const name = normText(row[1]);
+// δ (Delta Species) e "Star" ★ diventano parole, così "Meganium δ" non è un Meganium qualsiasi.
+const cardName = (t) => normText(String(t || '').replace(/δ/g, ' delta ').replace(/delta species/gi, 'delta').replace(/[★☆]/g, ' star '));
+
+const REGION_LANG = { JAP: 'jp', CN: 'zh', KR: 'ko' };
+const ASIAN = ['jp', 'zh', 'ko', 'th', 'id'];
+
+export function scoreRow(row, scan, setCode = '', expName = '', region = '') {
+  const name = cardName(row[1]);
   const version = String(row[2] || '');
   let score = 0;
   let nameOk = true;
-  const want = normText(scan.name);
+  const want = cardName(scan.name);
   if (want) {
     nameOk = false;
     if (name === want) { score += 6; nameOk = true; }
@@ -116,8 +122,10 @@ export function scoreRow(row, scan, setCode = '', expName = '') {
   }
   if (scan.setCode && setCode && normText(scan.setCode) === normText(setCode)) score += 2;
   // Lingua dell'espansione (CardTrader separa le edizioni giapponesi, cinesi, coreane, thai).
-  const el = expLang(`${expName} ${setCode}`);
-  if (scan.language && el) score += el === scan.language ? 3 : -3;
+  // La regione dell'espansione (stessa usata nel selettore) vale più del nome: i set giapponesi vintage non dicono "Japanese".
+  const el = REGION_LANG[region] || expLang(`${expName} ${setCode}`) || (region === 'INT' ? 'int' : null);
+  if (el === 'int') { if (scan.language) score += ASIAN.includes(scan.language) ? -3 : 1; }
+  else if (scan.language && el) score += el === scan.language ? 3 : -3;
   else if (scan.language === 'en' && el && el !== 'en') score -= 3;
   return score;
 }

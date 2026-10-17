@@ -216,6 +216,8 @@ export class Scanner extends DurableObject {
     const meta = await this.indexMeta();
     const exps = await this.pokemonExpansions().catch(() => []);
     const byId = new Map(exps.map((e) => [e.id, e]));
+    const regMap = await this.regions().catch(() => ({}));
+    const regionOf = (e) => regMap[e.id] || REGION_FIXED[e.id] || regionFromName(e.name || '') || '';
     const best = [];
     for (let i = 0; i < meta.have.length; i += 100) {
       const ids = meta.have.slice(i, i + 100);
@@ -224,14 +226,14 @@ export class Scanner extends DurableObject {
         const expId = parseInt(key.slice(3), 10);
         const e = byId.get(expId) || {};
         for (const r of rows) {
-          const score = scoreRow(r, scan, e.code, e.name);
+          const score = scoreRow(r, scan, e.code, e.name, regionOf(e));
           // Con un nome letto serve che il nome corrisponda; senza, numero e totale esatti.
           const nameOk = !scan.name || normText(r[1]).split(' ').some((w) => normText(scan.name).split(' ').includes(w));
           // Sotto 8 teniamo solo chi ha il nome giusto: serve quando il numero è letto male (es. carte cinesi).
           // Nome tradotto diverso (es. "Lucinda" = Dawn): basta numero, totale e codice del set esatti.
           // Numero e totale esatti (con la lingua compatibile) bastano anche senza codice del set.
           const byNumber = !nameOk && scan.number && scan.total
-            && scoreRow(r, { number: scan.number, total: scan.total, setCode: scan.setCode, language: scan.language }, e.code, e.name) >= 8;
+            && scoreRow(r, { number: scan.number, total: scan.total, setCode: scan.setCode, language: scan.language }, e.code, e.name, regionOf(e)) >= 8;
           if (!byNumber && (!nameOk || score < (scan.name ? 5 : 8))) continue;
           const numHit = !scan.number || scoreRow(r, { number: scan.number }, '', '') > 0;
           best.push({ score: byNumber ? Math.max(score, 8) : score, numHit, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]), expansionId: expId, expName: e.name || '', expCode: e.code || '' });
