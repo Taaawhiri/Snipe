@@ -36,8 +36,6 @@
 
   // Lingua dell'app (i18n.js traduce l'interfaccia; cambiare lingua ricarica la pagina).
   if (window.snipeLang) {
-    $('setLang').value = window.snipeLang.get();
-    $('setLang').addEventListener('change', () => window.snipeLang.set($('setLang').value));
     document.querySelectorAll('.lang-switch [data-lang]').forEach((b) => {
       b.classList.toggle('on', b.dataset.lang === window.snipeLang.get());
       b.addEventListener('click', () => window.snipeLang.set(b.dataset.lang));

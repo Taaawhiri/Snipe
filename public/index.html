@@ -20,6 +20,7 @@
 </head>
 <body>
 <div id="login" class="login" hidden>
+  <div class="lang-switch lang-corner" role="group" aria-label="Lingua"><button type="button" data-lang="it">🇮🇹 IT</button><button type="button" data-lang="en">🇬🇧 EN</button></div>
   <div class="landing">
     <div class="land-left">
     <header class="hero">
@@ -28,7 +29,6 @@
       <div class="reticle"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg></div>
       <div class="logo lk-snipe" aria-hidden="true">Snipe</div>
       </div>
-      <div class="lang-switch"><button type="button" data-lang="it">IT</button><button type="button" data-lang="en">EN</button></div>
       <p class="tagline">Gli affari sulle carte Pokémon di CardTrader, appena compaiono.</p>
     </header>
 
@@ -266,6 +266,10 @@
     </section>
 
     <section id="tab-settings" class="tab" hidden>
+      <div class="panel lang-panel">
+        <div class="lp-txt"><h2>Lingua</h2><span class="muted small">Language</span></div>
+        <div class="lang-switch lang-big" role="group" aria-label="Lingua dell’app"><button type="button" data-lang="it">🇮🇹 Italiano</button><button type="button" data-lang="en">🇬🇧 English</button></div>
+      </div>
       <div id="planPanel" class="panel">
         <div class="panel-head">
           <h2>Il tuo piano</h2>
@@ -374,10 +378,6 @@
           <label for="setName">Nome da mostrare</label>
           <div class="inline-save"><input id="setName" type="text" maxlength="40" placeholder="Es. il tuo nome o nickname"><button class="btn" id="setNameSave" type="button">Salva</button></div>
           <p class="muted small">CardTrader non comunica il tuo nome utente alle app: scegli tu come comparire in HoloSnipe.</p>
-        </div>
-        <div class="field lang-field">
-          <label for="setLang">Lingua dell’app</label>
-          <select id="setLang"><option value="it">Italiano</option><option value="en">English</option></select>
         </div>
         <div class="act-list">
           <button class="act-row" id="logout" type="button"><span class="ar-txt"><b>Esci</b><span>Alert e collezione restano salvati: rientri con lo stesso token</span></span><span class="ar-go" aria-hidden="true">›</span></button>
