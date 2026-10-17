@@ -15,7 +15,7 @@ import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
 import { RELEASED } from './expdates.js';
 import { expScore, mapRows, parseCsv } from './importcsv.js';
-import { matchesTerms, normText, packImg, queryTerms, relevance, unpackImg } from './search.js';
+import { matchesQuery, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
@@ -852,11 +852,11 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/search' && method === 'GET') {
-      const terms = queryTerms(url.searchParams.get('q') || '');
-      if (terms.join('').length < 3) return json({ error: 'Scrivi almeno 3 lettere' }, 400);
+      const parsed = splitQuery(url.searchParams.get('q') || '');
+      if (parsed.words.join('').length < 3 && !parsed.nums.length) return json({ error: 'Scrivi almeno 3 lettere' }, 400);
       try {
         await this.startIndexIfNeeded();
-        return json(await this.searchIndex(terms));
+        return json(await this.searchIndex(parsed.words, parsed));
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
@@ -1778,7 +1778,7 @@ export class Scanner extends DurableObject {
   }
 
   /** Cerca per nome in tutte le espansioni indicizzate: risultati raggruppati per espansione, dalle più recenti. */
-  async searchIndex(terms) {
+  async searchIndex(terms, parsed = { words: terms, nums: [] }) {
     const meta = await this.indexMeta();
     const exps = await this.pokemonExpansions().catch(() => []);
     const byId = new Map(exps.map((e) => [e.id, e]));
@@ -1792,7 +1792,7 @@ export class Scanner extends DurableObject {
         const hits = [];
         for (const r of rows) {
           const n = normText(r[1]);
-          if (matchesTerms(n, terms)) hits.push({ rank: relevance(n, terms), id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]) });
+          if (parsed.nums.length ? matchesQuery(n, r[2], parsed) : matchesTerms(n, terms)) hits.push({ rank: terms.length ? relevance(n, terms) : 0, id: r[0], name: r[1], version: r[2] || null, image: unpackImg(r[0], r[4]) });
         }
         if (!hits.length) continue;
         hits.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));

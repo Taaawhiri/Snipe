@@ -2192,11 +2192,26 @@
   }
   function savedLang() { try { return localStorage.getItem('snipe.cardLang') || ''; } catch { return ''; } }
 
+  /** Nome e/o numero: "charizard", "198", "198/195", "Charizard 198/195". */
+  function cardMatchesQuery(c, q) {
+    const z = (x) => String(x || '').replace(/^0+(?=\d)/, '').toLowerCase();
+    const nums = [];
+    const rest = q.replace(/#?([a-z]*\d+[a-z]*)\s*\/\s*([a-z]*\d+)/gi, (m, n, t) => { nums.push([z(n), z(t)]); return ' '; });
+    const words = plainText(rest).split(/[^a-z0-9]+/).filter(Boolean);
+    const named = words.filter((w) => !/^\d+$/.test(w));
+    for (const w of words.filter((x) => /^\d+$/.test(x))) nums.push([z(w), '']);
+    const name = plainText(c.name);
+    if (!named.every((w) => name.includes(w))) return false;
+    const cn = z(String(c.number || '').split('/')[0]);
+    const ct = z((String(c.version || '').match(/\/\s*([a-z]*\d+)/i) || [])[1] || String(c.number || '').split('/')[1]);
+    return nums.every(([n, t]) => cn === n && (!t || !ct || ct === t));
+  }
+
   function renderCards() {
     const q = $('cardSearch').value.trim().toLowerCase();
     const zeroMode = $('cardPriceMode').value === 'zero';
     const singlesOnly = $('cardKind').value === 'single';
-    const list = cards.filter((c) => (!singlesOnly || c.single !== false) && (searchMode || !q || c.name.toLowerCase().includes(q) || (c.number || '').toLowerCase() === q));
+    const list = cards.filter((c) => (!singlesOnly || c.single !== false) && (searchMode || !q || cardMatchesQuery(c, q)));
     const sort = $('cardSort').value;
     const price = (c) => (zeroMode ? view(c).lowestZero : view(c).lowest);
     if (sort === 'price-asc' || sort === 'price-desc') {
