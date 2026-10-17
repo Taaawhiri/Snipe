@@ -1438,11 +1438,11 @@
     if (ruleZero && !zeroUsed.includes(ruleZero)) ruleZero = '';
     const LBL = { lang: (l) => LANG_CHIP[l] || l.toUpperCase(), cond: (c) => `${c} o meglio`, zero: (z) => ZLABEL[z] };
     filterChips($('ruleState'), STATES, ruleState, (v) => { ruleState = v; render(); });
-    $('ruleLangG').hidden = ruleLangs.length < 2;
+    $('ruleLangG').hidden = !ruleLangs.length;
     filterChips($('ruleLang'), [['', 'Tutte'], ...ruleLangs.map((l) => [l, LBL.lang(l)])], ruleLang, (v) => { ruleLang = v; render(); });
-    $('ruleCondG').hidden = ruleConds.length < 2;
+    $('ruleCondG').hidden = !ruleConds.length;
     filterChips($('ruleCond'), [['', 'Tutte'], ...ruleConds.map((c) => [c, LBL.cond(c)])], ruleCond, (v) => { ruleCond = v; render(); });
-    $('ruleZeroG').hidden = zeroUsed.length < 2;
+    $('ruleZeroG').hidden = !zeroUsed.length;
     filterChips($('ruleZero'), [['', 'Tutti'], ...zeroUsed.map((z) => [z, LBL.zero(z)])], ruleZero, (v) => { ruleZero = v; render(); });
     // Filtri attivi: pillole con × sotto la ricerca, e il numero sul pulsante.
     const activeF = [
