@@ -1,5 +1,6 @@
   // ---------- collezione ----------
   let coll = null;
+  let collKind = 'all'; // filtro rapido: tutte, non gradate, gradate
   /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
   function ownedQty(bp) {
     if (!coll || !coll.items) return 0;
@@ -130,8 +131,15 @@
     // Ricerca per nome della carta o dell'espansione (anche con il numero: "charizard 4").
     const cq = plainText($('collSearch').value).trim();
     $('collSearch').hidden = items.length < 5;
-    const shownItems = cq ? items.filter((it) => cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''}`).includes(w))) : items;
-    $('collCount').hidden = !cq;
+    // Filtro rapido gradate / non gradate (compare solo se ci sono entrambe).
+    const nG = items.filter((it) => isGradeLabel(it.cond)).length;
+    $('collKind').hidden = !nG || nG === items.length;
+    if ($('collKind').hidden) collKind = 'all';
+    $('collKind').replaceChildren(...[['all', `Tutte (${items.length})`], ['raw', `Non gradate (${items.length - nG})`], ['graded', `Gradate (${nG})`]].map(([v, l]) =>
+      el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collKind === v), text: l, onclick: () => { collKind = v; renderCollection(); } })));
+    const kindOk = (it) => collKind === 'all' || (collKind === 'graded') === isGradeLabel(it.cond);
+    const shownItems = items.filter((it) => kindOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
+    $('collCount').hidden = !cq && collKind === 'all';
     $('collCount').textContent = shownItems.length ? `${shownItems.length} carte su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)

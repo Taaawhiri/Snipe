@@ -328,6 +328,7 @@
   };
 
   const R = [
+    [/^Tutte \((\d+)\)$/, 'All ($1)'], [/^Non gradate \((\d+)\)$/, 'Raw ($1)'], [/^Gradate \((\d+)\)$/, 'Graded ($1)'],
     [/^nessun annuncio (.+)$/, 'no $1 listings'],
     [/^Modifica (.+)$/, 'Edit $1'],
     [/^(\d+) carte su (\d+)$/, '$1 of $2 cards'], [/^Nessuna carta per “(.+)”$/, 'No cards for “$1”'],
