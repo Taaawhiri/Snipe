@@ -616,7 +616,7 @@ export class Scanner extends DurableObject {
       const backoff = Math.min(MIN_BACKOFF_MS * 2 ** (this.strikes - 1), 2 * 60_000);
       const pause = Math.max(backoff, Number.isFinite(retry) ? retry * 1000 : 0);
       this.blockedUntil = Date.now() + pause;
-      const err = new Error(`CardTrader ha risposto 429 (troppe richieste): pausa di ${Math.round(pause / 1000)}s`);
+      const err = new Error(`CardTrader sta limitando le richieste: riprovo tra ${Math.round(pause / 1000)}s`);
       err.rateLimited = true;
       throw err;
     }
@@ -863,7 +863,10 @@ export class Scanner extends DurableObject {
         this.bumpExpansion(id, 1);
         return json(await this.cardsFor(id));
       } catch (e) {
-        return json({ error: String(e.message || e) }, 502);
+        // CardTrader chiede una pausa: se abbiamo già le carte di questo set (anche non freschissime) mostriamo quelle.
+        const stale = this.cardCache.get(id);
+        if (stale && stale.data) return json({ ...stale.data, stale: true });
+        return json({ error: String(e.message || e) }, e.rateLimited || /riprovo tra/.test(String(e.message)) ? 429 : 502);
       }
     }
 

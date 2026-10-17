@@ -2851,6 +2851,9 @@
     for (const set of batch) {
       n++;
       if (run !== searchRun) return;
+      // Un attimo di respiro tra un'espansione e l'altra: CardTrader limita le richieste ravvicinate.
+      if (n > 1) await new Promise((r) => setTimeout(r, 700));
+      if (run !== searchRun) return;
       priceNote = `carico i prezzi ${n}/${batch.length}`;
       renderCards();
       try {
@@ -2864,14 +2867,27 @@
         });
       } catch (e) {
         if (run !== searchRun) return;
+        // CardTrader chiede una pausa: si aspetta il tempo indicato e si riprova la stessa espansione, senza fermarsi.
+        const m = /riprovo tra (\d+)s/.exec(e.message);
+        if (m && !set.retried) {
+          set.retried = true;
+          for (let left = Number(m[1]) + 1; left > 0; left--) {
+            if (run !== searchRun) return;
+            priceNote = `CardTrader chiede una pausa: riprendo tra ${left}s`;
+            renderCards();
+            await new Promise((r) => setTimeout(r, 1000));
+          }
+          batch.splice(n, 0, set); // stessa espansione di nuovo, al prossimo giro del ciclo
+          n--;
+          continue;
+        }
         cards = cards.map((c) => (c.expansionId === set.id ? { ...c, loading: false } : c));
-        priceNote = /429|limit/i.test(e.message) ? 'CardTrader sta limitando le richieste, prezzi parziali' : `prezzi non disponibili per alcune espansioni`;
-        if (/429|limit/i.test(e.message)) break;
+        priceNote = 'prezzi non disponibili per alcune espansioni';
       }
       fillLanguages(languagesOf(cards));
     }
     if (run !== searchRun) return;
-    if (!/limit|parziali|non disponibili/.test(priceNote)) priceNote = '';
+    if (!/non disponibili/.test(priceNote)) priceNote = '';
     if (busyRun === run) busyRun = 0;
     $('moreSets').hidden = shownSets >= searchSets.length;
     renderCards();
