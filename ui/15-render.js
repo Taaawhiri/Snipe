@@ -58,8 +58,8 @@
   function render() {
     if (!state) return;
     const active = state.rules.filter((r) => r.enabled).length;
-    $('statRules').textContent = active;
-    $('statAlerts').textContent = state.alerts.filter((a) => !a.test).length;
+    $('statRules').textContent = compactNum(active);
+    $('statAlerts').textContent = compactNum(state.alerts.filter((a) => !a.test).length);
     $('statScans').textContent = compactNum(state.status.scans || 0);
 
     const dot = $('dot');
