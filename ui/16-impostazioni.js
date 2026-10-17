@@ -172,7 +172,7 @@
     if (ok.trim().toUpperCase() !== 'ELIMINA') { await alert('Account non eliminato: conferma non corretta.'); return; }
     try {
       await api('/api/account/delete', { method: 'POST', body: JSON.stringify({ confirm: 'ELIMINA' }) });
-      await alert('Account eliminato. Grazie per aver usato Snipe.');
+      await alert('Account eliminato. Grazie per aver usato HoloSnipe.');
       showLogin('');
     } catch (e) {
       alert(e.message);

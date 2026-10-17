@@ -1,4 +1,4 @@
-# Snipe
+# HoloSnipe
 
 Web app (PWA) che controlla gli annunci Pokémon su [CardTrader](https://www.cardtrader.com) e ti avvisa quando ne compare uno con un prezzo molto sotto il resto del mercato. L'acquisto lo fai tu: l'alert contiene il link alla pagina della carta.
 
@@ -57,7 +57,7 @@ Opzioni → Backup e dati → **Importa la collezione**. La prima riga deve aver
 | Copie | no (1) | 2 |
 | Pagata | no | 100,00 |
 
-Va bene anche il CSV esportato da Snipe (contiene l'ID CardTrader). Prima di importare si vede un riepilogo: **trovate**, **da scegliere** (più carte possibili: si tocca quella giusta, con l'immagine) e **non trovate**. Nome scritto male con il numero completo: la carta finisce tra quelle da scegliere. Le carte già presenti sommano le copie.
+Va bene anche il CSV esportato da HoloSnipe (contiene l'ID CardTrader). Prima di importare si vede un riepilogo: **trovate**, **da scegliere** (più carte possibili: si tocca quella giusta, con l'immagine) e **non trovate**. Nome scritto male con il numero completo: la carta finisce tra quelle da scegliere. Le carte già presenti sommano le copie.
 
 ## Come decide che un prezzo è sbagliato
 

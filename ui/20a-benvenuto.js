@@ -10,10 +10,10 @@
       el('div', { class: 'wl-txt' }, el('b', { text: title }), el('span', { text })),
       el('button', { class: 'btn mini', type: 'button', text: label, onclick: () => { close(); action(); } }));
     const ov = el('div', { class: 'cs-overlay' },
-      el('div', { class: 'cs-sheet cs-dialog wl', role: 'dialog', 'aria-label': 'Benvenuto in Snipe' },
+      el('div', { class: 'cs-sheet cs-dialog wl', role: 'dialog', 'aria-label': 'Benvenuto in HoloSnipe' },
         el('div', { class: 'cs-grab' }),
-        el('div', { class: 'cs-title', text: 'Benvenuto in Snipe' }),
-        el('p', { class: 'cs-text', text: 'Snipe controlla CardTrader al posto tuo e ti avvisa appena una carta scende sotto il prezzo che vuoi. Si parte in tre passi:' }),
+        el('div', { class: 'cs-title', text: 'Benvenuto in HoloSnipe' }),
+        el('p', { class: 'cs-text', text: 'HoloSnipe controlla CardTrader al posto tuo e ti avvisa appena una carta scende sotto il prezzo che vuoi. Si parte in tre passi:' }),
         el('div', { class: 'wl-steps' },
           step(1, 'Crea il primo alert', 'Cerca una carta, tocca “Alert” e scegli il prezzo.', 'Cerca', () => goTab('cards')),
           step(2, 'Attiva le notifiche', 'Così l’avviso ti arriva anche ad app chiusa.', 'Attiva', () => { goTab('settings'); $('pushEnable').click(); }),

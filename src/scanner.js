@@ -1171,7 +1171,7 @@ export class Scanner extends DurableObject {
         id: `test-${Date.now()}`,
         ts: Date.now(),
         name: 'Notifica di prova',
-        expansion: 'Snipe',
+        expansion: 'HoloSnipe',
         cents: 0,
         refCents: 0,
         currency: 'EUR',

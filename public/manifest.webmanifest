@@ -1,6 +1,6 @@
 {
-  "name": "Snipe",
-  "short_name": "Snipe",
+  "name": "HoloSnipe",
+  "short_name": "HoloSnipe",
   "description": "Avvisi sui prezzi anomali delle carte Pokémon su CardTrader",
   "lang": "it",
   "start_url": "/",

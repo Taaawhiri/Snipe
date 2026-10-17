@@ -9,7 +9,7 @@
     try { u = new URL(a.href); } catch { return; }
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
     ev.preventDefault();
-    const title = (a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) || 'Snipe';
+    const title = (a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) || 'HoloSnipe';
     navigator.share({ title, url: u.href }).catch(() => { /* menu chiuso senza scegliere */ });
   });
 

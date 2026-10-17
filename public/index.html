@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="color-scheme" content="dark">
-<title>Snipe</title>
+<title>HoloSnipe</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
@@ -25,7 +25,7 @@
     <header class="hero">
       <div class="hero-brand">
       <div class="reticle"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg></div>
-      <div class="logo">Snipe</div>
+      <div class="logo">HoloSnipe</div>
       </div>
       <div class="lang-switch"><button type="button" data-lang="it">IT</button><button type="button" data-lang="en">EN</button></div>
       <p class="tagline">Gli affari sulle carte Pokémon di CardTrader, appena compaiono.</p>
@@ -36,7 +36,7 @@
       <ol class="steps">
         <li>Accedi a <b>cardtrader.com</b> e apri il tuo profilo → <b>Impostazioni</b> → <b>API</b>.</li>
         <li>Copia il tuo <b>token API</b> (una lunga stringa di lettere e numeri).</li>
-        <li>Incollalo qui sotto: il tuo account Snipe è legato al tuo utente CardTrader.</li>
+        <li>Incollalo qui sotto: il tuo account HoloSnipe è legato al tuo utente CardTrader.</li>
       </ol>
       <div class="field">
         <label for="keyInput">Token API CardTrader</label>
@@ -44,7 +44,7 @@
       </div>
       <p id="loginError" class="error" hidden></p>
       <button class="btn primary" type="submit">Entra</button>
-      <p class="muted small">Il token resta sul server di Snipe e non viene mai mostrato né condiviso. Puoi revocarlo in qualsiasi momento da CardTrader.</p>
+      <p class="muted small">Il token resta sul server di HoloSnipe e non viene mai mostrato né condiviso. Puoi revocarlo in qualsiasi momento da CardTrader.</p>
       <p class="muted small legal-links">Entrando accetti i <a href="/termini.html">termini di servizio</a> e l'<a href="/privacy.html">informativa sulla privacy</a>.</p>
     </form>
 
@@ -55,7 +55,7 @@
       <li><b>📉 Sconti anomali</b><span>Riconosce gli annunci molto sotto il resto del mercato, anche su un intero set.</span></li>
       <li><b>🃏 Tutte le carte</b><span>Prezzi più bassi con e senza CardTrader Zero, filtri per lingua e condizione, confronto con Cardmarket.</span></li>
       <li><b>📦 Costo reale</b><span>Spedizione stimata del venditore e totale, storico dei prezzi e lista dei desideri.</span></li>
-      <li><b>🔒 Nessun acquisto automatico</b><span>Snipe legge soltanto il marketplace: compri tu, con un tocco, su CardTrader.</span></li>
+      <li><b>🔒 Nessun acquisto automatico</b><span>HoloSnipe legge soltanto il marketplace: compri tu, con un tocco, su CardTrader.</span></li>
     </ul>
 
     <section class="panel login-plans">
@@ -71,7 +71,7 @@
 <div id="app" hidden>
   <header class="top">
     <div class="top-in">
-      <div class="brand"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg><span class="logo">Snipe</span></div>
+      <div class="brand"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="ball-bottom" cx="24" cy="24" r="21"/><path class="ball-top" d="M3 24a21 21 0 0 1 42 0z"/><circle class="ball-line" cx="24" cy="24" r="21"/><path class="ball-line" d="M3 24h42"/><circle class="ball-btn" cx="24" cy="24" r="6.5"/></svg><span class="logo">HoloSnipe</span></div>
       <div class="status"><span id="dot" class="dot"></span><span id="statusText">…</span></div>
     </div>
   </header>
@@ -206,7 +206,7 @@
     <section id="tab-deals" class="tab" hidden>
       <div class="intro">
         <h1>Affari del giorno</h1>
-        <p class="muted">Annunci delle espansioni più recenti e più ricercate su Snipe che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.</p>
+        <p class="muted">Annunci delle espansioni più recenti e più ricercate su HoloSnipe che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.</p>
       </div>
       <div class="seg seg-sm" role="radiogroup" aria-label="Venditori">
         <label><input type="radio" name="dmode" value="all" checked> Tutti i venditori</label>
@@ -309,7 +309,7 @@
         </div>
         <p class="muted" id="pushInfo"></p>
         <ol class="steps">
-          <li data-ios>Solo iPhone: tocca Condividi, poi <b>Aggiungi a Home</b>, e apri Snipe dall'icona (serve iOS 16.4 o successivo).</li>
+          <li data-ios>Solo iPhone: tocca Condividi, poi <b>Aggiungi a Home</b>, e apri HoloSnipe dall'icona (serve iOS 16.4 o successivo).</li>
           <li>Premi <b>Attiva notifiche</b> e consenti l'avviso quando il browser lo chiede.</li>
           <li>Premi <b>Invia notifica di prova</b> per controllare che arrivi.</li>
         </ol>
@@ -367,7 +367,7 @@
         <div class="field name-field">
           <label for="setName">Nome da mostrare</label>
           <div class="inline-save"><input id="setName" type="text" maxlength="40" placeholder="Es. il tuo nome o nickname"><button class="btn" id="setNameSave" type="button">Salva</button></div>
-          <p class="muted small">CardTrader non comunica il tuo nome utente alle app: scegli tu come comparire in Snipe.</p>
+          <p class="muted small">CardTrader non comunica il tuo nome utente alle app: scegli tu come comparire in HoloSnipe.</p>
         </div>
         <div class="field lang-field">
           <label for="setLang">Lingua dell’app</label>
@@ -379,7 +379,7 @@
         <h3 class="danger-title">Zona delicata</h3>
         <div class="act-list">
           <button class="act-row warn" id="clearAlerts" type="button"><span class="ar-txt"><b>Cancella lo storico avvisi</b><span>Svuota l’elenco degli avvisi ricevuti. Gli alert restano attivi</span></span><span class="ar-go" aria-hidden="true">›</span></button>
-          <button class="act-row danger" id="deleteAccount" type="button"><span class="ar-txt"><b>Elimina account</b><span>Cancella per sempre tutti i tuoi dati da Snipe</span></span><span class="ar-go" aria-hidden="true">›</span></button>
+          <button class="act-row danger" id="deleteAccount" type="button"><span class="ar-txt"><b>Elimina account</b><span>Cancella per sempre tutti i tuoi dati da HoloSnipe</span></span><span class="ar-go" aria-hidden="true">›</span></button>
         </div>
         <p class="muted small legal-links"><a href="/termini.html">Termini di servizio</a> · <a href="/privacy.html">Privacy</a></p>
       </div>
@@ -477,7 +477,7 @@
     <button class="btn" aria-label="Chiudi">Chiudi</button>
   </form>
   <div class="sheet-body">
-    <p class="muted small">CardTrader non permette di leggere tutto il negozio di un venditore: qui trovi i suoi annunci tra le carte e le espansioni che Snipe ha letto di recente (i tuoi alert, le carte e i set che hai aperto).</p>
+    <p class="muted small">CardTrader non permette di leggere tutto il negozio di un venditore: qui trovi i suoi annunci tra le carte e le espansioni che HoloSnipe ha letto di recente (i tuoi alert, le carte e i set che hai aperto).</p>
     <div id="slList" class="list"></div>
   </div>
 </dialog>

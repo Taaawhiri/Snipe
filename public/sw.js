@@ -13,15 +13,15 @@ self.addEventListener('push', (event) => {
       const money = (c, cur) =>
         new Intl.NumberFormat('it-IT', { style: 'currency', currency: cur || 'EUR' }).format((c || 0) / 100);
       if (a && a.kind === 'system') {
-        await self.registration.showNotification(`Snipe: ${a.name}`, { body: a.text, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'snipe-system', data: { url: '/' } });
+        await self.registration.showNotification(`HoloSnipe: ${a.name}`, { body: a.text, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'snipe-system', data: { url: '/' } });
         return;
       }
       if (a && a.kind === 'group') {
         const lines = a.top.map((t) => `${t.name} ${money(t.cents, t.currency)}${t.discount >= 0.01 ? ` (−${Math.round(t.discount * 100)}%)` : ''}`).join('\n');
-        await self.registration.showNotification(`Snipe: ${a.n} nuovi alert`, { body: a.n > a.top.length ? `${lines}\n…e altri ${a.n - a.top.length}` : lines, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'snipe-group', data: { url: '/' }, requireInteraction: true });
+        await self.registration.showNotification(`HoloSnipe: ${a.n} nuovi alert`, { body: a.n > a.top.length ? `${lines}\n…e altri ${a.n - a.top.length}` : lines, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: 'snipe-group', data: { url: '/' }, requireInteraction: true });
         return;
       }
-      const title = a ? (a.test ? 'Snipe: notifica di prova' : a.refKind === 'stock' ? `Di nuovo disponibile: ${a.name}` : a.refKind === 'drop' ? `Calo −${Math.round(a.discount * 100)}%: ${a.name}` : `−${Math.round(a.discount * 100)}% ${a.name}`) : 'Snipe';
+      const title = a ? (a.test ? 'HoloSnipe: notifica di prova' : a.refKind === 'stock' ? `Di nuovo disponibile: ${a.name}` : a.refKind === 'drop' ? `Calo −${Math.round(a.discount * 100)}%: ${a.name}` : `−${Math.round(a.discount * 100)}% ${a.name}`) : 'HoloSnipe';
       const ship = a && !a.test ? (a.zero ? ' · Zero' : a.ship ? ` · ${money(a.cents + a.ship.cents, a.currency)} con spedizione` : '') : '';
       const extra = a && !a.test ? [a.condition, a.language && a.language.toUpperCase()].filter(Boolean).join(' · ') : '';
       const body = a && !a.test ? `${money(a.cents, a.currency)}${a.refCents ? ` (${a.refKind === 'drop' ? '7 giorni fa' : 'rif.'} ${money(a.refCents, a.currency)})` : ''}${ship}${a.cmCents && a.refKind !== 'cardmarket' ? ` · Cardmarket ${money(a.cmCents, a.currency)}` : ''}\n${[extra, a.expansion].filter(Boolean).join(' · ')}` : 'Le notifiche funzionano.';
@@ -32,7 +32,7 @@ self.addEventListener('push', (event) => {
         tag: a ? a.id : 'snipe',
         image: a && a.cardImage ? a.cardImage : undefined,
         data: { url: a && a.url ? a.url : '/' },
-        actions: a && a.url && !a.test ? [{ action: 'open', title: 'Apri su CardTrader' }, { action: 'app', title: 'Apri Snipe' }] : [],
+        actions: a && a.url && !a.test ? [{ action: 'open', title: 'Apri su CardTrader' }, { action: 'app', title: 'Apri HoloSnipe' }] : [],
         requireInteraction: true,
       });
     })(),
@@ -41,7 +41,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  // Dalla notifica il link si apre nel browser, fuori dalla webapp. "Apri Snipe" apre l'app.
+  // Dalla notifica il link si apre nel browser, fuori dalla webapp. "Apri HoloSnipe" apre l'app.
   const url = event.action === 'app' ? '/' : (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(self.clients.openWindow(url));
 });

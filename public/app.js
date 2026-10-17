@@ -172,7 +172,7 @@
     try { u = new URL(a.href); } catch { return; }
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
     ev.preventDefault();
-    const title = (a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) || 'Snipe';
+    const title = (a.getAttribute('title') || a.getAttribute('aria-label') || a.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80) || 'HoloSnipe';
     navigator.share({ title, url: u.href }).catch(() => { /* menu chiuso senza scegliere */ });
   });
 
@@ -1400,7 +1400,7 @@
     const bought = state.bought || [];
     const saved = bought.reduce((t, b) => t + Math.max(0, (b.refCents || 0) - b.cents), 0);
     $('savings').hidden = !bought.length;
-    $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con Snipe · ${money(saved)} risparmiati rispetto al riferimento`;
+    $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con HoloSnipe · ${money(saved)} risparmiati rispetto al riferimento`;
 
     const unseen = state.alerts.filter((a) => !a.test && !a.mark).length;
     $('alertsLabel').replaceChildren('Avvisi', ...(unseen ? [el('span', { class: 'count-dot', text: unseen > 99 ? '99+' : String(unseen) })] : []));
@@ -1688,7 +1688,7 @@
     if (ok.trim().toUpperCase() !== 'ELIMINA') { await alert('Account non eliminato: conferma non corretta.'); return; }
     try {
       await api('/api/account/delete', { method: 'POST', body: JSON.stringify({ confirm: 'ELIMINA' }) });
-      await alert('Account eliminato. Grazie per aver usato Snipe.');
+      await alert('Account eliminato. Grazie per aver usato HoloSnipe.');
       showLogin('');
     } catch (e) {
       alert(e.message);
@@ -2594,10 +2594,10 @@
       el('div', { class: 'wl-txt' }, el('b', { text: title }), el('span', { text })),
       el('button', { class: 'btn mini', type: 'button', text: label, onclick: () => { close(); action(); } }));
     const ov = el('div', { class: 'cs-overlay' },
-      el('div', { class: 'cs-sheet cs-dialog wl', role: 'dialog', 'aria-label': 'Benvenuto in Snipe' },
+      el('div', { class: 'cs-sheet cs-dialog wl', role: 'dialog', 'aria-label': 'Benvenuto in HoloSnipe' },
         el('div', { class: 'cs-grab' }),
-        el('div', { class: 'cs-title', text: 'Benvenuto in Snipe' }),
-        el('p', { class: 'cs-text', text: 'Snipe controlla CardTrader al posto tuo e ti avvisa appena una carta scende sotto il prezzo che vuoi. Si parte in tre passi:' }),
+        el('div', { class: 'cs-title', text: 'Benvenuto in HoloSnipe' }),
+        el('p', { class: 'cs-text', text: 'HoloSnipe controlla CardTrader al posto tuo e ti avvisa appena una carta scende sotto il prezzo che vuoi. Si parte in tre passi:' }),
         el('div', { class: 'wl-steps' },
           step(1, 'Crea il primo alert', 'Cerca una carta, tocca “Alert” e scegli il prezzo.', 'Cerca', () => goTab('cards')),
           step(2, 'Attiva le notifiche', 'Così l’avviso ti arriva anche ad app chiusa.', 'Attiva', () => { goTab('settings'); $('pushEnable').click(); }),

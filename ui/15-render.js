@@ -126,7 +126,7 @@
     const bought = state.bought || [];
     const saved = bought.reduce((t, b) => t + Math.max(0, (b.refCents || 0) - b.cents), 0);
     $('savings').hidden = !bought.length;
-    $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con Snipe · ${money(saved)} risparmiati rispetto al riferimento`;
+    $('savings').textContent = `${bought.length} ${bought.length === 1 ? 'carta comprata' : 'carte comprate'} con HoloSnipe · ${money(saved)} risparmiati rispetto al riferimento`;
 
     const unseen = state.alerts.filter((a) => !a.test && !a.mark).length;
     $('alertsLabel').replaceChildren('Avvisi', ...(unseen ? [el('span', { class: 'count-dot', text: unseen > 99 ? '99+' : String(unseen) })] : []));

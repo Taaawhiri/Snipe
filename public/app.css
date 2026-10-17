@@ -892,3 +892,4 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .chk-wrap.open .chk-det{display:block}
 @media (prefers-reduced-motion:reduce){.cdot.ok::after{animation:none}}
 .rule > .chk-wrap{grid-column:1/-1}
+@media (max-width:400px){.brand .logo{font-size:22px}}

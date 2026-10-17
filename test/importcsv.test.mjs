@@ -12,7 +12,7 @@ test('CSV inglese con virgole e virgolette, colonne minime', () => {
   assert.equal(items[0].cond, 'Near Mint');
   assert.equal(items[0].qty, 1);
 });
-test('export di Snipe: usa l’ID CardTrader', () => {
+test('export di HoloSnipe: usa l’ID CardTrader', () => {
   const { items } = mapRows(parseCsv("Carta;Espansione;Lingua;Condizione;Copie;Pagata (€ l'una);ID CardTrader\nLugia;30th Celebration JP;JP;Near Mint;1;165,00;12345\n"));
   assert.equal(items[0].bp, 12345);
   assert.equal(items[0].paidCents, 16500);
