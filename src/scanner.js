@@ -321,7 +321,7 @@ export class Scanner extends DurableObject {
       }
       if (coll.length >= plan.maxColl) { limited++; continue; }
       coll.unshift({
-        key, bp, lang, cond, qty, paidCents: paid,
+        key, bp, lang, cond, qty, paidCents: paid ?? 0, // senza prezzo = trovata (0 €)
         name: String(b.name || '').slice(0, 120),
         image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : null,
         expansionId: parseInt(b.expansionId, 10) || null,
@@ -358,7 +358,8 @@ export class Scanner extends DurableObject {
       }
       const paid = b.paidCents != null && b.paidCents !== '' && Number.isFinite(Number(b.paidCents)) && Number(b.paidCents) >= 0 ? Math.round(Number(b.paidCents)) : null;
       // Prezzo pagato: media ponderata quando si aggiungono copie con un prezzo nuovo.
-      const paidCents = paid == null ? (prev ? prev.paidCents : null)
+      // Senza prezzo pagato la carta conta come trovata (0 €).
+      const paidCents = paid == null ? (prev && prev.paidCents != null ? prev.paidCents : 0)
         : b.add && prev && prev.paidCents != null ? Math.round((prev.paidCents * prev.qty + paid * (qty - prev.qty)) / qty) : paid;
       const item = {
         key, bp, lang, cond, qty, paidCents, ...(first ? { first: true } : {}),
@@ -449,6 +450,11 @@ export class Scanner extends DurableObject {
     const zeroOnly = !!(await this.settings()).collZero;
     const typical = !!(await this.settings()).collTypical;
     const coll = await this.get('coll', []);
+    // Carte salvate senza prezzo pagato: da ora contano come trovate (0 €).
+    if (coll.some((c) => c.paidCents == null)) {
+      for (const c of coll) if (c.paidCents == null) c.paidCents = 0;
+      await this.ctx.storage.put('coll', coll);
+    }
     // Prezzi salvati prima delle opzioni Zero/tipico: rileggiamo subito gli annunci di quelle carte
     // (al massimo 10 per apertura, il resto al giro orario) e ricalcoliamo.
     let refreshing = 0;
