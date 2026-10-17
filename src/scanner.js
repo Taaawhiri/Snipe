@@ -1029,6 +1029,8 @@ export class Scanner extends DurableObject {
       }
       await this.ctx.storage.put('rules', rules);
       await this.ensureAlarm();
+      // Prezzi della carta letti subito: il primo controllo non aspetta il suo turno nel giro.
+      if (rule.blueprintId && rule.enabled) this.productsForCard(rule.blueprintId, 60_000).catch(() => null);
       return json(rule);
     }
 
@@ -1382,6 +1384,8 @@ export class Scanner extends DurableObject {
   async regionStep(status) {
     if (!(await this.isCatalog())) return;
     if (Date.now() - (await this.get('regionAt', 0)) < 60_000) return;
+    this.refill();
+    if (this.tokens < MKT_BUCKET - 1) return; // gli alert hanno la precedenza: si aspetta che ci siano letture libere
     const [all, map, meta] = await Promise.all([this.pokemonExpansions(), this.get('expRegion', {}), this.get('ixmeta', null)]);
     // Solo le espansioni con carte singole (le stesse dell'indice): le altre sono solo prodotti sigillati.
     const withCards = meta && Array.isArray(meta.have) && meta.have.length ? new Set(meta.have.map(Number)) : null;
@@ -1673,9 +1677,12 @@ export class Scanner extends DurableObject {
       const prev = sources.get(k);
       sources.set(k, { ...src, prio: Math.max(src.prio, prev ? prev.prio : 0) });
     };
+    // Gli alert su una carta leggono solo quella carta; l'espansione intera serve solo agli alert su un set.
+    // Gli alert contano il doppio di desideri e collezione, quelli con la stella sei volte.
     for (const r of rules) {
-      add(`e:${r.expansionId}`, { kind: 'e', id: r.expansionId, prio: r.priority ? 3 : 1 });
-      if (r.blueprintId) add(`b:${r.blueprintId}`, { kind: 'b', id: r.blueprintId, prio: r.priority ? 3 : 1 });
+      const prio = r.priority ? 6 : 2;
+      if (r.blueprintId) add(`b:${r.blueprintId}`, { kind: 'b', id: r.blueprintId, prio });
+      else add(`e:${r.expansionId}`, { kind: 'e', id: r.expansionId, prio });
     }
     // Lista dei desideri: le carte si aggiornano, ma senza fretta (al massimo ogni 15 minuti).
     for (const w of await this.get('wish', [])) {
