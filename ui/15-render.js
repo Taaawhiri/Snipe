@@ -8,6 +8,8 @@
     const cycle = (state.status && state.status.cycle && state.status.cycle.ms) || 5 * 60_000;
     const age = Date.now() - c.ts;
     if (age <= Math.max(cycle * 1.5, 5 * 60_000)) return { st: 'ok', c };
+    // Dopo un aggiornamento dell'app il giro riparte da capo: gli alert non ancora riletti sono "in ripartenza", non in ritardo.
+    if (c.restarted && c.ts < c.restarted && Date.now() - c.restarted < 30 * 60_000) return { st: 'slow', c, restart: true, why: 'App appena aggiornata: il controllo riparte entro pochi minuti' };
     if (age <= 30 * 60_000) return { st: 'slow', c, why: state.system && state.system.limitUntil ? 'In ritardo: CardTrader sta rallentando le richieste' : 'In ritardo rispetto al solito giro' };
     return { st: 'stop', c, why: 'Non controllato da oltre 30 minuti' };
   }
@@ -41,7 +43,7 @@
     if (!active.length) return;
     const states = active.map((r) => checkState(r).st);
     const bad = states.filter((x) => x !== 'ok').length;
-    const waiting = active.filter((r) => checkState(r).st !== 'ok' && !(((state.checks || {})[r.id] || {}).ts)).length;
+    const waiting = active.filter((r) => { const x = checkState(r); return x.st !== 'ok' && (x.restart || !x.c.ts); }).length;
     const cyc = state.status && state.status.cycle;
     box.className = 'rule-health ' + (bad ? (states.includes('stop') ? 'stop' : 'slow') : 'ok');
     box.replaceChildren(

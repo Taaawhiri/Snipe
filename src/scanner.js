@@ -1359,6 +1359,7 @@ export class Scanner extends DurableObject {
   async ratioStep(force = false) {
     const last = await this.get('ratioAt', 0);
     if (!force && Date.now() - last < 3 * 3600_000) return;
+    await this.ctx.storage.put('ratioAt', Date.now()); // prima del lavoro: se fallisce non si ripete a ogni giro
     const keys = await this.get('rtKeys', []);
     const store = {};
     if (keys.length) {
