@@ -802,6 +802,7 @@ export class Scanner extends DurableObject {
         this.status(),
         this.get('subs', []),
       ]);
+      const rulesAll = await this.get('rules', []);
       return json({
         rules,
         checks: (await this.loadReadLog(), this.ruleChecks(rules)),
@@ -818,10 +819,14 @@ export class Scanner extends DurableObject {
         conditions: CONDITIONS,
         wish: await Promise.all((await this.get('wish', [])).map(async (w) => {
           const h = await this.get(`h:${w.id}`, []);
+          // Lingua del desiderio: quella scelta quando l'hai aggiunto, altrimenti quella del tuo alert sulla stessa carta.
+          if (!w.lang) { const r = rulesAll.find((x) => Number(x.blueprintId) === Number(w.id) && x.language); if (r) w = { ...w, lang: normLang(String(r.language).split(',')[0]) || '' }; }
           // "Da" = prezzo più basso di adesso dagli annunci in memoria; lo storico (minimo del giorno) solo se non ci sono.
           const hit = this.bpCache.get(w.id);
-          const now = hit && Date.now() - hit.ts < 3 * 3600_000 ? currentLow(hit.data[w.id] || hit.data[String(w.id)]) : null;
-          return { ...w, last: now || h[h.length - 1] || null, prev: h[h.length - 8] || h[0] || null };
+          const now = hit && Date.now() - hit.ts < 3 * 3600_000 ? currentLow(hit.data[w.id] || hit.data[String(w.id)], w.lang) : null;
+          // Con una lingua lo storico (tutte le lingue) non vale: si mostra solo il prezzo attuale in quella lingua.
+          const read = !!(hit && Date.now() - hit.ts < 3 * 3600_000);
+          return { ...w, read, last: now || (w.lang ? null : h[h.length - 1] || null), prev: w.lang ? null : h[h.length - 8] || h[0] || null };
         })),
       });
     }
@@ -1182,6 +1187,7 @@ export class Scanner extends DurableObject {
           image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : null,
           expansionId: parseInt(b.expansionId, 10) || null,
           expName: String(b.expName || '').slice(0, 80),
+          lang: normLang(b.lang) || '', // lingua seguita (vuota = tutte)
           ts: Date.now(),
         }, ...wish].slice(0, (await this.plan()).maxWish);
       }

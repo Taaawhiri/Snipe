@@ -1,13 +1,14 @@
 // Storico giornaliero dei prezzi di una carta: per ogni giorno il prezzo più basso visto, in totale e con Zero.
-import { condRank, isListable, isZero } from './deals.js';
+import { condRank, isListable, isZero, listingLang, normLang } from './deals.js';
 
 // Nello storico entrano solo copie Near Mint o migliori: una copia rovinata non è il prezzo della carta.
 const NM = condRank('Near Mint');
 const good = (p) => isListable(p) && condRank(p.properties_hash && p.properties_hash.condition) >= NM;
 
-/** Prezzo più basso adesso (Near Mint o migliore, qualsiasi lingua), in totale e con Zero. null se non ci sono annunci. */
-export function currentLow(products) {
-  const ok = (products || []).filter(good);
+/** Prezzo più basso adesso (Near Mint o migliore, nella lingua indicata o in qualsiasi lingua), in totale e con Zero. null se non ci sono annunci. */
+export function currentLow(products, lang = '') {
+  const want = normLang(lang);
+  const ok = (products || []).filter((p) => good(p) && (!want || normLang(listingLang(p)) === want));
   if (!ok.length) return null;
   const zs = ok.filter(isZero).map((p) => p.price.cents);
   return { min: Math.min(...ok.map((p) => p.price.cents)), zero: zs.length ? Math.min(...zs) : null, n: ok.length };

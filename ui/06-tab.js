@@ -67,7 +67,8 @@
                   el('div', { class: 'e', text: w.expName || '' }),
                 ),
                 el('div', { class: 'chips' },
-                  chip(last ? `Da ${money(last.min)}` : 'Prezzo in arrivo…', 'on'),
+                  w.lang ? chip(w.lang.toUpperCase(), 'lang') : null,
+                  chip(last ? `Da ${money(last.min)}` : w.lang && w.read ? `Nessuna copia NM in ${w.lang.toUpperCase()} ora` : 'Prezzo in arrivo…', 'on'),
                   last && last.zero != null ? chip(`Zero ${money(last.zero)}`, 'zero') : null,
                   trend ? chip(`${trend < 0 ? '▼' : '▲'} ${money(Math.abs(trend))} in 7 giorni`, trend < 0 ? 'good' : 'warn') : null,
                 ),
@@ -82,7 +83,7 @@
     );
   }
 
-  const wishFromRule = (r) => ({ id: r.blueprintId, name: r.cardName, image: r.cardImage, expansionId: r.expansionId, expName: r.expansionName });
+  const wishFromRule = (r) => ({ id: r.blueprintId, name: r.cardName, image: r.cardImage, expansionId: r.expansionId, expName: r.expansionName, lang: String(r.language || '').split(',')[0] });
 
   async function wishAllFromRules() {
     const have = new Set((state.wish || []).map((w) => w.id));
@@ -90,7 +91,7 @@
     for (const r of todo) {
       try {
         const c = wishFromRule(r);
-        state.wish = await api('/api/wish', { method: 'POST', body: JSON.stringify({ id: c.id, name: c.name, image: c.image, expansionId: c.expansionId, expName: c.expName }) });
+        state.wish = await api('/api/wish', { method: 'POST', body: JSON.stringify({ id: c.id, name: c.name, image: c.image, expansionId: c.expansionId, expName: c.expName, lang: c.lang }) });
       } catch (e) {
         alert(e.message); // per esempio il limite del piano
         break;
@@ -101,7 +102,7 @@
 
   async function toggleWish(c, remove) {
     try {
-      state.wish = await api('/api/wish', { method: 'POST', body: JSON.stringify({ id: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId || (dlgExp && dlgExp.id), expName: c.expName || (dlgExp && dlgExp.name), remove }) });
+      state.wish = await api('/api/wish', { method: 'POST', body: JSON.stringify({ id: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId || (dlgExp && dlgExp.id), expName: c.expName || (dlgExp && dlgExp.name), lang: c.lang != null ? c.lang : $('cardLang').value, remove }) });
       renderWish();
       updateWishBtn();
       refresh();
