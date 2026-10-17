@@ -286,9 +286,12 @@
     '7 giorni': '7 days',
     '30 giorni': '30 days',
     '90 giorni': '90 days',
+    'Tutte le condizioni': 'All conditions',
+    'Zero e non': 'Zero or not',
   };
 
   const R = [
+    [/^(.+) o meglio$/, '$1 or better'],
     [/^([+−])(.+) \((.+)\) in (\d+) giorni?$/, '$1$2 ($3) in $4 days'],
     [/^✅ (\d+) trovate$/, '✅ $1 found'], [/^🟡 (\d+) da scegliere$/, '🟡 $1 to choose'], [/^🔴 (\d+) non trovate$/, '🔴 $1 not found'], [/^Importa (\d+) carte?$/, 'Import $1 cards'], [/^Riga (\d+)$/, 'Row $1'],
     [/^tutti gli alert ricontrollati in (.+) min$/, 'all alerts rechecked in $1 min'], [/^tutti gli alert ricontrollati in (.+) s$/, 'all alerts rechecked in $1 s'], [/^tutti gli alert ricontrollati in (.+) ore$/, 'all alerts rechecked in $1 h'],

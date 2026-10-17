@@ -1,6 +1,8 @@
   // ---------- render ----------
   let ruleState = 'all';
   let ruleLang = '';
+  let ruleCond = '';
+  let ruleZero = '';
   function render() {
     if (!state) return;
     const active = state.rules.filter((r) => r.enabled).length;
@@ -104,10 +106,22 @@
     filterChips($('ruleState'), STATES.filter(([v]) => v !== 'set' || state.rules.some((r) => !r.blueprintId)).filter(([v]) => v !== 'star' || state.rules.some((r) => r.priority)), ruleState, (v) => { ruleState = v; render(); });
     $('ruleLang').hidden = ruleLangs.length < 2;
     filterChips($('ruleLang'), [['', 'Tutte le lingue'], ...ruleLangs.map((l) => [l, LANG_CHIP[l] || l.toUpperCase()])], ruleLang, (v) => { ruleLang = v; render(); });
+    // Condizione minima e Zero: solo i valori che usi davvero nei tuoi alert.
+    const CONDS = ['Mint', 'Near Mint', 'Slightly Played', 'Moderately Played', 'Played', 'Heavily Played', 'Poor'];
+    const ruleConds = CONDS.filter((c) => state.rules.some((r) => r.minCondition === c));
+    if (ruleCond && !ruleConds.includes(ruleCond)) ruleCond = '';
+    $('ruleCond').hidden = ruleConds.length < 2;
+    filterChips($('ruleCond'), [['', 'Tutte le condizioni'], ...ruleConds.map((c) => [c, `${c} o meglio`])], ruleCond, (v) => { ruleCond = v; render(); });
+    const ZEROS = [['', 'Zero e non'], ['only', 'Solo Zero'], ['exclude', 'Senza Zero'], ['any', 'Tutti i venditori']];
+    const zeroOf = (r) => r.zero || 'any';
+    const zeroUsed = new Set(state.rules.map(zeroOf));
+    if (ruleZero && !zeroUsed.has(ruleZero)) ruleZero = '';
+    $('ruleZero').hidden = zeroUsed.size < 2;
+    filterChips($('ruleZero'), ZEROS.filter(([v]) => !v || zeroUsed.has(v)), ruleZero, (v) => { ruleZero = v; render(); });
     const stateOk = (r) => ruleState === 'all' || (ruleState === 'on' && r.enabled) || (ruleState === 'off' && !r.enabled) || (ruleState === 'star' && r.priority) || (ruleState === 'set' && !r.blueprintId);
     const langOk = (r) => !ruleLang || String(r.language || '').split(',').map((l) => (l === 'ja' ? 'jp' : l)).includes(ruleLang);
-    const shownRules = state.rules.filter((r) => stateOk(r) && langOk(r) && (!rq || plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)));
-    const filtering = !!rq || ruleState !== 'all' || !!ruleLang;
+    const shownRules = state.rules.filter((r) => stateOk(r) && langOk(r) && (!ruleCond || r.minCondition === ruleCond) && (!ruleZero || zeroOf(r) === ruleZero) && (!rq || plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)));
+    const filtering = !!rq || ruleState !== 'all' || !!ruleLang || !!ruleCond || !!ruleZero;
     $('ruleCount').hidden = !filtering;
     $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : rq ? `Nessun alert per “${$('ruleSearch').value.trim()}”` : 'Nessun alert con questi filtri';
     rl.replaceChildren(
