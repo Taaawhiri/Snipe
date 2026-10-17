@@ -803,3 +803,17 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .al-btn.on{border-color:var(--green);color:#7fe0a6}
 .al-btn.go{background:var(--red);border-color:var(--red);color:#fff}
 .count-dot{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--yellow);color:var(--yellow-ink);font-size:12px;font-weight:800;vertical-align:1px;box-sizing:border-box}
+
+/* righe azione (Opzioni) */
+.act-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:6px 0 4px}
+.act-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--text);background:var(--surface-2);border:0;border-top:1px solid var(--line);padding:13px 14px;cursor:pointer}
+.act-row:first-child{border-top:0}
+.act-row:hover,.act-row:focus-visible{background:var(--blue-soft);outline:none}
+.ar-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ar-txt b{font-weight:700;font-size:15.5px}
+.ar-txt span{font-size:13px;color:var(--muted);font-weight:600}
+.ar-go{color:var(--muted);font-size:22px;line-height:1}
+.act-row.warn b{color:var(--yellow)}
+.act-row.danger b{color:#ff8a8a}
+.danger-title{font-family:var(--display);font-weight:600;font-size:15px;color:var(--muted);margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+.lang-field{max-width:none!important}.lang-field select,.lang-field .cs-btn{width:100%;max-width:none}

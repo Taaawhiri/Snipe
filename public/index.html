@@ -324,21 +324,15 @@
       </div>
 
       <div class="panel">
-        <h2>Backup degli alert</h2>
-        <p class="muted small">Salva i tuoi alert in un file, per ritrovarli se cambi telefono o ricrei il progetto. L'importazione aggiunge gli alert senza cancellare quelli che hai.</p>
-        <div class="row-btn">
-          <button class="btn" id="exportRules" type="button">Esporta in un file</button>
-          <button class="btn" id="importRules" type="button">Importa da un file</button>
-          <input id="importFile" type="file" accept="application/json,.json" hidden>
+        <h2>Backup e dati</h2>
+        <div class="act-list">
+          <button class="act-row" id="exportRules" type="button"><span class="ar-txt"><b>Esporta gli alert</b><span>Un file per ritrovarli se cambi telefono</span></span><span class="ar-go" aria-hidden="true">›</span></button>
+          <button class="act-row" id="importRules" type="button"><span class="ar-txt"><b>Importa gli alert</b><span>Si aggiungono a quelli che hai, senza cancellarli</span></span><span class="ar-go" aria-hidden="true">›</span></button>
+          <button class="act-row" id="exportAll" type="button"><span class="ar-txt"><b>Scarica tutti i tuoi dati</b><span>Alert, collezione, desideri, avvisi e impostazioni (JSON). Il token CardTrader non è mai incluso</span></span><span class="ar-go" aria-hidden="true">›</span></button>
+          <button class="act-row" id="exportColl" type="button"><span class="ar-txt"><b>Collezione per Excel</b><span>File CSV che si apre direttamente con Excel</span></span><span class="ar-go" aria-hidden="true">›</span></button>
         </div>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
         <p id="backupMsg" class="muted small" hidden></p>
-        <hr class="sep">
-        <h2>I tuoi dati</h2>
-        <p class="muted small">Scarica tutto ciò che Snipe conserva per te: alert, collezione, lista dei desideri, avvisi, venditori e impostazioni. Il token CardTrader non viene mai incluso.</p>
-        <div class="row-btn">
-          <button class="btn" id="exportAll" type="button">Scarica tutti i dati (JSON)</button>
-          <button class="btn" id="exportColl" type="button">Collezione per Excel (CSV)</button>
-        </div>
       </div>
 
       <div id="adminPanel" class="panel" hidden>
@@ -354,12 +348,7 @@
       </div>
 
       <div class="panel">
-        <h2>Dati</h2>
-        <div class="row-btn">
-          <button class="btn" id="clearAlerts" type="button">Cancella lo storico avvisi</button>
-          <button class="btn" id="logout" type="button">Esci</button>
-          <button class="btn danger" id="deleteAccount" type="button">Elimina account</button>
-        </div>
+        <h2>Account</h2>
         <div class="field name-field">
           <label for="setName">Nome da mostrare</label>
           <div class="inline-save"><input id="setName" type="text" maxlength="40" placeholder="Es. il tuo nome o nickname"><button class="btn" id="setNameSave" type="button">Salva</button></div>
@@ -368,6 +357,14 @@
         <div class="field lang-field">
           <label for="setLang">Lingua dell’app</label>
           <select id="setLang"><option value="it">Italiano</option><option value="en">English</option></select>
+        </div>
+        <div class="act-list">
+          <button class="act-row" id="logout" type="button"><span class="ar-txt"><b>Esci</b><span>Alert e collezione restano salvati: rientri con lo stesso token</span></span><span class="ar-go" aria-hidden="true">›</span></button>
+        </div>
+        <h3 class="danger-title">Zona delicata</h3>
+        <div class="act-list">
+          <button class="act-row warn" id="clearAlerts" type="button"><span class="ar-txt"><b>Cancella lo storico avvisi</b><span>Svuota l’elenco degli avvisi ricevuti. Gli alert restano attivi</span></span><span class="ar-go" aria-hidden="true">›</span></button>
+          <button class="act-row danger" id="deleteAccount" type="button"><span class="ar-txt"><b>Elimina account</b><span>Cancella per sempre tutti i tuoi dati da Snipe</span></span><span class="ar-go" aria-hidden="true">›</span></button>
         </div>
         <p class="muted small legal-links"><a href="/termini.html">Termini di servizio</a> · <a href="/privacy.html">Privacy</a></p>
       </div>

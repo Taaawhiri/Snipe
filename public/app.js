@@ -2350,7 +2350,7 @@
       await refresh();
     } catch (e) { $('pushInfo').textContent = e.message; }
   });
-  $('clearAlerts').addEventListener('click', async () => { await api('/api/alerts', { method: 'DELETE' }); knownTop = null; refresh(); });
+  $('clearAlerts').addEventListener('click', async () => { if (!(await askConfirm('Gli alert restano attivi: cambia solo l’elenco degli avvisi già ricevuti.', { title: 'Cancellare lo storico avvisi?', ok: 'Cancella', danger: true }))) return; await api('/api/alerts', { method: 'DELETE' }); knownTop = null; refresh(); });
 
   // ---------- avvio ----------
   async function start() {

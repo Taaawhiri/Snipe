@@ -243,6 +243,19 @@
     'CardTrader non comunica il tuo nome utente alle app: scegli tu come comparire in Snipe.': "CardTrader doesn't share your username with apps: choose how you appear in Snipe.",
     '☆ Desideri': '☆ Wishlist', '★ Nei desideri': '★ In wishlist', "＋ Ce l'ho": '＋ I own it', 'Prezzo pagato per copia': 'Price paid per copy', 'facoltativo': 'optional', 'Togli': 'Remove',
     'Bloccate': 'Blocked', 'Attive': 'On', 'Non attive': 'Off', 'Non disponibili': 'Unavailable', 'Disattivate': 'Off', 'Non supportate': 'Not supported', 'Da attivare': 'To enable',
+    'Backup e dati': 'Backup & data',
+    'Esporta gli alert': 'Export alerts',
+    'Un file per ritrovarli se cambi telefono': 'A file to restore them on a new phone',
+    'Importa gli alert': 'Import alerts',
+    'Si aggiungono a quelli che hai, senza cancellarli': 'Added to your existing ones, nothing is deleted',
+    'Scarica tutti i tuoi dati': 'Download all your data',
+    'Alert, collezione, desideri, avvisi e impostazioni (JSON). Il token CardTrader non è mai incluso': 'Alerts, collection, wishlist, notifications and settings (JSON). Your CardTrader token is never included',
+    'Collezione per Excel': 'Collection for Excel',
+    'File CSV che si apre direttamente con Excel': 'CSV file that opens directly in Excel',
+    'Alert e collezione restano salvati: rientri con lo stesso token': 'Alerts and collection stay saved: sign back in with the same token',
+    'Zona delicata': 'Danger zone',
+    'Svuota l’elenco degli avvisi ricevuti. Gli alert restano attivi': 'Empties the list of received notifications. Alerts stay active',
+    'Cancella per sempre tutti i tuoi dati da Snipe': 'Permanently deletes all your data from Snipe',
   };
 
   const R = [
