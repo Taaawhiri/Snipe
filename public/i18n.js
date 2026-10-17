@@ -300,9 +300,12 @@
     'La carta non è ancora stata letta: succede entro pochi minuti.': 'The card has not been read yet: it happens within a few minutes.',
     'App appena aggiornata: il controllo riparte entro pochi minuti': 'App just updated: checks resume within a few minutes',
     'Succede entro pochi minuti': 'It happens within a few minutes',
+    'Elimina avviso': 'Delete notification',
+    'Gli avvisi segnati come comprati restano.': 'Notifications marked as bought are kept.',
   };
 
   const R = [
+    [/^Elimina i visti \((\d+)\)$/, 'Delete seen ($1)'], [/^Eliminare (\d+) avvis[io] vist[io]\?$/, 'Delete $1 seen notification(s)?'],
     [/^Controlli in ripartenza: (\d+) alert su (\d+) già ricontrollati$/, 'Checks restarting: $1 of $2 alerts already rechecked'],
     [/^([\d,]+) mila$/, (m, n) => `${n.replace(',', '.')}k`], [/^([\d,]+) Mln$/, (m, n) => `${n.replace(',', '.')}M`],
     [/^Controllato (.+) fa$/, 'Checked $1 ago'], [/^(\d+) controlli? nell’ultima ora$/, '$1 checks in the last hour'], [/^Tutti i (\d+) alert controllati regolarmente$/, 'All $1 alerts checked regularly'],

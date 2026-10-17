@@ -1219,6 +1219,15 @@ export class Scanner extends DurableObject {
       return json({ ok: true });
     }
 
+    // Elimina un avviso, oppure tutti quelli già visti ({ seen: true }). I comprati restano: servono al conteggio del risparmio.
+    if (path === '/api/alerts/delete' && method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      const alerts = await this.get('alerts', []);
+      const keep = alerts.filter((a) => (b.seen ? a.mark !== 'seen' : a.id !== b.id));
+      await this.ctx.storage.put('alerts', keep);
+      return json({ ok: true, removed: alerts.length - keep.length });
+    }
+
     return json({ error: 'Not found' }, 404);
   }
 

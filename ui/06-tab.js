@@ -15,6 +15,27 @@
     return askConfirm(`Anche i suoi avvisi verranno cancellati.`, { title: `Eliminare l'alert "${r.cardName || r.expansionName}"?`, ok: 'Elimina', danger: true });
   }
 
+  async function deleteAlert(a) {
+    try {
+      await api('/api/alerts/delete', { method: 'POST', body: JSON.stringify({ id: a.id }) });
+      state.alerts = state.alerts.filter((x) => x.id !== a.id);
+      render();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+  $('clearSeen').addEventListener('click', async () => {
+    const n = state.alerts.filter((a) => a.mark === 'seen').length;
+    if (!(await askConfirm('Gli avvisi segnati come comprati restano.', { title: `Eliminare ${n} ${n === 1 ? 'avviso visto' : 'avvisi visti'}?`, ok: 'Elimina', danger: true }))) return;
+    try {
+      await api('/api/alerts/delete', { method: 'POST', body: JSON.stringify({ seen: true }) });
+      state.alerts = state.alerts.filter((a) => a.mark !== 'seen');
+      render();
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+
   async function markAlert(a, mark) {
     try {
       await api('/api/alerts/mark', { method: 'POST', body: JSON.stringify({ id: a.id, mark }) });

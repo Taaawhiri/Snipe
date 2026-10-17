@@ -917,3 +917,7 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .lockup.big .lk-snipe{background:linear-gradient(#b8374d,#8f1d31);border-color:#1b2340;padding-left:36px;box-shadow:0 3px 0 rgba(0,0,0,.3)}
 .lockup.big .lk-holo{box-shadow:0 3px 0 rgba(0,0,0,.3)}
 @media (min-width:900px){.lockup.big .lk-snipe{padding-left:42px}}
+.al-acts:has(.al-btn.del){grid-template-columns:1fr 1fr 1.2fr 46px}
+.al-btn.del{display:grid;place-items:center;color:#ff8a8a;padding:8px 0}
+.al-btn.del svg{width:18px;height:18px}
+.filterbar #clearSeen{margin-left:auto}

@@ -118,10 +118,14 @@
             markBtn('seen', 'Segna visto', '✓ Visto'),
             markBtn('bought', 'Comprato', '✓ Comprato'),
             el('a', { class: 'al-btn go', href: a.url || '#', target: '_blank', rel: 'noopener noreferrer', text: 'CardTrader ↗' }),
+            a.mark === 'seen' ? el('button', { class: 'al-btn del', type: 'button', 'aria-label': 'Elimina avviso', title: 'Elimina', onclick: () => deleteAlert(a) }, ico('trash')) : null,
           ),
         );
       }),
     );
+    const seenN = state.alerts.filter((a) => a.mark === 'seen').length;
+    $('clearSeen').hidden = !seenN || afilter === 'bought';
+    $('clearSeen').textContent = `Elimina i visti (${seenN})`;
     $('alertEmpty').hidden = state.alerts.length > 0;
     if (state.alerts.length && !shown.length) list.replaceChildren(el('p', { class: 'muted', text: afilter === 'bought' ? 'Nessun avviso segnato come comprato.' : 'Hai già visto tutti gli avvisi.' }));
     const bought = state.bought || [];
