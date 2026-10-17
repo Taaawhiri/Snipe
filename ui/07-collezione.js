@@ -154,7 +154,7 @@
               isGradeLabel(it.cond) ? el('span', { class: 'grade-badge', text: it.cond }) : null,
               document.createTextNode([it.expName, !isGradeLabel(it.cond) && it.cond && condShort(it.cond), it.lang && it.lang.toUpperCase()].filter(Boolean).join(' · '))),
             el('div', { class: 'qty' }, step(-1), el('b', { text: String(it.qty) }), step(1),
-              el('button', { class: 'ci-edit', type: 'button', 'aria-label': `Modifica ${it.name}`, title: 'Modifica prezzo, condizione, lingua', text: '✎ Modifica', onclick: () => openOwnEdit(it) }),
+              el('button', { class: 'ci-edit', type: 'button', 'aria-label': `Modifica ${it.name}`, title: 'Modifica prezzo, condizione, lingua', text: '✎', onclick: () => openOwnEdit(it) }),
               it.paidCents != null ? el('span', { class: 's', text: it.paidCents === 0 ? (it.qty > 1 ? 'trovate (0 €)' : 'trovata (0 €)') : it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
           ),
           el('div', { class: 'r' },
