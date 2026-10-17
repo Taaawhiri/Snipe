@@ -77,6 +77,7 @@ export class Scanner extends DurableObject {
   cardCache = new Map();
   productCache = new Map(); // espansione -> { ts, data }: annunci letti da CardTrader, condivisi da scan e pagine
   histAt = new Map(); // carta -> ultima scrittura dello storico (al massimo ogni 30 minuti)
+  startedAt = Date.now(); // avvio del server: dopo un aggiornamento i controlli ripartono
   bpCache = new Map(); // carta -> { ts, data }: tutti gli annunci di una carta (la lettura per espansione ne dà solo i più economici)
   cmCache = new Map();
   cmRemote = new Map();
@@ -1816,6 +1817,8 @@ export class Scanner extends DurableObject {
     const list = (this.readLog.get(key) || []).filter((t) => ts - t < 3600_000);
     list.push(ts);
     this.readLog.set(key, list);
+    this.lastRead = this.lastRead || new Map();
+    this.lastRead.set(key, ts);
   }
 
   /** Stato del controllo di ogni alert: ultima lettura, letture dell'ultima ora, annunci e più economico valido. */
@@ -1824,11 +1827,13 @@ export class Scanner extends DurableObject {
     const now = Date.now();
     for (const r of rules) {
       const key = r.blueprintId ? `b:${r.blueprintId}` : `e:${r.expansionId}`;
-      const hit = r.blueprintId ? this.bpCache.get(r.blueprintId) : this.productCache.get(r.expansionId);
       const reads = ((this.readLog && this.readLog.get(key)) || []).filter((t) => now - t < 3600_000);
-      if (hit && !reads.includes(hit.ts) && now - hit.ts < 3600_000) reads.push(hit.ts);
+      // Lettura aperta dall'utente (Verifica, alert appena creato): conta anche quella.
+      const hit = r.blueprintId ? this.bpCache.get(r.blueprintId) : this.productCache.get(r.expansionId);
+      const last = Math.max((this.lastRead && this.lastRead.get(key)) || 0, hit && this.startedAt && hit.ts > this.startedAt ? hit.ts : 0);
+      if (last && !reads.includes(last) && now - last < 3600_000) reads.push(last);
       const info = (this.ruleInfo && this.ruleInfo.get(r.id)) || null;
-      out[r.id] = { ts: hit ? hit.ts : null, reads: reads.sort((a, b) => a - b), ...(info || {}) };
+      out[r.id] = { ts: last || null, reads: reads.sort((a, b) => a - b), restarted: this.startedAt, ...(info || {}) };
     }
     return out;
   }
@@ -1885,8 +1890,9 @@ export class Scanner extends DurableObject {
     }
     // Giro completo: da quanto tempo non si rilegge la carta (o il set) di alert più "vecchia".
     if (status) {
+      // Solo letture vere dall'avvio del server: i prezzi ricaricati dal disco dopo un aggiornamento hanno l'ora vecchia.
       const ruleSrc = [...sources.values()].filter((src) => src.prio >= 2);
-      const ages = ruleSrc.map(age);
+      const ages = ruleSrc.map((src) => (this.lastRead && this.lastRead.get(`${src.kind}:${src.id}`)) || 0);
       status.cycle = ruleSrc.length && ages.every((t) => t) ? { ms: Date.now() - Math.min(...ages), n: ruleSrc.length, ts: Date.now() } : null;
     }
     if (error && error.budget) error = null; // budget finito: non è un errore, si riprende al giro dopo

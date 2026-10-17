@@ -27,6 +27,8 @@
 
   // ---------- utilità ----------
   const plainText = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  /** Numeri grandi in poco spazio: 8.086 · 12,3 mila · 1,2 Mln. */
+  const compactNum = (n) => (n < 10_000 ? n.toLocaleString('it-IT') : n < 1_000_000 ? `${(n / 1000).toFixed(n < 100_000 ? 1 : 0).replace('.', ',').replace(',0', '')} mila` : `${(n / 1e6).toFixed(1).replace('.', ',').replace(',0', '')} Mln`);
   function el(tag, props = {}, ...children) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(props || {})) {
@@ -1278,7 +1280,7 @@
     const c = (state.checks || {})[r.id] || {};
     if (!r.enabled) return { st: 'stop', c, why: 'Alert in pausa: non viene controllato' };
     if ((state.outOfPlan || []).includes(r.id)) return { st: 'stop', c, why: 'Oltre il limite del piano: non viene controllato' };
-    if (!c.ts) return { st: 'slow', c, why: 'In attesa del primo controllo' };
+    if (!c.ts) return { st: 'slow', c, why: c.restarted && Date.now() - c.restarted < 15 * 60_000 ? 'App appena aggiornata: il controllo riparte entro pochi minuti' : 'Succede entro pochi minuti' };
     const cycle = (state.status && state.status.cycle && state.status.cycle.ms) || 5 * 60_000;
     const age = Date.now() - c.ts;
     if (age <= Math.max(cycle * 1.5, 5 * 60_000)) return { st: 'ok', c };
@@ -1315,12 +1317,13 @@
     if (!active.length) return;
     const states = active.map((r) => checkState(r).st);
     const bad = states.filter((x) => x !== 'ok').length;
+    const waiting = active.filter((r) => checkState(r).st !== 'ok' && !(((state.checks || {})[r.id] || {}).ts)).length;
     const cyc = state.status && state.status.cycle;
     box.className = 'rule-health ' + (bad ? (states.includes('stop') ? 'stop' : 'slow') : 'ok');
     box.replaceChildren(
       el('span', { class: 'rh-ico', text: bad ? '!' : '✓', 'aria-hidden': 'true' }),
       el('span', null,
-        el('b', { text: bad ? `${active.length - bad} alert su ${active.length} controllati regolarmente` : `Tutti i ${active.length} alert controllati regolarmente` }),
+        el('b', { text: waiting === bad && bad ? `Controlli in ripartenza: ${active.length - bad} alert su ${active.length} già ricontrollati` : bad ? `${active.length - bad} alert su ${active.length} controllati regolarmente` : `Tutti i ${active.length} alert controllati regolarmente` }),
         el('small', { text: [cyc ? `Giro completo ogni ${dur(cyc.ms)}` : null, state.status && state.status.lastScan ? `ultimo controllo ${ago(state.status.lastScan)} fa`.replace(' fa fa', ' fa') : null].filter(Boolean).join(' · ') })));
   }
 
@@ -1333,7 +1336,7 @@
     const active = state.rules.filter((r) => r.enabled).length;
     $('statRules').textContent = active;
     $('statAlerts').textContent = state.alerts.filter((a) => !a.test).length;
-    $('statScans').textContent = state.status.scans || 0;
+    $('statScans').textContent = compactNum(state.status.scans || 0);
 
     const dot = $('dot');
     const s = state.status;

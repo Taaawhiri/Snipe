@@ -1,5 +1,7 @@
   // ---------- utilità ----------
   const plainText = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  /** Numeri grandi in poco spazio: 8.086 · 12,3 mila · 1,2 Mln. */
+  const compactNum = (n) => (n < 10_000 ? n.toLocaleString('it-IT') : n < 1_000_000 ? `${(n / 1000).toFixed(n < 100_000 ? 1 : 0).replace('.', ',').replace(',0', '')} mila` : `${(n / 1e6).toFixed(1).replace('.', ',').replace(',0', '')} Mln`);
   function el(tag, props = {}, ...children) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(props || {})) {

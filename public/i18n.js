@@ -298,9 +298,13 @@
     'In ritardo rispetto al solito giro': 'Behind the usual cycle',
     'Non controllato da oltre 30 minuti': 'Not checked for over 30 minutes',
     'La carta non è ancora stata letta: succede entro pochi minuti.': 'The card has not been read yet: it happens within a few minutes.',
+    'App appena aggiornata: il controllo riparte entro pochi minuti': 'App just updated: checks resume within a few minutes',
+    'Succede entro pochi minuti': 'It happens within a few minutes',
   };
 
   const R = [
+    [/^Controlli in ripartenza: (\d+) alert su (\d+) già ricontrollati$/, 'Checks restarting: $1 of $2 alerts already rechecked'],
+    [/^([\d,]+) mila$/, (m, n) => `${n.replace(',', '.')}k`], [/^([\d,]+) Mln$/, (m, n) => `${n.replace(',', '.')}M`],
     [/^Controllato (.+) fa$/, 'Checked $1 ago'], [/^(\d+) controlli? nell’ultima ora$/, '$1 checks in the last hour'], [/^Tutti i (\d+) alert controllati regolarmente$/, 'All $1 alerts checked regularly'],
     [/^(\d+) alert su (\d+) controllati regolarmente$/, '$1 of $2 alerts checked regularly'], [/^Giro completo ogni (.+)$/, 'Full cycle every $1'], [/^Togli il filtro (.+)$/, 'Remove filter $1'],
     [/^(.+) o meglio$/, '$1 or better'],
