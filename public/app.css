@@ -1056,7 +1056,7 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 .dm-v b{font-family:var(--display,inherit);font-size:16px}
 
 /* Poké Ball della testata come semaforo: verde = controlli attivi, gialla = in pausa, rossa = errore */
-header.top .brand svg .ball-top { fill: #3fbf75; }
+header.top .brand svg .ball-top { fill: #7fe0a6; } /* lo stesso verde menta dei guadagni */
 header.top.ball-paused .brand svg .ball-top, header.top.ball-err.ball-wait .brand svg .ball-top { fill: var(--yellow, #ffcb05); }
 header.top.ball-err:not(.ball-wait) .brand svg .ball-top { fill: #e5484d; }
 header.top.ball-err .brand svg .ball-bottom { fill: #fff; }
