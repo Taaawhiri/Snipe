@@ -365,8 +365,11 @@
     $('collFilterCount').hidden = !activeF.length;
     $('collFilterCount').textContent = String(activeF.length);
     $('collActive').hidden = !activeF.length || !$('collFilters').hidden;
-    $('collActive').replaceChildren(...activeF.map(([label, clear]) => el('button', { class: 'af-chip', type: 'button', 'aria-label': `Togli il filtro ${label}`, onclick: () => { clear(); renderCollection(); } }, el('span', { text: label }), el('b', { text: '×', 'aria-hidden': 'true' }))));
+    $('collActive').replaceChildren(
+      ...activeF.map(([label, clear]) => el('button', { class: 'af-chip', type: 'button', 'aria-label': `Togli il filtro ${label}`, onclick: () => { clear(); renderCollection(); } }, el('span', { text: label }), el('b', { text: '×', 'aria-hidden': 'true' }))),
+      activeF.length > 1 ? el('button', { class: 'af-clear', type: 'button', text: 'Azzera tutti', onclick: resetCollFilters }) : null);
     const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && paidOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
+    $('collFilterClose').textContent = `Mostra ${shownItems.length} ${shownItems.length === 1 ? 'carta' : 'carte'}`;
     $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && collPaid === 'all' && !rar;
     $('collCount').textContent = shownItems.length ? `${shownItems.length} ${shownItems.length === 1 ? "carta" : "carte"} su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
@@ -453,14 +456,25 @@
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
   $('collSearch').addEventListener('input', renderCollection);
   $('collRarity').addEventListener('change', renderCollection);
-  const toggleCollFilters = (open) => { $('collFilters').hidden = !open; $('collFilterBtn').setAttribute('aria-expanded', String(open)); renderCollection(); };
-  $('collFilterBtn').addEventListener('click', () => toggleCollFilters($('collFilters').hidden));
-  $('collFilterClose').addEventListener('click', () => toggleCollFilters(false));
-  $('collFilterReset').addEventListener('click', () => {
+  // Pannello filtri a scomparsa dal basso (come i selettori): si chiude con Mostra, toccando fuori o con Esc.
+  const toggleCollFilters = (open) => {
+    $('collFilters').hidden = !open;
+    $('collFilterBtn').setAttribute('aria-expanded', String(open));
+    $('collFiltersBg').hidden = !open;
+    document.documentElement.classList.toggle('noscroll', open);
+    renderCollection();
+  };
+  function resetCollFilters() {
     collType = 'all'; collEra = 'all'; collPaid = 'all'; collKind = 'all';
     $('collRarity').value = ''; cselSync($('collRarity'));
     renderCollection();
-  });
+  }
+  $('collFilterBtn').addEventListener('click', () => toggleCollFilters($('collFilters').hidden));
+  $('collFilterClose').addEventListener('click', () => toggleCollFilters(false));
+  $('collFiltersBg').addEventListener('click', () => toggleCollFilters(false));
+  $('collFiltersX').addEventListener('click', () => toggleCollFilters(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('collFilters').hidden) toggleCollFilters(false); });
+  $('collFilterReset').addEventListener('click', resetCollFilters);
   $('collTypical').addEventListener('change', async () => {
     $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });

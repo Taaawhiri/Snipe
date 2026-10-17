@@ -100,7 +100,10 @@
           <button id="collFilterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="collFilters"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Filtri</span><b id="collFilterCount" hidden></b></button>
         </div>
         <div id="collActive" class="active-filters" hidden></div>
-        <div id="collFilters" class="filter-panel" hidden>
+        <div id="collFiltersBg" class="fs-bg" hidden></div>
+        <div id="collFilters" class="filter-panel filter-sheet" role="dialog" aria-label="Filtri della collezione" hidden>
+          <div class="fs-head"><span class="fs-grab" aria-hidden="true"></span><b>Filtri</b><button id="collFiltersX" class="fs-x" type="button" aria-label="Chiudi">✕</button></div>
+          <div class="fs-body">
           <div class="fg" id="collTypeG"><span class="fg-k">Tipo</span><div id="collType" class="fg-chips"></div></div>
           <div class="fg" id="collRarityG"><span class="fg-k">Rarità</span><div id="collRarityBox" class="coll-rarity"><select id="collRarity" aria-label="Rarità"><option value="">Tutte le rarità</option></select></div></div>
           <div class="fg" id="collEraG"><span class="fg-k">Epoca</span><div id="collEra" class="fg-chips"></div></div>
@@ -113,7 +116,8 @@
             </div>
             <p class="muted small">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori che hai escluso con ⛔ non contano mai.</p>
           </div>
-          <div class="fg-foot"><button id="collFilterReset" class="btn mini" type="button">Azzera filtri</button><button id="collFilterClose" class="btn mini primary" type="button">Mostra</button></div>
+          </div>
+          <div class="fg-foot fs-foot"><button id="collFilterReset" class="btn" type="button">Azzera</button><button id="collFilterClose" class="btn primary" type="button">Mostra</button></div>
         </div>
         <p id="collCount" class="count" hidden></p>
         <div id="collList" class="list"></div>
