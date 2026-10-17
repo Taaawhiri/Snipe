@@ -388,6 +388,15 @@
 
   // ---------- collezione ----------
   let coll = null;
+  /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
+  function ownedQty(bp) {
+    if (!coll || !coll.items) return 0;
+    return coll.items.filter((it) => String(it.bp) === String(bp)).reduce((t, it) => t + it.qty, 0);
+  }
+  function ownedBadge(bp, cls = 'own-badge') {
+    const n = ownedQty(bp);
+    return n ? el('span', { class: cls, title: `Ce l'hai: ${n} ${n === 1 ? 'copia' : 'copie'}`, text: n > 1 ? `✓ ×${n}` : '✓ Ce l\'ho' }) : null;
+  }
   let hviewChosen = false;
 
   let collPoll = null;
@@ -916,6 +925,7 @@
               it.image ? el('img', { src: it.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
               el('span', { class: 'pricepill', text: money(it.cents, it.currency) }),
               el('span', { class: 'zeropill deal', text: `−${Math.round(it.discount * 100)}%` }),
+              ownedBadge(it.id),
             ),
             el('div', { class: 'info' },
               el('div', { class: 'nm', text: it.name }),
@@ -1552,6 +1562,7 @@
             el('div', null,
               el('div', { class: 't', text: title }),
               r.cardName ? el('div', { class: 'e', text: r.expansionName || '' }) : null,
+              r.blueprintId ? ownedBadge(r.blueprintId, 'own-badge inline') : null,
             ),
             el('div', { class: 'chips' },
               chip(r.dropPct ? `Calo −${r.dropPct}% in 7 giorni` : r.stock ? 'Torna disponibile' : r.cmDiscount ? `Cardmarket −${r.cmDiscount}%` : r.maxPriceCents ? `Sotto ${money(r.maxPriceCents)}` : `Sconto da ${r.minDiscount}%`, 'on'),
@@ -2218,6 +2229,7 @@
             c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
             el('span', { class: 'pricepill' + (c.loading || shown == null ? ' none' : ''), text: c.loading ? '…' : priceText(c) }),
             !zeroMode && view(c).lowestZero != null ? el('span', { class: 'zeropill', text: 'Zero ' + money(view(c).lowestZero, c.currency) }) : null,
+            ownedBadge(c.id),
           ),
           el('div', { class: 'info' },
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
@@ -2721,6 +2733,8 @@
     $('login').hidden = true;
     $('app').hidden = false;
     maybeWelcome();
+    // Collezione caricata subito: serve al badge "Ce l'ho" in Cerca, Affari e Regole.
+    if (!coll) api('/api/collection').then((d) => { if (!coll) coll = d; render(); renderCards(); if (dealsData) renderDeals(dealsData); }).catch(() => null);
     api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); }).catch((e) => {
       $('cardsMsg').textContent = `Elenco espansioni non disponibile: ${e.message}`;
       $('cardsMsg').hidden = false;

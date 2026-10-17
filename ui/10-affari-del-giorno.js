@@ -48,6 +48,7 @@
               it.image ? el('img', { src: it.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
               el('span', { class: 'pricepill', text: money(it.cents, it.currency) }),
               el('span', { class: 'zeropill deal', text: `−${Math.round(it.discount * 100)}%` }),
+              ownedBadge(it.id),
             ),
             el('div', { class: 'info' },
               el('div', { class: 'nm', text: it.name }),

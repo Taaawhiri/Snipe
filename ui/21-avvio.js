@@ -9,6 +9,8 @@
     $('login').hidden = true;
     $('app').hidden = false;
     maybeWelcome();
+    // Collezione caricata subito: serve al badge "Ce l'ho" in Cerca, Affari e Regole.
+    if (!coll) api('/api/collection').then((d) => { if (!coll) coll = d; render(); renderCards(); if (dealsData) renderDeals(dealsData); }).catch(() => null);
     api('/api/expansions').then((l) => { expansions = l; fillCardExpansions(); }).catch((e) => {
       $('cardsMsg').textContent = `Elenco espansioni non disponibile: ${e.message}`;
       $('cardsMsg').hidden = false;

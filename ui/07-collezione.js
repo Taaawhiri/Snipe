@@ -1,5 +1,14 @@
   // ---------- collezione ----------
   let coll = null;
+  /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
+  function ownedQty(bp) {
+    if (!coll || !coll.items) return 0;
+    return coll.items.filter((it) => String(it.bp) === String(bp)).reduce((t, it) => t + it.qty, 0);
+  }
+  function ownedBadge(bp, cls = 'own-badge') {
+    const n = ownedQty(bp);
+    return n ? el('span', { class: cls, title: `Ce l'hai: ${n} ${n === 1 ? 'copia' : 'copie'}`, text: n > 1 ? `✓ ×${n}` : '✓ Ce l\'ho' }) : null;
+  }
   let hviewChosen = false;
 
   let collPoll = null;

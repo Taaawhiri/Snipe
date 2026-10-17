@@ -204,6 +204,7 @@
             el('div', null,
               el('div', { class: 't', text: title }),
               r.cardName ? el('div', { class: 'e', text: r.expansionName || '' }) : null,
+              r.blueprintId ? ownedBadge(r.blueprintId, 'own-badge inline') : null,
             ),
             el('div', { class: 'chips' },
               chip(r.dropPct ? `Calo −${r.dropPct}% in 7 giorni` : r.stock ? 'Torna disponibile' : r.cmDiscount ? `Cardmarket −${r.cmDiscount}%` : r.maxPriceCents ? `Sotto ${money(r.maxPriceCents)}` : `Sconto da ${r.minDiscount}%`, 'on'),

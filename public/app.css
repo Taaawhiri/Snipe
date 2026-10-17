@@ -958,3 +958,7 @@ header.top.ball-err .status.ring-status{background:#3a1420}
 header.top.ball-wait .status.ring-status{background:#2e2410}
 .chip.chip-pick{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit;font-size:inherit;font-weight:700}
 .chip.chip-pick .cp-arrow{opacity:.7;font-size:.85em}
+
+/* badge "Ce l'ho" sulle carte già in collezione */
+.own-badge{position:absolute;left:8px;top:8px;z-index:2;background:#1d3d2e;color:#7fe0a6;border:1.5px solid #3fbf75;border-radius:999px;padding:3px 8px;font:800 11px var(--sans);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.own-badge.inline{position:static;display:inline-block;margin-top:5px;box-shadow:none}

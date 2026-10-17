@@ -105,6 +105,7 @@
             c.image ? el('img', { src: c.image, alt: '', loading: 'lazy' }) : el('div', { class: 'noimg', text: 'Nessuna immagine' }),
             el('span', { class: 'pricepill' + (c.loading || shown == null ? ' none' : ''), text: c.loading ? '…' : priceText(c) }),
             !zeroMode && view(c).lowestZero != null ? el('span', { class: 'zeropill', text: 'Zero ' + money(view(c).lowestZero, c.currency) }) : null,
+            ownedBadge(c.id),
           ),
           el('div', { class: 'info' },
             el('div', { class: 'nm', text: c.name + (c.version ? ` (${c.version})` : '') }),
