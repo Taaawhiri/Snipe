@@ -228,7 +228,7 @@ export class Scanner extends DurableObject {
         const expId = parseInt(key.slice(3), 10);
         const e = byId.get(expId) || {};
         for (const r of rows) {
-          const score = scoreRow(r, scan, e.code, e.name, regionOf(e));
+          const score = scoreRow(r, scan, e.code, e.name, regionOf(e), { era: vintageEra(expId) ? 'vintage' : 'modern' });
           // Con un nome letto serve che il nome corrisponda; senza, numero e totale esatti.
           const nameOk = !scan.name || normText(r[1]).split(' ').some((w) => normText(scan.name).split(' ').includes(w));
           // Sotto 8 teniamo solo chi ha il nome giusto: serve quando il numero è letto male (es. carte cinesi).
