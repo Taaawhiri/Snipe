@@ -1999,7 +1999,10 @@ export class Scanner extends DurableObject {
   async refreshSources(rules, status) {
     await this.loadReadLog();
     this.ruleCards = new Set(rules.filter((r) => r.blueprintId).map((r) => Number(r.blueprintId)));
-    await this.warmCards([...this.ruleCards]);
+    // Dopo un riavvio si ricaricano dal disco gli annunci delle carte degli alert e della collezione:
+    // così i prezzi della collezione si ricalcolano subito, senza aspettare una nuova lettura.
+    const collBps = (await this.get('coll', [])).map((c) => Number(c.bp));
+    await this.warmCards([...new Set([...this.ruleCards, ...collBps])]);
     const sources = new Map();
     const add = (k, src) => {
       const prev = sources.get(k);
