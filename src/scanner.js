@@ -361,7 +361,9 @@ export class Scanner extends DurableObject {
     // Carta appena aggiunta senza prezzo: leggiamo subito i suoi annunci (una richiesta) invece di aspettare il giro orario.
     // Carta appena aggiunta senza prezzo: la lettura parte subito ma senza far aspettare la risposta
     // (se CardTrader chiede di rallentare potrebbe volerci qualche secondo): il prezzo arriva da solo.
-    if (qty && !(await this.get('collPrices', {}))[key]) this.productsForCard(bp, 10 * 60_000).then(() => this.collectionPrices(true)).catch(() => null);
+    // In "background": se non ci sono letture libere non insiste (niente 429 aggiungendo molte carte di fila);
+    // la carta senza prezzo viene letta dal giro appena le carte degli alert sono aggiornate.
+    if (qty && !(await this.get('collPrices', {}))[key]) this.productsForCard(bp, 10 * 60_000, true).then(() => this.collectionPrices(true)).catch(() => null);
     await this.collectionPrices(true);
     await this.ensureAlarm();
     return { ok: true };
