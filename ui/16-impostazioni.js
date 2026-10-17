@@ -24,6 +24,23 @@
     return row;
   }
 
+  /** Diagnostica gradate (solo proprietario): esempi di annunci gradati com'erano nei dati di CardTrader. */
+  async function openGradedDiag() {
+    let d;
+    try { d = await api('/api/graded-diag'); } catch (e) { await alert(e.message); return; }
+    const text = JSON.stringify(d, null, 1);
+    const pre = el('pre', { class: 'diag-pre', text: d.samples.length ? text : `Letti ${d.listings} annunci, nessun gradato ancora. Apri qualche carta famosa (es. Charizard Base Set) e riprova.` });
+    const ov = el('div', { class: 'cs-overlay', onclick: (e) => { if (e.target === ov) ov.remove(); } },
+      el('div', { class: 'cs-sheet cs-dialog', role: 'dialog', 'aria-label': 'Diagnostica gradate' },
+        el('div', { class: 'cs-grab' }), el('div', { class: 'cs-title', text: 'Diagnostica gradate' }),
+        el('p', { class: 'cs-text', text: `${d.graded} annunci gradati su ${d.listings} letti. Copia il testo e mandamelo.` }),
+        el('div', { class: 'cs-list' }, pre),
+        el('div', { class: 'cs-actions' },
+          el('button', { class: 'btn', type: 'button', text: 'Copia', onclick: async (ev) => { try { await navigator.clipboard.writeText(text); ev.target.textContent = 'Copiato ✓'; } catch { const r = document.createRange(); r.selectNodeContents(pre); getSelection().removeAllRanges(); getSelection().addRange(r); } } }),
+          el('button', { class: 'btn primary', type: 'button', text: 'Chiudi', onclick: () => ov.remove() }))));
+    document.body.append(ov);
+  }
+
   /** Espansioni senza regione: per ognuna si sceglie a mano (solo proprietario). */
   async function openRegionProblems() {
     let list;
@@ -74,6 +91,11 @@
       kvRow('Versione', sys.build || '—'),
     ];
     if (sys.indexError) rows.push(kvRow('Errore indice', sys.indexError, 'bad'));
+    if (isOwner()) {
+      const r = kvRow('Diagnostica gradate', 'esempi di annunci gradati letti da CardTrader');
+      r.append(el('button', { class: 'btn mini', type: 'button', text: 'Apri', onclick: openGradedDiag }));
+      rows.push(r);
+    }
     if (sys.market) {
       const m = sys.market;
       const secs = m.gapMs / 1000;

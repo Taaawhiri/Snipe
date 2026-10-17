@@ -315,9 +315,15 @@
     'Fatto': 'Done',
     'Aggiungo…': 'Adding…',
     'Cerca nella collezione (es. Charizard, 151)': 'Search your collection (e.g. Charizard, 151)',
+    '✓ Modifiche salvate': '✓ Changes saved',
+    'Modifica prezzo, condizione, lingua': 'Edit price, condition, language',
+    'Diagnostica gradate': 'Graded diagnostics',
+    'esempi di annunci gradati letti da CardTrader': 'samples of graded listings read from CardTrader',
+    'Copia': 'Copy',
   };
 
   const R = [
+    [/^Modifica (.+)$/, 'Edit $1'],
     [/^(\d+) carte su (\d+)$/, '$1 of $2 cards'], [/^Nessuna carta per “(.+)”$/, 'No cards for “$1”'],
     [/^✓ Aggiunta alla collezione \((\d+) copie\)$/, '✓ Added to collection ($1 copies)'],
     [/^Ce l'hai: (\d+) cop(ia|ie)$/, (m, n) => `You own ${n} ${n === '1' ? 'copy' : 'copies'}`], [/^✓ Ce l'ho$/, '✓ Owned'],

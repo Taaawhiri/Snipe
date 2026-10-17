@@ -152,6 +152,7 @@
             el('button', { class: 't linklike', type: 'button', text: it.name, onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }),
             el('div', { class: 's', text: [it.expName, it.cond && condShort(it.cond), it.lang && it.lang.toUpperCase()].filter(Boolean).join(' · ') }),
             el('div', { class: 'qty' }, step(-1), el('b', { text: String(it.qty) }), step(1),
+              el('button', { class: 'ci-edit', type: 'button', 'aria-label': `Modifica ${it.name}`, title: 'Modifica prezzo, condizione, lingua', text: '✎', onclick: () => openOwnEdit(it) }),
               it.paidCents != null ? el('span', { class: 's', text: it.paidCents === 0 ? (it.qty > 1 ? 'trovate (0 €)' : 'trovata (0 €)') : it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
           ),
           el('div', { class: 'r' },
@@ -212,6 +213,27 @@
   const OWN_LANGS = [['en', 'EN'], ['jp', 'JP'], ['it', 'IT'], ['fr', 'FR'], ['de', 'DE'], ['es', 'ES'], ['pt', 'PT'], ['ko', 'KO'], ['zh', 'ZH']];
   const OWN_CONDS = [['Mint', 'M'], ['Near Mint', 'NM'], ['Slightly Played', 'SP'], ['Moderately Played', 'MP'], ['Played', 'PL'], ['Heavily Played', 'HP'], ['Poor', 'PO']];
   const own = { qty: 1, lang: 'en', cond: 'Near Mint' };
+  let ownEditing = null; // carta della collezione che si sta modificando (null = si aggiunge)
+
+  /** Modifica di una carta già in collezione: copie, lingua, condizione e prezzo pagato nello stesso pannello. */
+  function openOwnEdit(it) {
+    ownEditing = it;
+    current = { id: it.bp, name: it.name, image: it.image, expName: it.expName, expansionId: it.expansionId, cmId: it.cmId };
+    $('ownName').textContent = 'Modifica';
+    $('ownCardName').textContent = it.name;
+    $('ownCardSet').textContent = it.expName || '';
+    $('ownImg').src = it.image || '';
+    $('ownError').hidden = true;
+    own.qty = it.qty;
+    own.lang = it.lang || 'en';
+    own.cond = it.cond || 'Near Mint';
+    $('ownPaid').value = it.paidCents != null ? (it.paidCents / 100).toFixed(2) : '';
+    $('ownAdd').textContent = 'Salva modifiche';
+    $('ownList').replaceChildren();
+    renderOwnSheet();
+    openSheet($('ownDialog'));
+  }
+  $('ownDialog').addEventListener('close', () => { ownEditing = null; $('ownAdd').textContent = 'Aggiungi alla collezione'; });
 
   function pills(box, items, value, onPick) {
     box.replaceChildren(...items.map(([v, label]) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(v === value), class: 'pill' + (v === value ? ' on' : ''), text: label, onclick: () => onPick(v) })));
@@ -239,6 +261,8 @@
   $('ownOpen').addEventListener('click', () => {
     if (!current) return;
     $('ownName').textContent = "Ce l'ho";
+    ownEditing = null;
+    $('ownAdd').textContent = 'Aggiungi alla collezione';
     $('ownCardName').textContent = current.name + (current.version ? ` (${current.version})` : '');
     $('ownCardSet').textContent = current.expName || (dlgExp && dlgExp.name) || '';
     $('ownImg').src = current.image || '';
@@ -262,6 +286,17 @@
     btn.disabled = true;
     btn.textContent = 'Aggiungo…';
     try {
+      if (ownEditing) {
+        const it = ownEditing;
+        const paidCents = $('ownPaid').value.trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null;
+        // Lingua o condizione diverse = un'altra riga della collezione: si toglie la vecchia e si scrive la nuova.
+        if (own.lang !== (it.lang || '') || own.cond !== (it.cond || '')) await saveOwn({ ...it, qty: 0 });
+        await saveOwn({ ...it, lang: own.lang, cond: own.cond, qty: own.qty, paidCents, add: false });
+        $('ownPaid').value = '';
+        $('ownDialog').close();
+        toast('✓ Modifiche salvate');
+        return;
+      }
       await saveOwn({
         bp: current.id, name: current.name + (current.version ? ` (${current.version})` : ''), image: current.image,
         expansionId: current.expansionId || (dlgExp && dlgExp.id), expName: current.expName || (dlgExp && dlgExp.name), cmId: current.cmId,
