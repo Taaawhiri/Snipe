@@ -34,14 +34,15 @@
       if (p.approx) lines.push('Stima semplice (badge grigio): i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
       if (p.edApprox) lines.push('Nessun annuncio 1ª edizione: è il prezzo delle copie normali.');
       if (p.approx && !p.edApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
-      if (!p.approx && p.skipped && p.skipped.length) lines.push(`Annuncio con la stessa combinazione della tua copia: il più basso affidabile. Ignorat${p.skipped.length > 1 ? 'i' : 'o'} ${p.skipped.map((c) => money(c)).join(' e ')}, molto sotto gli altri (circa ${money(p.skipRef)}): probabile errore, copia rovinata o svendita.`);
+      if (p.histAnomaly) lines.push(`Oggi l'annuncio più basso è ${money(p.histAnomaly.low)}, meno della metà del solito per questa copia. Si usa la mediana degli ultimi ${p.histAnomaly.days} giorni: ${money(p.histAnomaly.med)}.`);
+      else if (!p.approx && p.skipped && p.skipped.length) lines.push(`Annuncio con la stessa combinazione della tua copia: il più basso affidabile. Ignorat${p.skipped.length > 1 ? 'i' : 'o'} ${p.skipped.map((c) => money(c)).join(' e ')}, molto sotto gli altri (circa ${money(p.skipRef)}): probabile errore, copia rovinata o svendita.`);
       else if (!p.approx) lines.push('Annuncio con la stessa combinazione della tua copia: il più basso.');
     }
     if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
     if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
     dialog({ title: 'Come è calcolato', text: lines.join('\n\n') });
   }
-  const isEstimate = (p) => !!(p && (p.estimated || p.approx || (p.skipped && p.skipped.length)));
+  const isEstimate = (p) => !!(p && (p.estimated || p.approx || p.histAnomaly || (p.skipped && p.skipped.length)));
 
   /** Scritta sotto il prezzo (stima, altra edizione/lingua, non Zero): si tocca per sapere come è calcolato. */
   function collPriceNote(it) {
@@ -51,6 +52,7 @@
       : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
       : p.edApprox ? '≈ altra edizione'
       : p.approx ? `≈ altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
+      : p.histAnomaly ? '≈ prezzo insolito, uso lo storico'
       : p.skipped && p.skipped.length ? '≈ prezzo anomalo ignorato'
       : p.notZero ? '≈ non Zero' : '';
     if (!text) return null;

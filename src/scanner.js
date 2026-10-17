@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
-import { collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
+import { checkAgainstHistory, collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -393,6 +393,7 @@ export class Scanner extends DurableObject {
     // I venditori esclusi dall'utente non contano neanche per il valore della collezione.
     const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
     const ratios = await this.marketRatios().catch(() => null);
+    const histTodo = [];
     let changed = false;
     for (const c of coll) {
       const hit = this.bpCache.get(c.bp);
@@ -405,7 +406,24 @@ export class Scanner extends DurableObject {
       const era = c.expansionId && vintageEra(Number(c.expansionId)) ? 'vintage' : 'modern';
       const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, ratios, era });
       prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
+      if (pr) histTodo.push(c.key);
       changed = true;
+    }
+    // Storico del valore di ogni copia: un prezzo crollato rispetto agli ultimi 30 giorni si considera anomalo.
+    if (histTodo.length) {
+      const day = new Date().toISOString().slice(0, 10);
+      for (let i = 0; i < histTodo.length; i += 100) {
+        const keys = histTodo.slice(i, i + 100);
+        const got = await this.ctx.storage.get(keys.map((k) => `cvh:${k}`));
+        const put = {};
+        for (const k of keys) {
+          const prev = got.get(`cvh:${k}`) || [];
+          const { pr, hist } = checkAgainstHistory(prices[k], prev, day);
+          prices[k] = pr;
+          if (hist !== prev) put[`cvh:${k}`] = hist;
+        }
+        if (Object.keys(put).length) await this.ctx.storage.put(put);
+      }
     }
     // Gradate senza nessun annuncio su CardTrader: stima dalla tendenza Cardmarket della carta.
     const noPrice = coll.filter((c) => parseGradeLabel(c.cond) && !(prices[c.key] && prices[c.key].cents != null));
@@ -807,6 +825,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/_regions') return json(await this.get('expRegion', {}));
     if (path === '/api/_ratios') return json(await this.get('ratios', {}));
+    if (path === '/api/ratios' && method === 'GET') { this.ratioCache = null; return json(await this.marketRatios()); }
     // Espansioni senza regione (senza annunci o con errore): il proprietario può indicarla a mano.
     if (path === '/api/regions/problems' && method === 'GET') {
       return json(await this.openRegionProblems());

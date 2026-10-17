@@ -199,3 +199,29 @@ export function summarize(items) {
   }
   return { value, paid, qty, distinct: items.length, missing, cm, paidPriced, valueKnown, known };
 }
+
+/**
+ * Controllo con lo storico della stessa copia (lingua, condizione, edizione): se oggi il prezzo più basso
+ * crolla sotto la metà della mediana degli ultimi 30 giorni, è quasi sempre un annuncio anomalo e si usa la mediana.
+ * Serve almeno 10 giorni di storico. Restituisce il prezzo (eventualmente corretto) e lo storico aggiornato.
+ * hist: [[giorno 'YYYY-MM-DD', centesimi], ...]
+ */
+export const HIST_MIN_DAYS = 10;
+export function checkAgainstHistory(pr, hist, day) {
+  const h = Array.isArray(hist) ? hist : [];
+  if (!pr || pr.cents == null || pr.estimated || pr.approx) return { pr, hist: h };
+  const recent = h.slice(-30).map((x) => x[1]).filter((x) => x > 0).sort((a, b) => a - b);
+  const med = recent.length >= HIST_MIN_DAYS ? median(recent) : null;
+  let out = pr;
+  if (med && pr.cents < 0.5 * med) {
+    out = { ...pr, cents: med, histAnomaly: { low: pr.cents, med, days: recent.length } };
+    if (pr.zeroCents != null && pr.zeroCents < 0.5 * med) out.zeroCents = med;
+  }
+  // Nello storico entra il valore normale del giorno (non quello anomalo), uno per giorno.
+  let nh = h;
+  if (!out.histAnomaly) {
+    nh = h.length && h[h.length - 1][0] === day ? [...h.slice(0, -1), [day, pr.cents]] : [...h, [day, pr.cents]];
+    nh = nh.slice(-40);
+  }
+  return { pr: out, hist: nh };
+}

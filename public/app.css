@@ -1036,3 +1036,14 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 .fs-foot .btn{flex:1}
 .fs-foot .btn.primary{flex:2}
 .af-clear{font:inherit;font-size:12.5px;font-weight:800;color:var(--red,#ff7b8a);background:none;border:0;padding:4px 6px;cursor:pointer;text-decoration:underline}
+
+/* Rapporti di mercato (proprietario) */
+.rt-wrap{overflow-x:auto;margin-top:8px}
+.rt{width:100%;border-collapse:collapse;font-size:13px}
+.rt th,.rt td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.rt th:first-child{text-align:left;font-weight:700}
+.rt thead th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rt td small{color:var(--muted);font-size:11px}
+.rt td.rt-few{opacity:.45}
+.rt td.rt-none{color:var(--muted)}
+.rt .rt-group th{text-align:left;padding-top:14px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--yellow,#ffcb05);border-bottom:0}

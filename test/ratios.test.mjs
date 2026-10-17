@@ -67,3 +67,17 @@ test('più basso affidabile: prezzo anomalo scartato solo con abbastanza annunci
   assert.equal(priceFor([L(1000, 'en', 'Near Mint'), L(1100, 'en', 'Near Mint'), L(1200, 'en', 'Near Mint'), L(1300, 'en', 'Near Mint')], 'en', 'Near Mint').cents, 1000);
   assert.equal(priceFor([L(2025, 'jp', 'Near Mint'), L(9250, 'jp', 'Near Mint')], 'jp', 'Near Mint').cents, 2025); // pochi annunci: si tiene
 });
+
+import { checkAgainstHistory } from '../src/collection.js';
+test('storico: prezzo crollato rispetto agli ultimi 30 giorni', () => {
+  const hist = Array.from({ length: 12 }, (_, i) => [`2026-10-${String(i + 1).padStart(2, '0')}`, 1000]);
+  const r = checkAgainstHistory({ cents: 300, approx: false }, hist, '2026-10-20');
+  assert.equal(r.pr.cents, 1000);
+  assert.equal(r.pr.histAnomaly.low, 300);
+  assert.equal(r.hist, hist); // il prezzo anomalo non entra nello storico
+  const ok = checkAgainstHistory({ cents: 900, approx: false }, hist, '2026-10-20');
+  assert.equal(ok.pr.cents, 900);
+  assert.equal(ok.hist.length, 13);
+  const few = checkAgainstHistory({ cents: 100, approx: false }, hist.slice(0, 5), '2026-10-20'); // pochi giorni: niente controllo
+  assert.equal(few.pr.cents, 100);
+});

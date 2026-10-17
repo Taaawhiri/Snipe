@@ -459,14 +459,15 @@
       if (p.approx) lines.push('Stima semplice (badge grigio): i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
       if (p.edApprox) lines.push('Nessun annuncio 1ª edizione: è il prezzo delle copie normali.');
       if (p.approx && !p.edApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
-      if (!p.approx && p.skipped && p.skipped.length) lines.push(`Annuncio con la stessa combinazione della tua copia: il più basso affidabile. Ignorat${p.skipped.length > 1 ? 'i' : 'o'} ${p.skipped.map((c) => money(c)).join(' e ')}, molto sotto gli altri (circa ${money(p.skipRef)}): probabile errore, copia rovinata o svendita.`);
+      if (p.histAnomaly) lines.push(`Oggi l'annuncio più basso è ${money(p.histAnomaly.low)}, meno della metà del solito per questa copia. Si usa la mediana degli ultimi ${p.histAnomaly.days} giorni: ${money(p.histAnomaly.med)}.`);
+      else if (!p.approx && p.skipped && p.skipped.length) lines.push(`Annuncio con la stessa combinazione della tua copia: il più basso affidabile. Ignorat${p.skipped.length > 1 ? 'i' : 'o'} ${p.skipped.map((c) => money(c)).join(' e ')}, molto sotto gli altri (circa ${money(p.skipRef)}): probabile errore, copia rovinata o svendita.`);
       else if (!p.approx) lines.push('Annuncio con la stessa combinazione della tua copia: il più basso.');
     }
     if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
     if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
     dialog({ title: 'Come è calcolato', text: lines.join('\n\n') });
   }
-  const isEstimate = (p) => !!(p && (p.estimated || p.approx || (p.skipped && p.skipped.length)));
+  const isEstimate = (p) => !!(p && (p.estimated || p.approx || p.histAnomaly || (p.skipped && p.skipped.length)));
 
   /** Scritta sotto il prezzo (stima, altra edizione/lingua, non Zero): si tocca per sapere come è calcolato. */
   function collPriceNote(it) {
@@ -476,6 +477,7 @@
       : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
       : p.edApprox ? '≈ altra edizione'
       : p.approx ? `≈ altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
+      : p.histAnomaly ? '≈ prezzo insolito, uso lo storico'
       : p.skipped && p.skipped.length ? '≈ prezzo anomalo ignorato'
       : p.notZero ? '≈ non Zero' : '';
     if (!text) return null;
@@ -1668,6 +1670,38 @@
   const dateIt = (ts) => (ts ? new Date(ts).toLocaleDateString(document.documentElement.lang === 'en' ? 'en-GB' : 'it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
   $('adminReload').addEventListener('click', loadAdmin);
 
+  // ---------- rapporti di mercato (solo proprietario) ----------
+  async function loadRatios() {
+    const box = $('ratioBody');
+    box.replaceChildren(el('p', { class: 'muted small', text: 'Carico…' }));
+    let r;
+    try { r = await api('/api/ratios'); } catch (e) { box.replaceChildren(el('p', { class: 'error', text: e.message })); return; }
+    const LN = { jp: 'Giapponese', it: 'Italiano', fr: 'Francese', de: 'Tedesco', es: 'Spagnolo', pt: 'Portoghese', ko: 'Coreano', zh: 'Cinese' };
+    const CS = { 'Slightly Played': 'SP', 'Moderately Played': 'MP', Played: 'PL', 'Heavily Played': 'HP', Poor: 'PO' };
+    const keys = new Set(Object.keys(r).map((k) => k.replace(/\|(vintage|modern|all)$/, '')));
+    const cell = (k, era) => {
+      const x = r[`${k}|${era}`];
+      if (!x) return el('td', { class: 'rt-none', text: '—' });
+      return el('td', { class: x.n >= 20 ? '' : 'rt-few', title: `${x.n} carte` }, el('b', { text: `×${String(x.r).replace('.', ',')}` }), el('small', { text: ` ${x.n}` }));
+    };
+    const group = (title, list) => (list.length ? [
+      el('tr', { class: 'rt-group' }, el('th', { colspan: '4', text: title })),
+      ...list.map(([k, label]) => el('tr', null, el('th', { text: label }), cell(k, 'modern'), cell(k, 'vintage'), cell(k, 'all'))),
+    ] : []);
+    const ks = [...keys];
+    const rows = [
+      ...group('Condizione (rispetto a NM)', ks.filter((k) => k.startsWith('cond:')).sort((a, b) => Object.keys(CS).indexOf(a.slice(5)) - Object.keys(CS).indexOf(b.slice(5))).map((k) => [k, CS[k.slice(5)] || k.slice(5)])),
+      ...group('Lingua (rispetto all’inglese)', ks.filter((k) => k.startsWith('lang:')).sort().map((k) => [k, LN[k.slice(5)] || k.slice(5).toUpperCase()])),
+      ...group('Edizione', ks.filter((k) => k === 'first').map((k) => [k, '1ª edizione / normale'])),
+      ...group('Voti (rispetto alla NM sciolta)', ks.filter((k) => k.startsWith('grade:')).sort((a, b) => a.localeCompare(b, 'it', { numeric: true })).map((k) => [k, k.slice(6)])),
+    ];
+    if (!rows.length) { box.replaceChildren(el('p', { class: 'muted small', text: 'Nessun rapporto ancora: il primo calcolo arriva entro 3 ore dagli annunci letti.' })); return; }
+    box.replaceChildren(el('div', { class: 'rt-wrap' }, el('table', { class: 'rt' },
+      el('thead', null, el('tr', null, el('th', { text: '' }), el('th', { text: 'Moderne' }), el('th', { text: 'Vintage' }), el('th', { text: 'Tutte' }))),
+      el('tbody', null, ...rows))));
+  }
+  $('ratioLoad').addEventListener('click', loadRatios);
+
   /** Icone a tratto (stesso stile della barra in basso). */
   const ICONS = {
     star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
@@ -1932,6 +1966,7 @@
     renderPlan();
     renderSellers();
     $('adminPanel').hidden = !isOwner();
+    $('ratioPanel').hidden = !isOwner();
     if (isOwner() && !$('tab-settings').hidden && Date.now() - adminLoaded > 60_000) loadAdmin();
 
     // alert nuovo mentre la pagina è aperta

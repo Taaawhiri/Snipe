@@ -145,6 +145,7 @@
     renderPlan();
     renderSellers();
     $('adminPanel').hidden = !isOwner();
+    $('ratioPanel').hidden = !isOwner();
     if (isOwner() && !$('tab-settings').hidden && Date.now() - adminLoaded > 60_000) loadAdmin();
 
     // alert nuovo mentre la pagina è aperta
