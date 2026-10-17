@@ -566,8 +566,20 @@
       .filter(([v]) => v === 'all' || nT[v]).map(([v, l]) =>
         el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collType === v), text: l, onclick: () => { collType = v; renderCollection(); } })));
     const typeOk = (it) => collType === 'all' || cardType(it.name) === collType;
-    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
-    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all';
+    // Rarità: dal nome salvato "Charizard ex (Special Illustration Rare | 199/165)".
+    const rarOf = (it) => { const m = /\(([^()|]+)\|[^()]*\)\s*$/.exec(it.name || ''); return m ? m[1].trim() : ''; };
+    const rc = new Map();
+    items.forEach((it) => { const r = rarOf(it); if (r) rc.set(r, (rc.get(r) || 0) + 1); });
+    const rsel = $('collRarity');
+    const rprev = rsel.value;
+    rsel.replaceChildren(el('option', { value: '', text: 'Tutte le rarità' }), ...[...rc].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([r, n]) => el('option', { value: r, text: `${r} (${n})` })));
+    rsel.value = rc.has(rprev) ? rprev : '';
+    cselSync(rsel);
+    $('collRarityBox').hidden = rc.size < 2 && !rsel.value;
+    const rar = rsel.value;
+    const rarOk = (it) => !rar || rarOf(it) === rar;
+    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
+    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && !rar;
     $('collCount').textContent = shownItems.length ? `${shownItems.length} carte su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
@@ -637,6 +649,7 @@
   document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
   $('collSearch').addEventListener('input', renderCollection);
+  $('collRarity').addEventListener('change', renderCollection);
   $('collTypical').addEventListener('change', async () => {
     $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });

@@ -968,6 +968,7 @@ header.top.ball-wait .status.ring-status{background:#2e2410}
 .toast.err{background:#3a1420;color:#ff9aac;border-color:#e5484d}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 #collSearch{width:100%;box-sizing:border-box;margin:10px 0 6px}
+.coll-rarity{margin:0 0 8px}
 .ci-edit{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:var(--surface-2);color:var(--text);font-size:15px;cursor:pointer;margin-left:6px}
 .diag-pre{white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.4;background:var(--surface-2);border-radius:10px;padding:10px;margin:0;max-height:50vh;overflow:auto}
 .ci-edit{width:auto;height:30px;border-radius:999px;padding:0 10px;font-size:12px;font-weight:800}
