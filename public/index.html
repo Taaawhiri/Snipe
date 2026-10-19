@@ -89,6 +89,14 @@
       </div>
       <div id="collView">
         <div id="collHero" class="cv-hero"></div>
+        <details class="coll-calc">
+          <summary>⚙ Come si calcola il valore</summary>
+          <div class="coll-opts">
+            <label class="switch coll-zero"><input id="collZero" type="checkbox"><span>Solo venditori CardTrader Zero</span></label>
+            <label class="switch coll-zero"><input id="collTypical" type="checkbox"><span>Prezzo tipico invece del più basso</span></label>
+          </div>
+          <p class="muted small">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori che hai escluso con ⛔ non contano mai. La scelta resta salvata.</p>
+        </details>
         <div class="seg seg-sm" role="radiogroup" aria-label="Ordina la collezione">
           <label><input type="radio" name="csort" value="value" checked> Valore</label>
           <label><input type="radio" name="csort" value="gain"> Guadagno</label>
@@ -109,13 +117,6 @@
           <div class="fg" id="collEraG"><span class="fg-k">Epoca</span><div id="collEra" class="fg-chips"></div></div>
           <div class="fg" id="collPaidG"><span class="fg-k">Provenienza</span><div id="collPaid" class="fg-chips"></div></div>
           <div class="fg" id="collKindG"><span class="fg-k">Gradazione</span><div id="collKind" class="fg-chips"></div></div>
-          <div class="fg"><span class="fg-k">Come si calcola il valore</span>
-            <div class="coll-opts">
-              <label class="switch coll-zero"><input id="collZero" type="checkbox"><span>Solo venditori CardTrader Zero</span></label>
-              <label class="switch coll-zero"><input id="collTypical" type="checkbox"><span>Prezzo tipico invece del più basso</span></label>
-            </div>
-            <p class="muted small">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori che hai escluso con ⛔ non contano mai.</p>
-          </div>
           </div>
           <div class="fg-foot fs-foot"><button id="collFilterReset" class="btn" type="button">Azzera</button><button id="collFilterClose" class="btn primary" type="button">Mostra</button></div>
         </div>

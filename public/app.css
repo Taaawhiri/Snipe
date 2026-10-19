@@ -1077,3 +1077,10 @@ header.top.ball-err .brand svg .ball-btn { fill: #fff; }
 .rc-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .recent-ch .up{color:var(--good,#7fe0a6)}.recent-ch .dn{color:#ff8a9a}
 #collList .ci.flash{outline:3px solid var(--yellow,#ffcb05);outline-offset:-3px;transition:outline-color .3s}
+
+.coll-calc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.coll-calc summary{cursor:pointer;font-weight:700;font-size:14px;list-style:none}
+.coll-calc summary::-webkit-details-marker{display:none}
+.coll-calc[open] summary{margin-bottom:8px}
+.coll-calc .coll-opts{flex-direction:column;gap:6px}
+.coll-calc p{margin:8px 0 0}

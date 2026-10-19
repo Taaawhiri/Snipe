@@ -27,7 +27,7 @@ test('collezione: valore, guadagno per carta e filtri', async () => {
   const pills = await page.$$eval('.gain-pill', (els) => els.map((e) => e.textContent));
   assert.ok(pills.some((t) => t.startsWith('+47,00')), pills.join('|'));
   assert.ok(pills.some((t) => t.startsWith('−9,00')), pills.join('|'));
-  await page.click('#collFilterBtn'); // le opzioni del valore stanno nel pannello Filtri
+  await page.click('.coll-calc summary'); // le opzioni del valore stanno in "Come si calcola il valore"
   await page.click('label:has(#collZero)');
   await page.waitForTimeout(300);
   assert.ok(calls.some((c) => c.key === 'POST /api/settings' && c.body.includes('"collZero":true')));
