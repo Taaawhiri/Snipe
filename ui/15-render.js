@@ -76,7 +76,7 @@
     updateBall(s, active);
     tickRing();
     $('statusError').hidden = !err;
-    $('statusError').textContent = err || '';
+    $('statusError').textContent = err ? friendlyError(err) : '';
 
     // elenco alert
     const list = $('alertList');

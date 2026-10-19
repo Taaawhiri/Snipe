@@ -60,7 +60,7 @@ async function login(req, env) {
   if (token.length < 20) return json({ error: 'Incolla il token API di CardTrader.' }, 400);
   const res = await fetch(`${env.CARDTRADER_API || API}/info`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
   if (res.status === 401 || res.status === 403) return json({ error: 'CardTrader non accetta questo token: controlla di averlo copiato tutto.' }, 401);
-  if (!res.ok) return json({ error: `CardTrader non risponde (HTTP ${res.status}): riprova tra poco.` }, 502);
+  if (!res.ok) return json({ error: 'CardTrader non risponde in questo momento: riprova tra poco.' }, 502);
   const info = await res.json();
   if (!info || info.id == null) return json({ error: 'Risposta inattesa da CardTrader.' }, 502);
 
@@ -147,7 +147,7 @@ async function admin(req, env, url, me) {
     await scanner(env, u.doName).fetch('https://do.internal/api/_admin', { method: 'POST', body: JSON.stringify({ plan: u.plan, blocked: !!u.blocked }) }).catch(() => null);
     return json(u);
   }
-  return json({ error: 'not found' }, 404);
+  return json({ error: 'Pagina non trovata: ricarica l’app.' }, 404);
 }
 
 /** Inoltra al server dati; se si sta riavviando per una versione nuova, riprova una volta. */
@@ -178,7 +178,9 @@ async function scanCard(req, env, user) {
     result = await recognizeCard(env, bytes, m[1]);
   } catch (e) {
     await scanner(env, user.doName).fetch('https://do.internal/api/_scanquota', { method: 'POST', body: JSON.stringify({ refund: true }) }).catch(() => null);
-    return json({ error: `Riconoscimento non riuscito: ${String(e.message || e)}` }, 502);
+    // Gli errori del servizio di riconoscimento sono tecnici (in inglese, con codici): all'utente una frase semplice.
+    const own = /riconoscimento delle foto/i.test(String(e.message || ''));
+    return json({ error: own ? String(e.message) : 'Il riconoscimento non ha risposto: riprova tra poco, magari con più luce.' }, 502);
   }
   const scan = result.scan;
   if (!scan || (!scan.name && !scan.number)) return json({ scan, engine: result.engine, candidates: [], used: quota.used, limit: quota.limit });
@@ -235,7 +237,7 @@ async function handle(req, env) {
     if (url.pathname === '/api/billing/webhook' && req.method === 'POST') return billingWebhook(req, env);
 
     // Le rotte con "_" sono interne (tra Worker e server dati).
-    if (url.pathname.startsWith('/api/_')) return json({ error: 'not found' }, 404);
+    if (url.pathname.startsWith('/api/_')) return json({ error: 'Pagina non trovata: ricarica l’app.' }, 404);
 
     const userId = await readSession(await secret(env), getCookie(req, COOKIE));
     if (!userId) return json({ error: 'Accesso richiesto' }, 401);

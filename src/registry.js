@@ -119,7 +119,7 @@ export class Registry extends DurableObject {
       let id = url.searchParams.get('id');
       if (!users[id]) id = (await this.get('aliases', {}))[id] || id;
       const u = users[id];
-      return u ? json({ id, ...u }) : json({ error: 'not found' }, 404);
+      return u ? json({ id, ...u }) : json({ error: 'Pagina non trovata: ricarica l’app.' }, 404);
     }
 
     if (url.pathname === '/users') {
@@ -145,6 +145,6 @@ export class Registry extends DurableObject {
       return json({ id, ...users[id] });
     }
 
-    return json({ error: 'not found' }, 404);
+    return json({ error: 'Pagina non trovata: ricarica l’app.' }, 404);
   }
 }

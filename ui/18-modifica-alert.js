@@ -125,7 +125,7 @@
       if (dg) {
         const parts = [dg.scanTs ? `prezzi letti dallo scan ${ago(dg.scanTs)}` : 'lo scan non ha ancora letto i prezzi di questa carta', dg.seenCount === 1 ? '1 annuncio già segnalato' : `${dg.seenCount} annunci già segnalati`];
         if (!dg.enabled) parts.unshift('alert in pausa');
-        if (dg.lastError) parts.push(`ultimo errore: ${dg.lastError}`);
+        if (dg.lastError) parts.push(`ultimo errore: ${friendlyError(dg.lastError)}`);
         $('exInfo').append(el('span', { class: 'ex-diag', text: `Controllo in background: ${parts.join(' · ')}.` }));
         // Annunci appena comparsi: si può chiedere una lettura fresca a CardTrader.
         if (!data.fromScan) $('exInfo').append(el('span', { class: 'ex-diag', text: 'Annunci letti adesso da CardTrader.' }));

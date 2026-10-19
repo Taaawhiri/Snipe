@@ -13,7 +13,7 @@ function toBase64(bytes) {
 }
 
 async function withWorkersAI(env, bytes, mime) {
-  if (!env.AI) throw new Error('Workers AI non collegato al Worker');
+  if (!env.AI) throw new Error('Il riconoscimento delle foto non è disponibile al momento: riprova più tardi.');
   const dataUrl = `data:${mime};base64,${toBase64(bytes)}`;
   // Formato attuale: immagine dentro il messaggio, come parte del contenuto.
   const inMessage = () => env.AI.run(CF_MODEL, {
@@ -72,7 +72,7 @@ async function askClaude(client, model, b64, mime, opus) {
 }
 
 async function withClaude(env, bytes, mime) {
-  if (!env.ANTHROPIC_API_KEY) throw new Error('Manca ANTHROPIC_API_KEY per usare Claude');
+  if (!env.ANTHROPIC_API_KEY) throw new Error('Il riconoscimento delle foto non è disponibile al momento: riprova più tardi.');
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   const b64 = toBase64(bytes);
   let scan = await askClaude(client, env.SCAN_CLAUDE_MODEL || 'claude-haiku-5-5', b64, mime, false);

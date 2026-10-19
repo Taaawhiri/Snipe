@@ -10,18 +10,37 @@
   let timer = null;
 
   // ---------- rete ----------
+  /**
+   * Messaggio d'errore comprensibile: niente codici, nomi tecnici o testo in inglese dei servizi.
+   * I messaggi già scritti per l'utente (frasi italiane dell'app) passano così come sono.
+   */
+  function friendlyError(msg) {
+    const m = String(msg || '');
+    if (/failed to fetch|networkerror|load failed|network request failed|internet/i.test(m)) return 'Connessione assente o instabile: controlla internet e riprova.';
+    if (/timeout|timed out|aborterror|aborted/i.test(m)) return 'La risposta sta tardando troppo: riprova tra poco.';
+    if (/unexpected token|json|syntaxerror|is not valid/i.test(m)) return 'Risposta non valida dal server: riprova tra poco.';
+    if (/^Errore 5\d\d$|HTTP 5\d\d|internal server error|bad gateway|service unavailable/i.test(m)) return 'Il servizio non risponde in questo momento: riprova tra poco.';
+    if (/^Errore 4\d\d$|HTTP 4\d\d/i.test(m)) return 'Richiesta non riuscita: ricarica l’app e riprova.';
+    if (/\{.*\}|anthropic|api[_ ]?key|workers ai|undefined|null|TypeError|ReferenceError|Cannot read/i.test(m)) return 'Qualcosa non è andato come previsto: riprova tra poco.';
+    return m;
+  }
   async function api(path, opts = {}) {
-    const res = await fetch(path, {
-      ...opts,
-      credentials: 'same-origin',
-      headers: opts.body ? { 'content-type': 'application/json' } : {},
-    });
+    let res;
+    try {
+      res = await fetch(path, {
+        ...opts,
+        credentials: 'same-origin',
+        headers: opts.body ? { 'content-type': 'application/json' } : {},
+      });
+    } catch (e) {
+      throw new Error(friendlyError(e && e.message ? e.message : 'network'));
+    }
     if (res.status === 401) {
       showLogin('');
       throw new Error('401');
     }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `Errore ${res.status}`);
+    if (!res.ok) throw new Error(friendlyError(data.error || `Errore ${res.status}`));
     return data;
   }
 
@@ -1948,7 +1967,7 @@
     updateBall(s, active);
     tickRing();
     $('statusError').hidden = !err;
-    $('statusError').textContent = err || '';
+    $('statusError').textContent = err ? friendlyError(err) : '';
 
     // elenco alert
     const list = $('alertList');
@@ -2191,7 +2210,7 @@
       kvRow('Scansione', s.paused ? 'In pausa' : active ? (st.lastScan ? `ultimo controllo ${ago(st.lastScan)}` : 'in avvio…') : 'nessun alert attivo'),
       kvRow('Alert attivi', `${active} su ${state.rules.length}`),
       ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'bad' : '')] : []),
-      kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? st.lastError : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
+      kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? friendlyError(st.lastError) : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
       kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
       kvRow('Prezzi Cardmarket', sys.cm ? `aggiornati ${ago(sys.cm.ts)}` : sys.cmError ? `non disponibili: ${sys.cmError}` : 'in scaricamento…', !sys.cm && sys.cmError ? 'bad' : ''),
@@ -2623,7 +2642,7 @@
       if (dg) {
         const parts = [dg.scanTs ? `prezzi letti dallo scan ${ago(dg.scanTs)}` : 'lo scan non ha ancora letto i prezzi di questa carta', dg.seenCount === 1 ? '1 annuncio già segnalato' : `${dg.seenCount} annunci già segnalati`];
         if (!dg.enabled) parts.unshift('alert in pausa');
-        if (dg.lastError) parts.push(`ultimo errore: ${dg.lastError}`);
+        if (dg.lastError) parts.push(`ultimo errore: ${friendlyError(dg.lastError)}`);
         $('exInfo').append(el('span', { class: 'ex-diag', text: `Controllo in background: ${parts.join(' · ')}.` }));
         // Annunci appena comparsi: si può chiedere una lettura fresca a CardTrader.
         if (!data.fromScan) $('exInfo').append(el('span', { class: 'ex-diag', text: 'Annunci letti adesso da CardTrader.' }));
@@ -2860,7 +2879,7 @@
     } catch (e) {
       if (run !== searchRun) return;
       $('cardGrid').replaceChildren();
-      $('cardsMsg').textContent = e.message === 'Not found'
+      $('cardsMsg').textContent = /^Pagina non trovata/.test(e.message)
         ? 'Il server dei dati si sta ancora aggiornando: riprova tra un minuto.'
         : `Ricerca non riuscita: ${e.message}`;
     }

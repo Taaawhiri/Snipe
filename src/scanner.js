@@ -164,7 +164,7 @@ export class Scanner extends DurableObject {
         return;
       }
       if (background) {
-        const err = new Error('budget di richieste esaurito per questo giro');
+        const err = new Error('Troppe richieste in poco tempo: riprovo al prossimo giro.');
         err.budget = true;
         throw err;
       }
@@ -641,7 +641,15 @@ export class Scanner extends DurableObject {
       this.okStreak = 0;
       await this.ctx.storage.put('mktGap', this.mktGap);
     }
-    if (!res.ok) throw new Error(`CardTrader ${path.split('?')[0]} → HTTP ${res.status}`);
+    if (!res.ok) {
+      // Messaggi per l'utente, senza codici tecnici (il codice resta in err.status per il registro).
+      const err = new Error(res.status === 401 || res.status === 403 ? 'CardTrader non accetta più il tuo token: esci e rientra con un token nuovo.'
+        : res.status === 404 ? 'CardTrader non trova questa carta o espansione: potrebbe essere stata rimossa.'
+        : res.status >= 500 ? 'CardTrader non risponde in questo momento: riprovo da solo tra poco.'
+        : 'CardTrader ha rifiutato la richiesta: riprova tra poco.');
+      err.status = res.status;
+      throw err;
+    }
     return res.json();
   }
 
@@ -674,7 +682,7 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/deals' && method === 'GET') {
-      if (!(await this.isCatalog())) return json({ error: 'not found' }, 404);
+      if (!(await this.isCatalog())) return json({ error: 'Pagina non trovata: ricarica l’app.' }, 404);
       await this.ensureAlarm();
       try {
         return json(await this.dealsList());
@@ -880,7 +888,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/cards' && method === 'GET') {
       const id = parseInt(url.searchParams.get('expansion_id'), 10);
-      if (!Number.isInteger(id) || id <= 0) return json({ error: 'expansion_id mancante' }, 400);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'Espansione non indicata: ricarica l’app e riprova.' }, 400);
       try {
         this.bumpExpansion(id, 1);
         return json(await this.cardsFor(id));
@@ -970,7 +978,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/explain' && method === 'GET') {
       let rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));
-      if (!rule) return json({ error: 'Regola non trovata' }, 404);
+      if (!rule) return json({ error: 'Questo alert non esiste più: ricarica l’app.' }, 404);
       try {
         let cmTrend = null;
         if (rule.cmDiscount && rule.cmId) {
@@ -1083,7 +1091,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/history' && method === 'GET') {
       const id = parseInt(url.searchParams.get('blueprint_id'), 10);
-      if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'Carta non indicata: ricarica l’app e riprova.' }, 400);
       const days = (await this.plan()).historyDays;
       return json((await this.get(`h:${id}`, [])).slice(-days));
     }
@@ -1189,7 +1197,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/wish' && method === 'POST') {
       const b = await req.json();
       const id = parseInt(b && b.id, 10);
-      if (!Number.isInteger(id) || id <= 0) return json({ error: 'id mancante' }, 400);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'Carta non indicata: ricarica l’app e riprova.' }, 400);
       let wish = (await this.get('wish', [])).filter((w) => w.id !== id);
       if (b.remove !== true) {
         this.bumpExpansion(b.expansionId, 2);
@@ -1212,7 +1220,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/listings' && method === 'GET') {
       const id = parseInt(url.searchParams.get('blueprint_id'), 10);
       const expId = parseInt(url.searchParams.get('expansion_id'), 10);
-      if (!Number.isInteger(id) || id <= 0) return json({ error: 'blueprint_id mancante' }, 400);
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'Carta non indicata: ricarica l’app e riprova.' }, 400);
       try {
         // Aprire una carta legge tutti i suoi annunci (una richiesta), se non sono già freschi.
         let data;
@@ -1259,7 +1267,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/rules' && method === 'POST') {
       const rules = await this.get('rules', []);
       const rule = this.cleanRule(await req.json());
-      if (!rule) return json({ error: 'Regola non valida' }, 400);
+      if (!rule) return json({ error: 'Alert non valido: controlla i campi e riprova.' }, 400);
       const plan = await this.plan();
       if (!plan.priority) rule.priority = false;
       const i = rules.findIndex((r) => r.id === rule.id);
@@ -1297,7 +1305,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/subscribe' && method === 'POST') {
       const { endpoint, replaces, only } = await req.json();
-      if (typeof endpoint !== 'string' || !/^https:\/\//.test(endpoint)) return json({ error: 'Endpoint non valido' }, 400);
+      if (typeof endpoint !== 'string' || !/^https:\/\//.test(endpoint)) return json({ error: 'Notifiche non attivabili su questo dispositivo: riprova dalle Opzioni.' }, 400);
       await this.ctx.storage.put('origin', url.origin); // serve come "subject" nelle notifiche push
       // "replaces": l'iscrizione precedente dello stesso dispositivo; "only": tieni solo questo dispositivo.
       let subs = only ? [] : (await this.get('subs', [])).filter((e) => e !== replaces);
@@ -1374,7 +1382,7 @@ export class Scanner extends DurableObject {
       return json({ ok: true, removed: alerts.length - keep.length });
     }
 
-    return json({ error: 'Not found' }, 404);
+    return json({ error: 'Pagina non trovata: ricarica l’app.' }, 404);
   }
 
   async resetRuleMemory(ruleId) {
@@ -1501,7 +1509,7 @@ export class Scanner extends DurableObject {
     const games = await this.ct('/games');
     const list = Array.isArray(games) ? games : games.array || [];
     const game = list.find((g) => /pok[eé]mon/i.test(`${g.name} ${g.display_name}`));
-    if (!game) throw new Error('Gioco Pokémon non trovato su CardTrader');
+    if (!game) throw new Error('CardTrader non risponde come previsto: riprovo tra poco.');
     const exps = await this.ct('/expansions');
     const out = exps
       .filter((e) => e.game_id === game.id)
@@ -1837,9 +1845,9 @@ export class Scanner extends DurableObject {
     if (!(await this.cmDue())) return;
     try {
       const res = await fetch(this.env.CM_PRICE_URL || CM_PRICE_URL, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`Listino Cardmarket: HTTP ${res.status}`);
+      if (!res.ok) throw new Error('Il listino Cardmarket non è disponibile in questo momento.');
       const rows = parsePriceGuide(await res.text());
-      if (rows.length < 1000) throw new Error('Listino Cardmarket incompleto');
+      if (rows.length < 1000) throw new Error('Il listino Cardmarket è arrivato incompleto: riprovo più tardi.');
       const entries = {};
       toShards(rows).forEach((shard, i) => (entries[`cm:${i}`] = shard));
       await this.ctx.storage.put(entries);
@@ -2299,7 +2307,7 @@ export class Scanner extends DurableObject {
 
   async scanOnce(status) {
     if (await this.get('suspended', false)) return;
-    if (!(await this.token())) throw new Error('Token CardTrader mancante: esci e rientra');
+    if (!(await this.token())) throw new Error('Manca il collegamento a CardTrader: esci e rientra con il tuo token.');
     if ((await this.settings()).paused) return;
     const all = await this.get('rules', []);
     const plan = await this.plan();
