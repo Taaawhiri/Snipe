@@ -1011,7 +1011,7 @@ export class Scanner extends DurableObject {
           .slice(0, 15)
           .map((p) => {
             const reasons = rejectReasons(p, rule);
-            if (reliable && isRiskySeller(p)) reasons.push('venditore segnalato da CardTrader');
+            if (reliable && isRiskySeller(p)) reasons.push('venditore con troppi annullamenti o limite di vendita');
             if (!reasons.length && rule.maxPriceCents && p.price.cents > rule.maxPriceCents) reasons.push('sopra il prezzo impostato');
             return {
               cents: p.price.cents,
@@ -1257,6 +1257,7 @@ export class Scanner extends DurableObject {
               language: listingLang(p),
               zero: isZero(p),
               seller: p.user && p.user.username,
+              risky: isRiskySeller(p),
               country: p.user && p.user.country_code,
               quantity: p.quantity,
               blocked: !!(p.user && blockedSet.has(p.user.username)),

@@ -95,7 +95,11 @@
   }
   // ---------- pannelli a comparsa ----------
   const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'sellerDialog', 'ownDialog', 'scanDialog', 'batchDialog'].map((id) => $(id));
+  // Il tasto/gesto indietro del telefono chiude il pannello aperto invece di uscire dall'app.
+  let sheetEntry = false;
+  let skipPop = false;
   function openSheet(d) {
+    if (!sheetEntry) { history.pushState({ sheet: 1 }, ''); sheetEntry = true; }
     if (!d.open) d.show(); // non modale: il browser non usa il livello superiore
     // L'ultima scheda aperta va sopra le altre (es. "Ce l'ho" aperta dalla scansione).
     sheets.forEach((s) => { s.style.zIndex = ''; });
@@ -109,6 +113,7 @@
     if (sheets.some((s) => s.open)) return;
     $('sheetBackdrop').hidden = true;
     document.documentElement.classList.remove('noscroll');
+    if (sheetEntry) { sheetEntry = false; skipPop = true; history.back(); }
   }));
   $('sheetBackdrop').addEventListener('click', closeSheets);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheets(); });
@@ -254,7 +259,10 @@
   });
 
   // ---------- tab ----------
-  function goTab(name) {
+  let curTab = 'alerts';
+  function goTab(name, fromPop) {
+    if (!fromPop && name !== curTab) history.pushState({ tab: name }, '');
+    curTab = name;
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
     for (const t of ['alerts', 'cards', 'deals', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
     if (name === 'deals') loadDeals();
@@ -262,6 +270,19 @@
     if (name === 'settings' && isOwner()) loadAdmin();
     window.scrollTo({ top: 0 });
   }
+  history.replaceState({ tab: curTab }, '');
+  window.addEventListener('popstate', (e) => {
+    if (skipPop) { skipPop = false; return; }
+    if (sheetEntry) {
+      const open = sheets.filter((s) => s.open);
+      const top = open.find((s) => s.style.zIndex === '49') || open[open.length - 1];
+      if (open.length > 1) history.pushState({ sheet: 1 }, ''); else sheetEntry = false;
+      if (top) top.close();
+      return;
+    }
+    const t = e.state && e.state.tab;
+    if (t && t !== curTab) goTab(t, true);
+  });
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.tab)));
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.go)));
 
@@ -3134,6 +3155,7 @@
                   el('span', { class: 'p', text: money(r.cents, r.currency) }),
                   el('span', { class: 'd', text: [r.condition, r.language && r.language.toUpperCase(), r.seller && `${r.seller}${r.country ? ' (' + r.country + ')' : ''}`, r.quantity > 1 && `x${r.quantity}`].filter(Boolean).join(' · ') }),
                   r.zero ? el('span', { class: 'zero-tag', text: 'Zero' }) : null,
+                  r.risky ? el('span', { class: 'chip warn', title: 'CardTrader segnala troppi annullamenti oppure un limite di vendite giornaliero (di solito account nuovi). Questi annunci non contano nel valore e negli alert.', text: 'Annullamenti / limite vendite' }) : null,
                   r.blocked ? el('span', { class: 'chip warn', text: 'Escluso' }) : null,
                   el('span', { class: 'go', text: '↗' }),
                 ),

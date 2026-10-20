@@ -1,5 +1,8 @@
   // ---------- tab ----------
-  function goTab(name) {
+  let curTab = 'alerts';
+  function goTab(name, fromPop) {
+    if (!fromPop && name !== curTab) history.pushState({ tab: name }, '');
+    curTab = name;
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
     for (const t of ['alerts', 'cards', 'deals', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
     if (name === 'deals') loadDeals();
@@ -7,6 +10,19 @@
     if (name === 'settings' && isOwner()) loadAdmin();
     window.scrollTo({ top: 0 });
   }
+  history.replaceState({ tab: curTab }, '');
+  window.addEventListener('popstate', (e) => {
+    if (skipPop) { skipPop = false; return; }
+    if (sheetEntry) {
+      const open = sheets.filter((s) => s.open);
+      const top = open.find((s) => s.style.zIndex === '49') || open[open.length - 1];
+      if (open.length > 1) history.pushState({ sheet: 1 }, ''); else sheetEntry = false;
+      if (top) top.close();
+      return;
+    }
+    const t = e.state && e.state.tab;
+    if (t && t !== curTab) goTab(t, true);
+  });
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.tab)));
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => goTab(b.dataset.go)));
 
