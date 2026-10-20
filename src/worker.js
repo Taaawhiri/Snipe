@@ -278,7 +278,6 @@ async function handle(req, env) {
       if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può modificare le regioni.' }, 403);
       return forward(env, 'main', req, headers);
     }
-    if (url.pathname === '/api/sellerfields' && user.plan !== 'owner') return json({ error: 'Solo per il proprietario.' }, 403);
     if (url.pathname === '/api/ratios' && user.plan !== 'owner') return json({ error: 'Solo per il proprietario.' }, 403);
     if (url.pathname === '/api/index/refresh') {
       if (user.plan !== 'owner') return json({ error: 'Solo il proprietario può rinnovare l’indice.' }, 403);
