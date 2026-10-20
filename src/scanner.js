@@ -1020,6 +1020,7 @@ export class Scanner extends DurableObject {
               language: listingLang(p),
               zero: isZero(p),
               seller: p.user && p.user.username,
+              risky: !reliable && isRiskySeller(p), // con il filtro attivo il motivo è già tra gli scarti
               url: `https://www.cardtrader.com/cards/${p.blueprint_id}`,
               reasons,
             };

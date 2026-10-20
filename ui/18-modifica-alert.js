@@ -133,10 +133,13 @@
       }
       $('exRows').replaceChildren(
         ...data.rows.map((x) =>
-          el('a', { class: 'lrow', href: x.url, target: '_blank', rel: 'noopener', title: 'Apri su CardTrader' },
-            el('span', { class: 'p', text: money(x.cents, x.currency) }),
-            el('span', { class: 'd', text: [x.condition, x.language, x.seller].filter(Boolean).join(' · ') + (x.zero ? ' · Zero' : '') }),
-            el('span', x.reasons.length ? { class: 'why', text: x.reasons.join(', ') } : { class: 'zero-tag', text: 'Valido' }),
+          el('div', { class: 'lrow-wrap' },
+            el('a', { class: 'lrow', href: x.url, target: '_blank', rel: 'noopener', title: 'Apri su CardTrader' },
+              el('span', { class: 'p', text: money(x.cents, x.currency) }),
+              el('span', { class: 'd', text: [x.condition, x.language, x.seller].filter(Boolean).join(' · ') + (x.zero ? ' · Zero' : '') }),
+              el('span', x.reasons.length ? { class: 'why', text: x.reasons.join(', ') } : { class: 'zero-tag', text: 'Valido' }),
+            ),
+            x.risky ? el('span', { class: 'chip warn risky-tag', text: 'Annullamenti / limite vendite' }) : null,
           ),
         ),
       );
