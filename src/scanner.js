@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, condRank, findDeals, isListable, isRiskySeller, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
+import { CONDITIONS, condRank, findDeals, gradeOf, isGraded, isListable, isRiskySeller, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
@@ -1251,11 +1251,12 @@ export class Scanner extends DurableObject {
         }
         const wanted = normLang(url.searchParams.get('lang'));
         const blockedSet = new Set((await this.get('sellers', { fav: [], block: [] })).block);
+        const gradedView = !!url.searchParams.get('graded'); // solo le gradate (di norma l'elenco le esclude)
         const list = (data[id] || data[String(id)] || [])
-          .filter(isListable)
+          .filter((p) => (gradedView ? p && isGraded(p) && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 : isListable(p)))
           .filter((p) => !wanted || normLang(listingLang(p)) === wanted)
           .filter((p) => {
-            const minRank = parseInt(url.searchParams.get('minrank'), 10);
+            const minRank = gradedView ? NaN : parseInt(url.searchParams.get('minrank'), 10);
             const r = condRank(p.properties_hash && p.properties_hash.condition);
             return !Number.isInteger(minRank) || r < 0 || r >= minRank;
           })
@@ -1269,6 +1270,7 @@ export class Scanner extends DurableObject {
               cents: p.price.cents,
               currency: p.price.currency || 'EUR',
               condition: h.condition || null,
+              grade: gradedView ? (gradeOf(p) ? `${gradeOf(p).co} ${gradeOf(p).g}` : 'Gradata') : null,
               language: listingLang(p),
               zero: isZero(p),
               seller: p.user && p.user.username,
