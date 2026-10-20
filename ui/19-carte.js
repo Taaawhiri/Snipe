@@ -456,6 +456,10 @@
     try {
       const rows = await api(`/api/listings?blueprint_id=${c.id}${dlgExp ? `&expansion_id=${dlgExp.id}` : ''}${lang ? `&lang=${lang}` : ''}${minRank !== '' ? `&minrank=${minRank}` : ''}`);
       if (current !== c) return;
+      // Carta aperta fuori da una ricerca (collezione, lista desideri…): la scelta lingua offre quelle degli annunci.
+      const have = new Set([...$('cardLang').options].map((o) => o.value).filter(Boolean));
+      const found = [...new Set(rows.map((r) => r.language).filter(Boolean))].filter((x) => !have.has(x));
+      if (found.length) fillLanguages([...have, ...found]);
       $('dlgListings').replaceChildren(
         ...(rows.length
           ? rows.map((r) =>
