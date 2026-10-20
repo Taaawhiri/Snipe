@@ -122,7 +122,7 @@ export function priceFor(list, lang, cond, opts = {}) {
 
   // 2) Combinazione assente: stima dall'annuncio più vicino con i rapporti di mercato ricavati da CardTrader.
   if (opts.ratios) {
-    const est = estimateFrom(list, { lang: want || 'en', cond, grade: label, first: !!opts.first }, opts.ratios, opts.era || 'modern', blocked);
+    const est = estimateFrom(opts.reliable ? (list || []).filter((p) => !isRiskySeller(p)) : list, { lang: want || 'en', cond, grade: label, first: !!opts.first }, opts.ratios, opts.era || 'modern', blocked);
     if (est) {
       return {
         cents: est.cents, typCents: est.cents, zeroCents: est.cents, zeroTypCents: est.cents, zeroApprox: true,

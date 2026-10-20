@@ -2,7 +2,7 @@
 // Confrontando le varianti della STESSA carta in vendita (lingua, condizione, edizione, voto) si ricava
 // quanto vale tipicamente una variante rispetto a un'altra: es. "SP = 0,78 × NM", "JP = 1,2 × EN" nelle vintage.
 // Servono a stimare il valore di una copia quando su CardTrader non c'è un annuncio con la stessa combinazione.
-import { condRank, gradeOf, listingLang, normLang } from './deals.js';
+import { condRank, gradeOf, isRiskySeller, listingLang, normLang } from './deals.js';
 
 export const MIN_N = 20; // un rapporto si usa solo se si basa su almeno 20 carte diverse
 export const MAX_SAMPLES = 400; // campioni tenuti per rapporto (le carte lette più di recente)
@@ -55,7 +55,7 @@ export function lowestByVariant(list, blocked = new Set()) {
  *   grade:<CO G> gradata rispetto alla Near Mint non gradata (stessa lingua, edizione normale)
  */
 export function samplesFromCard(list) {
-  const m = lowestByVariant(list);
+  const m = lowestByVariant((list || []).filter((p) => !isRiskySeller(p))); // i rapporti non si basano sui venditori a rischio
   const get = (lang, q, first = false) => { const x = m.get(vkey(lang, q, first)); return x ? x.cents : null; };
   const out = [];
   const push = (key, a, b) => {
