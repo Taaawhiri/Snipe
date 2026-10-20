@@ -121,6 +121,7 @@ details.more[open] > summary { margin-bottom: 10px; }
 
 .banner { margin: 0; padding: 10px 14px; border-radius: 14px; font-size: 14px; font-weight: 600; background: var(--red-soft); border: 2px solid var(--red); color: var(--bad); }
 .chip { font-size: 12.5px; font-weight: 700; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); border: 2px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.risky-tag { display: block; width: fit-content; margin: 6px 4px 0; white-space: normal; line-height: 1.25; }
 .chip.cond { color: var(--green); background: var(--green-soft); border-color: transparent; }
 .chip.lang { color: var(--yellow-ink); background: var(--yellow-soft); border-color: transparent; }
 @media all { .chip.lang { color: var(--yellow); } }
