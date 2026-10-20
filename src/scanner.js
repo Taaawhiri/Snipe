@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, condRank, findDeals, isListable, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
+import { CONDITIONS, condRank, findDeals, isListable, isRiskySeller, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
@@ -38,10 +38,10 @@ const DEALS_POPULAR = 10; // più le più ricercate del momento dagli utenti di 
 
 
 
-/** Toglie gli annunci dei venditori esclusi dall'utente. */
-function withoutSellers(data, blocked) {
+/** Toglie gli annunci dei venditori esclusi dall'utente (e, se richiesto, di quelli segnalati da CardTrader). */
+function withoutSellers(data, blocked, risky = false) {
   const out = {};
-  for (const [bp, list] of Object.entries(data)) out[bp] = Array.isArray(list) ? list.filter((p) => !(p.user && blocked.has(p.user.username))) : list;
+  for (const [bp, list] of Object.entries(data)) out[bp] = Array.isArray(list) ? list.filter((p) => !(p.user && blocked.has(p.user.username)) && !(risky && isRiskySeller(p))) : list;
   return out;
 }
 const CATALOG = 'main';
@@ -997,6 +997,7 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/explain' && method === 'GET') {
       let rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));
+      const reliable = (await this.settings()).collReliable !== false;
       if (!rule) return json({ error: 'Questo alert non esiste più: ricarica l’app.' }, 404);
       try {
         let cmTrend = null;
@@ -1027,6 +1028,7 @@ export class Scanner extends DurableObject {
           .slice(0, 15)
           .map((p) => {
             const reasons = rejectReasons(p, rule);
+            if (reliable && isRiskySeller(p)) reasons.push('venditore segnalato da CardTrader');
             if (!reasons.length && rule.maxPriceCents && p.price.cents > rule.maxPriceCents) reasons.push('sopra il prezzo impostato');
             return {
               cents: p.price.cents,
@@ -2341,6 +2343,7 @@ export class Scanner extends DurableObject {
     const requests = await this.refreshSources(rules, status);
     await this.collectionPrices();
     const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
+    const risky = (await this.settings()).collReliable !== false; // venditori segnalati da CardTrader: niente alert
 
     for (const rule of rules) {
       let evalRule = rule;
@@ -2358,7 +2361,7 @@ export class Scanner extends DurableObject {
       // altrimenti un annuncio già venduto potrebbe far scattare l'alert.
       const srcHit = rule.blueprintId ? this.bpCache.get(rule.blueprintId) : this.productCache.get(rule.expansionId);
       if (srcHit && Date.now() - srcHit.ts > 15 * 60_000) continue;
-      if (blocked.size) data = withoutSellers(data, blocked);
+      if (blocked.size || risky) data = withoutSellers(data, blocked, risky);
       {
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const valid = all.filter((p) => p && p.price && !rejectReasons(p, evalRule).length);
