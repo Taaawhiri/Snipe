@@ -855,6 +855,23 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/_regions') return json(await this.get('expRegion', {}));
     if (path === '/api/_ratios') return json(await this.get('ratios', {}));
+    if (path === '/api/sellerfields' && method === 'GET') {
+      // Diagnostica (proprietario): quali dati del venditore arrivano con gli annunci di CardTrader.
+      const fields = {};
+      let sample = null;
+      for (const cache of [this.bpCache, this.productCache]) {
+        for (const hit of cache.values()) {
+          if (hit.slim) continue;
+          for (const list of Object.values(hit.data || {})) for (const p of list || []) {
+            if (!p || !p.user) continue;
+            for (const [k, v] of Object.entries(p.user)) if (!(k in fields)) fields[k] = v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v;
+            if (!sample) sample = Object.fromEntries(Object.entries(p.user).map(([k, v]) => [k, typeof v === 'string' && k !== 'username' && k !== 'country_code' ? '…' : v]));
+          }
+          if (Object.keys(fields).length > 40) break;
+        }
+      }
+      return json({ fields, sample });
+    }
     if (path === '/api/ratios' && method === 'GET') { this.ratioCache = null; return json(await this.marketRatios()); }
     // Espansioni senza regione (senza annunci o con errore): il proprietario può indicarla a mano.
     if (path === '/api/regions/problems' && method === 'GET') {

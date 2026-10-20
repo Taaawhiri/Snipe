@@ -176,6 +176,13 @@
       el('tbody', null, ...rows))));
   }
   $('ratioLoad').addEventListener('click', loadRatios);
+  // Diagnostica: quali campi del venditore arrivano da CardTrader (per filtrare i venditori con poche valutazioni).
+  $('sellerFieldsBtn').addEventListener('click', async () => {
+    const out = $('sellerFieldsOut');
+    out.hidden = false;
+    out.textContent = 'Carico…';
+    try { out.textContent = JSON.stringify(await api('/api/sellerfields'), null, 2); } catch (e) { out.textContent = e.message; }
+  });
 
   /** Icone a tratto (stesso stile della barra in basso). */
   const ICONS = {
