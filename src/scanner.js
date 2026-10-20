@@ -1234,6 +1234,21 @@ export class Scanner extends DurableObject {
           if (!(Number.isInteger(expId) && expId > 0)) throw e;
           data = await this.productsFor(expId);
         }
+        if (url.searchParams.get('summary')) {
+          // Riepilogo per carte aperte fuori da una ricerca: prezzi più bassi per lingua e condizione, lingue presenti.
+          const all = (data[id] || data[String(id)] || []).filter(isListable).sort(byPrice);
+          const langs = {};
+          const lc = {};
+          for (const p of all) {
+            const code = normLang(listingLang(p)) || 'sconosciuta';
+            const cell = (lc[`${code}|${condRank(p.properties_hash && p.properties_hash.condition)}`] ||= [null, null]);
+            if (cell[0] == null) cell[0] = p.price.cents;
+            if (cell[1] == null && isZero(p)) cell[1] = p.price.cents;
+            langs[code] = (langs[code] || 0) + 1;
+          }
+          const zero = all.find(isZero);
+          return json({ lowest: all[0] ? all[0].price.cents : null, lowestZero: zero ? zero.price.cents : null, currency: (all[0] && all[0].price.currency) || 'EUR', langs, lc });
+        }
         const wanted = normLang(url.searchParams.get('lang'));
         const blockedSet = new Set((await this.get('sellers', { fav: [], block: [] })).block);
         const list = (data[id] || data[String(id)] || [])

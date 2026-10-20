@@ -416,6 +416,16 @@
 
   async function openCard(c) {
     current = c;
+    // Aperta da collezione, desideri o scansione: mancano prezzi e lingue della ricerca, si leggono dagli annunci.
+    if (!c.lc && !c.sumDone) {
+      c.sumDone = true;
+      api(`/api/listings?summary=1&blueprint_id=${c.id}${c.expansionId ? `&expansion_id=${c.expansionId}` : ''}`).then((s) => {
+        if (current !== c) return;
+        Object.assign(c, { lowest: s.lowest, lowestZero: s.lowestZero, lc: s.lc, langs: s.langs, currency: s.currency || c.currency });
+        fillLanguages(Object.keys(s.langs).filter((x) => x !== 'sconosciuta').sort((a, b) => s.langs[b] - s.langs[a]));
+        if ($('cardDialog').open) openCard(c);
+      }).catch(() => null);
+    }
     dlgExp = c.expansionId ? { id: c.expansionId, name: c.expName } : currentExp;
     $('dlgName').textContent = c.name + (c.version ? ` (${c.version})` : '');
     $('dlgImg').src = c.image || '';
