@@ -1,5 +1,5 @@
 // Collezione: prezzo attuale di ogni carta posseduta (logica pura, testabile).
-import { condRank, gradeOf, isListable, isZero, listingLang, normLang, parseGradeLabel } from './deals.js';
+import { condRank, gradeOf, isListable, isRiskySeller, isZero, listingLang, normLang, parseGradeLabel } from './deals.js';
 import { estimateFrom, isFirstEd } from './ratios.js';
 
 export const COLL_LANGS = ['en', 'it', 'jp', 'fr', 'de', 'es', 'pt', 'ko', 'zh'];
@@ -78,7 +78,8 @@ export function priceFor(list, lang, cond, opts = {}) {
   const blocked = opts.blocked || new Set();
   // Copia gradata ("PSA 10"): si confronta solo con annunci della stessa società e dello stesso voto.
   const grade = parseGradeLabel(cond);
-  const usable = (p) => p && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 && !(p.user && blocked.has(p.user.username));
+  // Venditori poco affidabili (segnalati da CardTrader) esclusi dal valore, se l'opzione è attiva.
+  const usable = (p) => p && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 && !(p.user && blocked.has(p.user.username)) && !(opts.reliable && isRiskySeller(p));
   let ok = (list || []).filter((p) => {
     if (!usable(p)) return false;
     if (!grade) return isListable(p);

@@ -176,3 +176,13 @@ export function isSingleCard(bp, singleCategoryIds) {
   if (singleCategoryIds) return singleCategoryIds.includes(bp.category_id);
   return true;
 }
+
+/**
+ * Venditore poco affidabile secondo CardTrader: troppe richieste di annullamento come venditore,
+ * oppure un tetto di vendite giornaliere (lo applica ai venditori nuovi o sotto osservazione).
+ */
+export function isRiskySeller(p) {
+  const u = p && p.user;
+  if (!u) return false;
+  return u.too_many_request_for_cancel_as_seller === true || (u.max_sellable_in24h_quantity != null && u.max_sellable_in24h_quantity !== '');
+}

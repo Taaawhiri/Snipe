@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
   summary: true, // riepilogo giornaliero alle 9
   collZero: true, // valore della collezione con i soli prezzi CardTrader Zero
   collTypical: true, // valore con il prezzo tipico (mediana dei 5 più economici) invece del più basso
+  collReliable: true, // valore della collezione senza i venditori segnalati da CardTrader (annullamenti, venditori nuovi)
 };
 
 /** "07:30" -> 450 minuti dalla mezzanotte; null se non è un orario valido. */
@@ -65,5 +66,6 @@ export function cleanSettings(input, old = DEFAULT_SETTINGS) {
     summary: b.summary === undefined ? old.summary !== false : !!b.summary,
     collZero: b.collZero === undefined ? !!old.collZero : !!b.collZero,
     collTypical: b.collTypical === undefined ? !!old.collTypical : !!b.collTypical,
+    collReliable: b.collReliable === undefined ? old.collReliable !== false : !!b.collReliable,
   };
 }

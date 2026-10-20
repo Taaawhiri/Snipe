@@ -52,3 +52,10 @@ test('prezzo tipico e venditori esclusi', () => {
   const noFurbo = priceFor(list, 'en', 'Near Mint', { blocked: new Set(['furbo']) });
   assert.equal(noFurbo.cents, 1000);
 });
+
+test('venditori segnalati da CardTrader esclusi dal valore', () => {
+  const R = (c, u) => ({ ...L(c, 'en', 'Near Mint'), user: { username: 'x' + c, ...u } });
+  const list = [R(100, { max_sellable_in24h_quantity: 5 }), R(200, { too_many_request_for_cancel_as_seller: true }), R(1000, {})];
+  assert.equal(priceFor(list, 'en', 'Near Mint').cents, 100);
+  assert.equal(priceFor(list, 'en', 'Near Mint', { reliable: true }).cents, 1000);
+});

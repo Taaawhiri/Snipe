@@ -19,7 +19,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 8; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 9; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -393,6 +393,7 @@ export class Scanner extends DurableObject {
     // I venditori esclusi dall'utente non contano neanche per il valore della collezione.
     const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
     const ratios = await this.marketRatios().catch(() => null);
+    const reliable = (await this.settings()).collReliable !== false;
     const histTodo = [];
     let changed = false;
     for (const c of coll) {
@@ -404,7 +405,7 @@ export class Scanner extends DurableObject {
       const old = prices[c.key];
       if (!force && old && old.ts >= hit.ts && old.v === PRICE_V) continue;
       const era = c.expansionId && vintageEra(Number(c.expansionId)) ? 'vintage' : 'modern';
-      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, ratios, era });
+      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, ratios, era, reliable });
       prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
       // Prezzo precedente (per "cosa è cambiato"): si tiene quello di prima dell'ultimo cambio, per 24 ore.
       if (old && old.cents != null && pr) {
@@ -529,7 +530,8 @@ export class Scanner extends DurableObject {
       it.spark30 = h.slice(-30).map((x) => x.min || null);
     }
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
-    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, refreshing };
+    const reliable = (await this.settings()).collReliable !== false;
+    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, reliable, refreshing };
   }
 
   async reportError(where, err) {

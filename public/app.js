@@ -757,6 +757,7 @@
     $('collList').classList.remove('loading');
     $('collZero').checked = !!coll.zeroOnly;
     $('collTypical').checked = !!coll.typical;
+    $('collReliable').checked = coll.reliable !== false;
     const { items, summary: sm, history } = coll;
     const hist = history || [];
     const days = Math.min(collRange, hist.length - 1);
@@ -965,6 +966,11 @@
   $('collTypical').addEventListener('change', async () => {
     $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });
+    loadCollection();
+  });
+  $('collReliable').addEventListener('change', async () => {
+    $('collList').classList.add('loading');
+    await saveSettings({ collReliable: $('collReliable').checked });
     loadCollection();
   });
   $('collZero').addEventListener('change', async () => {

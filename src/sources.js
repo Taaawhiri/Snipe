@@ -36,7 +36,7 @@ export function slimProducts(list, max = 20) {
       price: { cents: p.price.cents, currency: p.price.currency },
       quantity: p.quantity,
       properties_hash: p.properties_hash,
-      user: p.user ? { username: p.user.username, country_code: p.user.country_code, can_sell_via_hub: p.user.can_sell_via_hub } : null,
+      user: p.user ? { username: p.user.username, country_code: p.user.country_code, can_sell_via_hub: p.user.can_sell_via_hub, too_many_request_for_cancel_as_seller: p.user.too_many_request_for_cancel_as_seller || undefined, max_sellable_in24h_quantity: p.user.max_sellable_in24h_quantity ?? undefined } : null,
       expansion: p.expansion ? { name_en: p.expansion.name_en } : null,
     }));
 }
