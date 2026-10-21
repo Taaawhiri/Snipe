@@ -1156,6 +1156,9 @@ export class Scanner extends DurableObject {
       if (!name) return json({ error: 'Scrivi il nome del venditore.' }, 400);
       let user = null;
       let listings = 0;
+      let informative = 0; // annunci con i campi di affidabilità (le letture salvate prima non li avevano)
+      let cancels = false;
+      let limit = null;
       for (const cache of [this.bpCache, this.productCache]) {
         for (const { data } of cache.values()) {
           for (const list of Object.values(data || {})) {
@@ -1164,17 +1167,17 @@ export class Scanner extends DurableObject {
               if (!p || !p.user || String(p.user.username || '').toLowerCase() !== name) continue;
               listings++;
               if (!user) user = p.user;
+              if (!('too_many_request_for_cancel_as_seller' in p.user) && !('max_sellable_in24h_quantity' in p.user)) continue;
+              informative++;
+              if (p.user.too_many_request_for_cancel_as_seller === true) cancels = true;
+              const l = p.user.max_sellable_in24h_quantity;
+              if (l != null && l !== '') limit = limit == null ? l : Math.min(limit, l);
             }
           }
         }
       }
       if (!user) return json({ found: false });
-      return json({
-        found: true, username: user.username, country: user.country_code || null, listings,
-        cancels: user.too_many_request_for_cancel_as_seller === true,
-        limit: user.max_sellable_in24h_quantity != null && user.max_sellable_in24h_quantity !== '' ? user.max_sellable_in24h_quantity : null,
-        risky: isRiskySeller({ user }),
-      });
+      return json({ found: true, username: user.username, country: user.country_code || null, listings, stale: informative === 0, cancels, limit, risky: cancels || limit != null });
     }
 
     if (path === '/api/collection' && method === 'GET') {

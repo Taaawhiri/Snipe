@@ -1551,6 +1551,7 @@
     try {
       const r = await api(`/api/sellercheck?username=${encodeURIComponent(name)}`);
       if (!r.found) { out.replaceChildren(el('p', { class: 'muted', text: 'Non ho annunci recenti di questo venditore, quindi non so dirti nulla. Apri qualche carta o espansione e riprova, oppure controlla di aver scritto bene il nome.' })); return; }
+      if (r.stale) { out.replaceChildren(el('p', { class: 'muted', text: 'Gli annunci di questo venditore sono stati letti prima di questo controllo: apri una sua carta o riprova tra qualche minuto, così i dati si aggiornano.' })); return; }
       const lines = [
         r.cancels ? 'Troppi annullamenti: CardTrader lo segnala per ordini annullati.' : 'Nessun problema di annullamenti segnalato.',
         r.limit != null ? `Limite di vendite: al massimo ${r.limit} carte ogni 24 ore (di solito account nuovi o sotto osservazione).` : 'Nessun limite di vendite.',

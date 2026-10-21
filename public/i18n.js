@@ -329,6 +329,7 @@
     "Ignora i venditori con annullamenti o limite di vendite": "Ignore sellers with cancellations or a sales limit",
     "Controlla un venditore": "Check a seller",
     "Scrivi il nome di un venditore CardTrader: ti dico se ha troppi annullamenti o un limite di vendite. Funziona per i venditori trovati negli annunci letti di recente.": "Type a CardTrader seller's name: I'll tell you if they have too many cancellations or a sales limit. Works for sellers found in recently read listings.",
+    "Gli annunci di questo venditore sono stati letti prima di questo controllo: apri una sua carta o riprova tra qualche minuto, così i dati si aggiornano.": "This seller's listings were read before this check existed: open one of their cards or try again in a few minutes so the data refreshes.",
     "Nome venditore": "Seller name",
     "Controlla": "Check",
     "Controllo…": "Checking…",
