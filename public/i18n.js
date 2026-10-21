@@ -341,7 +341,8 @@
     "Ha problemi": "Has problems",
     "Nessun problema segnalato": "No problems flagged",
     "CardTrader non dà valutazioni né anzianità: nessun segnale non vuol dire per forza venditore esperto.": "CardTrader gives no ratings or account age: no flag doesn't necessarily mean an experienced seller.",
-    "Alert prioritari (con la stella)": "Priority alerts (starred)",
+    "Alert con la stella": "Starred alerts",
+    "Stella priorità": "Priority star",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",
@@ -425,6 +426,8 @@
     // Regole specifiche prima di quelle generiche (es. "… Cardmarket", "… carta").
     [/^(\d+) annunci in vendita, i (\d+) più economici qui sotto\.(.*)$/, (m, a, b, r) => `${a} listings on sale, the ${b} cheapest below.${r.replace(' I prezzi arrivano nei prossimi minuti.', ' Prices arrive in the next few minutes.').replace(' Nessuno rispetta i filtri.', ' None matches the filters.').replace(' 1 rispetta i filtri e fa scattare l’alert.', ' 1 matches the filters and triggers the alert.').replace(/ (\d+) rispettano i filtri e fanno scattare l’alert\./, ' $1 match the filters and trigger the alert.')}`],
     [/^Nessuna copia NM in (.+) ora$/, 'No NM copy in $1 now'],
+    [/^fino a (\d+)$/, 'up to $1'],
+    [/^Il piano (.+) permette (\d+) alert con la stella: toglila a un altro alert per darla a questo\.$/, 'The $1 plan allows $2 starred alerts: remove the star from another alert to give it to this one.'],
     [/^(.*)letta in media ogni (\d+) (s|min)(.*)$/, (m, a, n, u, r) => `${a}read every ${n} ${u} on average${r}`],
     [/^(.+?)( \([A-Z]{2}\))? · (\d+) annunci? letti?$/, (m, u, c, n) => `${u}${c || ''} · ${n} ${n === '1' ? 'listing' : 'listings'} read`],
     [/^Limite di vendite: al massimo (\d+) carte ogni 24 ore \(di solito account nuovi o sotto osservazione\)\.$/, 'Sales limit: at most $1 cards every 24 hours (usually new accounts or under review).'],

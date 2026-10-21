@@ -1574,12 +1574,12 @@
     ['Velocità degli alert', (p) => (p.scanSec >= 60 ? `ogni ${p.scanSec / 60} min` : `ogni ${p.scanSec} s`)],
     ['Storico prezzi', (p) => `${p.historyDays} giorni`],
     ['Spedizione nell’avviso', (p) => (p.shipping ? '✓' : '—')],
-    ['Stella priorità', (p) => (p.priority ? '✓' : '—')],
+    ['Alert con la stella', (p) => (p.priority ? `fino a ${p.maxPriority}` : '—')],
   ];
   const PLAN_INFO = {
-    free: { label: 'Gratuito', price: '0 €', maxScans: 5, maxColl: 20, maxRules: 3, maxSetRules: 0, maxWish: 10, scanSec: 300, historyDays: 7, shipping: false, priority: false },
-    pro: { label: 'Pro', price: '4,99 €/mese', maxScans: 200, maxColl: 500, maxRules: 30, maxSetRules: 1, maxWish: 200, scanSec: 30, historyDays: 120, shipping: true, priority: true },
-    sniper: { label: 'Sniper', price: '9,99 €/mese', maxScans: 1000, maxColl: 100000, maxRules: 100, maxSetRules: 10, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true },
+    free: { label: 'Gratuito', price: '0 €', maxScans: 5, maxColl: 20, maxRules: 3, maxSetRules: 0, maxWish: 10, scanSec: 300, historyDays: 7, shipping: false, priority: false, maxPriority: 0 },
+    pro: { label: 'Pro', price: '4,99 €/mese', maxScans: 200, maxColl: 500, maxRules: 30, maxSetRules: 1, maxWish: 200, scanSec: 30, historyDays: 120, shipping: true, priority: true, maxPriority: 5 },
+    sniper: { label: 'Sniper', price: '9,99 €/mese', maxScans: 1000, maxColl: 100000, maxRules: 100, maxSetRules: 10, maxWish: 100000, scanSec: 10, historyDays: 120, shipping: true, priority: true, maxPriority: 12 },
   };
 
   /** Righe della tabella di confronto dei piani (usata in Impostazioni e nella pagina di accesso). */
@@ -1606,7 +1606,7 @@
     const out = (state.outOfPlan || []).length;
     $('planUsage').replaceChildren(
       kvRow('Alert su una carta', lim(cards, p.maxRules), cards > p.maxRules ? 'bad' : '', ratio(cards, p.maxRules)),
-      ...(p.priority ? [kvRow('Alert prioritari (con la stella)', `${state.rules.filter((r) => r.priority).length} su ${state.rules.length}`)] : []),
+      ...(p.priority ? [kvRow('Alert con la stella', lim(state.rules.filter((r) => r.priority).length, p.maxPriority))] : []),
       kvRow('Alert su un set', p.maxSetRules ? lim(sets, p.maxSetRules) : sets ? `${sets} (non inclusi)` : 'non inclusi', sets > p.maxSetRules ? 'bad' : '', p.maxSetRules ? ratio(sets, p.maxSetRules) : null),
       kvRow('Lista dei desideri', lim((state.wish || []).length, p.maxWish), '', ratio((state.wish || []).length, p.maxWish)),
       kvRow('Collezione', coll ? `${lim(coll.items.length, p.maxColl)} carte diverse` : lim('—', p.maxColl), '', coll ? ratio(coll.items.length, p.maxColl) : null),

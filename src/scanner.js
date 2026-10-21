@@ -1326,6 +1326,10 @@ export class Scanner extends DurableObject {
       const plan = await this.plan();
       if (!plan.priority) rule.priority = false;
       const i = rules.findIndex((r) => r.id === rule.id);
+      // Stelle: ogni carta con la stella si rilegge spesso e usa una parte delle richieste a CardTrader, quindi il numero ha un tetto.
+      if (rule.priority && !(i >= 0 && rules[i].priority) && rules.filter((r) => r.priority).length >= plan.maxPriority) {
+        return json({ error: `Il piano ${plan.label} permette ${plan.maxPriority} alert con la stella: toglila a un altro alert per darla a questo.`, upgrade: plan.id === 'pro' }, 403);
+      }
       if (i < 0) {
         const cards = rules.filter((r) => r.blueprintId).length;
         const sets = rules.length - cards;
