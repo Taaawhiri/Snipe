@@ -341,6 +341,7 @@
     "Ha problemi": "Has problems",
     "Nessun problema segnalato": "No problems flagged",
     "CardTrader non dà valutazioni né anzianità: nessun segnale non vuol dire per forza venditore esperto.": "CardTrader gives no ratings or account age: no flag doesn't necessarily mean an experienced seller.",
+    "Alert prioritari (con la stella)": "Priority alerts (starred)",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",

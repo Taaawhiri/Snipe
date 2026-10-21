@@ -1606,6 +1606,7 @@
     const out = (state.outOfPlan || []).length;
     $('planUsage').replaceChildren(
       kvRow('Alert su una carta', lim(cards, p.maxRules), cards > p.maxRules ? 'bad' : '', ratio(cards, p.maxRules)),
+      ...(p.priority ? [kvRow('Alert prioritari (con la stella)', `${state.rules.filter((r) => r.priority).length} su ${state.rules.length}`)] : []),
       kvRow('Alert su un set', p.maxSetRules ? lim(sets, p.maxSetRules) : sets ? `${sets} (non inclusi)` : 'non inclusi', sets > p.maxSetRules ? 'bad' : '', p.maxSetRules ? ratio(sets, p.maxSetRules) : null),
       kvRow('Lista dei desideri', lim((state.wish || []).length, p.maxWish), '', ratio((state.wish || []).length, p.maxWish)),
       kvRow('Collezione', coll ? `${lim(coll.items.length, p.maxColl)} carte diverse` : lim('—', p.maxColl), '', coll ? ratio(coll.items.length, p.maxColl) : null),
