@@ -1150,6 +1150,33 @@ export class Scanner extends DurableObject {
       return json({ rows, sources: this.bpCache.size + this.productCache.size });
     }
 
+    if (path === '/api/sellercheck' && method === 'GET') {
+      // Un venditore è affidabile? Si guardano i suoi dati negli annunci letti di recente (CardTrader non permette di chiederli da soli).
+      const name = (url.searchParams.get('username') || '').trim().toLowerCase();
+      if (!name) return json({ error: 'Scrivi il nome del venditore.' }, 400);
+      let user = null;
+      let listings = 0;
+      for (const cache of [this.bpCache, this.productCache]) {
+        for (const { data } of cache.values()) {
+          for (const list of Object.values(data || {})) {
+            if (!Array.isArray(list)) continue;
+            for (const p of list) {
+              if (!p || !p.user || String(p.user.username || '').toLowerCase() !== name) continue;
+              listings++;
+              if (!user) user = p.user;
+            }
+          }
+        }
+      }
+      if (!user) return json({ found: false });
+      return json({
+        found: true, username: user.username, country: user.country_code || null, listings,
+        cancels: user.too_many_request_for_cancel_as_seller === true,
+        limit: user.max_sellable_in24h_quantity != null && user.max_sellable_in24h_quantity !== '' ? user.max_sellable_in24h_quantity : null,
+        risky: isRiskySeller({ user }),
+      });
+    }
+
     if (path === '/api/collection' && method === 'GET') {
       return json(await this.collectionView());
     }

@@ -1539,6 +1539,30 @@
     }
   }
 
+
+  // ---------- controllo di un venditore (Opzioni) ----------
+  $('sellerCheckForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const out = $('sellerCheckOut');
+    const name = $('sellerCheckName').value.trim();
+    if (!name) return;
+    out.hidden = false;
+    out.replaceChildren(el('p', { class: 'muted', text: 'Controllo…' }));
+    try {
+      const r = await api(`/api/sellercheck?username=${encodeURIComponent(name)}`);
+      if (!r.found) { out.replaceChildren(el('p', { class: 'muted', text: 'Non ho annunci recenti di questo venditore, quindi non so dirti nulla. Apri qualche carta o espansione e riprova, oppure controlla di aver scritto bene il nome.' })); return; }
+      const lines = [
+        r.cancels ? 'Troppi annullamenti: CardTrader lo segnala per ordini annullati.' : 'Nessun problema di annullamenti segnalato.',
+        r.limit != null ? `Limite di vendite: al massimo ${r.limit} carte ogni 24 ore (di solito account nuovi o sotto osservazione).` : 'Nessun limite di vendite.',
+      ];
+      out.replaceChildren(
+        el('p', { class: r.risky ? 'chip warn risky-tag' : 'zero-tag', text: r.risky ? 'Ha problemi' : 'Nessun problema segnalato' }),
+        el('p', { class: 'small', text: `${r.username}${r.country ? ` (${r.country})` : ''} · ${r.listings} ${r.listings === 1 ? 'annuncio letto' : 'annunci letti'}` }),
+        ...lines.map((t) => el('p', { class: 'muted small', text: t })),
+        el('p', { class: 'muted small', text: 'CardTrader non dà valutazioni né anzianità: nessun segnale non vuol dire per forza venditore esperto.' }),
+      );
+    } catch (err) { out.replaceChildren(el('p', { class: 'error', text: err.message })); }
+  });
   // ---------- piano ----------
   const PLAN_ROWS = [
     ['Alert su una carta', (p) => p.maxRules],

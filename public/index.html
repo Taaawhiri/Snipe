@@ -355,6 +355,17 @@
 
       <div class="panel">
         <div class="panel-head">
+          <h2>Controlla un venditore</h2>
+        </div>
+        <p class="muted small">Scrivi il nome di un venditore CardTrader: ti dico se ha troppi annullamenti o un limite di vendite. Funziona per i venditori trovati negli annunci letti di recente.</p>
+        <form id="sellerCheckForm" class="row-btn">
+          <input id="sellerCheckName" type="text" placeholder="Nome venditore" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Nome venditore">
+          <button class="btn primary" type="submit">Controlla</button>
+        </form>
+        <div id="sellerCheckOut" class="sellercheck" hidden></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
           <h2>Notifiche</h2>
           <span id="pushBadge" class="state">—</span>
         </div>
