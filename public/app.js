@@ -1968,7 +1968,11 @@
     });
     const n = (c.reads || []).length;
     const title = st === 'stop' && !c.ts ? 'Non controllato' : c.ts ? `Controllato ${ago(c.ts)} fa`.replace(' fa fa', ' fa') : 'In attesa del primo controllo';
+    // Intervallo medio tra due letture nell'ultima ora: dice quanto in fretta si vede un annuncio nuovo.
+    const rd = (c.reads || []).slice().sort((a, b) => a - b);
+    const gapS = rd.length >= 3 ? Math.round((rd[rd.length - 1] - rd[0]) / (rd.length - 1) / 1000) : null;
     const det = c.ts ? [`Ultimo controllo ${ago(c.ts)} fa`.replace(' fa fa', ' fa'),
+      gapS != null ? `letta in media ogni ${gapS >= 90 ? Math.round(gapS / 60) + ' min' : gapS + ' s'}` : null,
       c.listings != null ? `${c.listings} annunci` : null,
       c.valid ? `${c.valid} rispettano i filtri, il più economico ${money(c.bestCents, c.currency)}` : c.listings != null ? 'nessuno rispetta i filtri' : null].filter(Boolean).join(' · ') + '.' : 'La carta non è ancora stata letta: succede entro pochi minuti.';
     const box = el('div', { class: 'chk-wrap' + (openChecks.has(r.id) ? ' open' : '') });

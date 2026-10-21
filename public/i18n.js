@@ -425,6 +425,7 @@
     // Regole specifiche prima di quelle generiche (es. "… Cardmarket", "… carta").
     [/^(\d+) annunci in vendita, i (\d+) più economici qui sotto\.(.*)$/, (m, a, b, r) => `${a} listings on sale, the ${b} cheapest below.${r.replace(' I prezzi arrivano nei prossimi minuti.', ' Prices arrive in the next few minutes.').replace(' Nessuno rispetta i filtri.', ' None matches the filters.').replace(' 1 rispetta i filtri e fa scattare l’alert.', ' 1 matches the filters and triggers the alert.').replace(/ (\d+) rispettano i filtri e fanno scattare l’alert\./, ' $1 match the filters and trigger the alert.')}`],
     [/^Nessuna copia NM in (.+) ora$/, 'No NM copy in $1 now'],
+    [/^(.*)letta in media ogni (\d+) (s|min)(.*)$/, (m, a, n, u, r) => `${a}read every ${n} ${u} on average${r}`],
     [/^(.+?)( \([A-Z]{2}\))? · (\d+) annunci? letti?$/, (m, u, c, n) => `${u}${c || ''} · ${n} ${n === '1' ? 'listing' : 'listings'} read`],
     [/^Limite di vendite: al massimo (\d+) carte ogni 24 ore \(di solito account nuovi o sotto osservazione\)\.$/, 'Sales limit: at most $1 cards every 24 hours (usually new accounts or under review).'],
     [/^Alert \((\d+)\)$/, 'Alerts ($1)'], [/^Desideri \((\d+)\)$/, 'Wishlist ($1)'], [/^Venditori \((\d+)\)$/, 'Sellers ($1)'],
