@@ -33,7 +33,7 @@ function buildNumber(b) {
 }
 
 const MARKET_PER_SCAN = 2;
-const FAST_MAX = 8; // corsia veloce: alert con la stella riletti a ogni giro (al massimo tante letture extra per giro)
+const FAST_SHARE = 0.6; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
 const DEALS_POPULAR = 10; // più le più ricercate del momento dagli utenti di Snipe
@@ -2240,7 +2240,11 @@ export class Scanner extends DurableObject {
     const fresh = (src) => src && now - age(src) < 3 * 60_000;
     // Corsia veloce: gli alert con la stella si rileggono a ogni giro, prima di tutto il resto e senza il tetto
     // delle letture normali. I gettoni del marketplace restano il limite vero: se finiscono, si riprende al giro dopo.
-    const fast = all.filter((x) => x.prio >= 6 && now - age(x) > FAST_MIN_AGE_MS).sort((a, b) => age(a) - age(b)).slice(0, FAST_MAX);
+    // Gettoni disponibili in un giro = secondi del giro / pausa tra due richieste. Alla corsia veloce ne va una quota:
+    // con molti alert prioritari si leggono a rotazione (i più vecchi per primi), e gli altri alert non restano a secco.
+    const everyMs = Math.max((await this.settings()).scanEverySec, (await this.plan()).scanSec) * 1000;
+    const fastCap = Math.max(2, Math.round((everyMs / this.mktGap) * FAST_SHARE));
+    const fast = all.filter((x) => x.prio >= 6 && now - age(x) > FAST_MIN_AGE_MS).sort((a, b) => age(a) - age(b)).slice(0, fastCap);
     const isFast = new Set(fast);
     const normal = [...ruleDue.filter((x) => !fresh(x)), ...otherDue, ...ruleDue.filter(fresh)].filter((x) => !isFast.has(x)).slice(0, MARKET_PER_SCAN);
     const due = [...fast, ...normal];
