@@ -390,7 +390,7 @@
     $('collActive').hidden = !activeF.length || !$('collFilters').hidden;
     $('collActive').replaceChildren(
       ...activeF.map(([label, clear]) => el('button', { class: 'af-chip', type: 'button', 'aria-label': `Togli il filtro ${label}`, onclick: () => { clear(); renderCollection(); } }, el('span', { text: label }), el('b', { text: '×', 'aria-hidden': 'true' }))),
-      activeF.length > 1 ? el('button', { class: 'af-clear', type: 'button', text: 'Azzera tutti', onclick: resetCollFilters }) : null);
+      ...(activeF.length > 1 ? [el('button', { class: 'af-clear', type: 'button', text: 'Azzera tutti', onclick: resetCollFilters })] : []));
     const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && paidOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
     $('collFilterClose').textContent = `Mostra ${shownItems.length} ${shownItems.length === 1 ? 'carta' : 'carte'}`;
     $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && collPaid === 'all' && !rar;
