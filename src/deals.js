@@ -191,3 +191,23 @@ export function sellLimitOf(p) {
   const u = p && p.user;
   return u && u.max_sellable_in24h_quantity != null && u.max_sellable_in24h_quantity !== '' ? u.max_sellable_in24h_quantity : null;
 }
+
+/** Di ogni carta si tiene solo l'annuncio più economico tra quelli che rispettano l'alert. */
+export function cheapestPerCard(deals) {
+  const best = new Map();
+  for (const d of deals || []) {
+    const k = String(d.product.blueprint_id);
+    const cur = best.get(k);
+    if (!cur || d.cents < cur.cents) best.set(k, d);
+  }
+  return [...best.values()];
+}
+
+/**
+ * Un solo avviso per alert e carta: il nuovo prende il posto dei precedenti (più cari, o già venduti).
+ * Gli avvisi segnati come comprati restano: servono al conteggio del risparmio.
+ */
+export function replaceAlerts(old, fresh) {
+  const keys = new Set((fresh || []).map((f) => `${f.ruleId}:${f.bp}`));
+  return (old || []).filter((a) => a.mark === 'bought' || !keys.has(`${a.ruleId}:${a.bp}`));
+}

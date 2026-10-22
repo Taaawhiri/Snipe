@@ -128,3 +128,21 @@ test('lingua letta anche da campi con nome diverso', () => {
   assert.equal(listingLang(mk({}, { language: 'fr' })), 'fr');
   assert.equal(normLang('zh-CN'), 'zh');
 });
+
+import { cheapestPerCard, replaceAlerts } from '../src/deals.js';
+test('un solo annuncio per carta: il più economico', () => {
+  const D = (id, bp, cents) => ({ product: { id, blueprint_id: bp }, cents });
+  const out = cheapestPerCard([D(1, 10, 500), D(2, 10, 300), D(3, 10, 400), D(4, 20, 900)]);
+  assert.deepEqual(out.map((d) => d.product.id).sort(), [2, 4]);
+});
+
+test('il nuovo avviso sostituisce quelli precedenti della stessa carta, tranne i comprati', () => {
+  const old = [
+    { id: 'a', ruleId: 'r1', bp: 10, cents: 500 },
+    { id: 'b', ruleId: 'r1', bp: 10, cents: 450, mark: 'bought' },
+    { id: 'c', ruleId: 'r1', bp: 20, cents: 100 },
+    { id: 'd', ruleId: 'r2', bp: 10, cents: 500 },
+  ];
+  const kept = replaceAlerts(old, [{ ruleId: 'r1', bp: 10, cents: 300 }]);
+  assert.deepEqual(kept.map((a) => a.id), ['b', 'c', 'd']);
+});

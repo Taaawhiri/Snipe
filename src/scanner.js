@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, condRank, findDeals, gradeOf, isGraded, isListable, isRiskySeller, sellLimitOf, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
+import { CONDITIONS, condRank, cheapestPerCard, findDeals, gradeOf, isGraded, isListable, isRiskySeller, sellLimitOf, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons, replaceAlerts } from './deals.js';
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
@@ -2454,6 +2454,7 @@ export class Scanner extends DurableObject {
           cmRef ? { ...d, refCents: Math.round(cmRef * 100), discount: Math.max(0, 1 - d.cents / (cmRef * 100)) }
           : dropRef ? { ...d, refCents: dropRef, discount: Math.max(0, 1 - d.cents / dropRef) } : d,
         );
+        deals = cheapestPerCard(deals); // un solo annuncio per carta: il più economico
       }
       // Gli alert su una carta valutano subito anche gli annunci già in vendita. Solo le vecchie regole
       // su un'intera espansione, che potrebbero produrre decine di alert, alla prima scansione
@@ -2525,7 +2526,7 @@ export class Scanner extends DurableObject {
     if (fresh.length) {
       if ((await this.plan()).shipping) await this.addShipping(fresh);
       const alerts = await this.get('alerts', []);
-      await this.ctx.storage.put('alerts', [...fresh.sort((a, b) => b.discount - a.discount), ...alerts].slice(0, MAX_ALERTS));
+      await this.ctx.storage.put('alerts', [...fresh.sort((a, b) => b.discount - a.discount), ...replaceAlerts(alerts, fresh)].slice(0, MAX_ALERTS));
       // Più avvisi nello stesso giro: una notifica sola con l'elenco dei migliori.
       if (fresh.length > 1) {
         await this.ctx.storage.put('lastBatch', {
