@@ -536,7 +536,7 @@
     } else if (p.estimated) {
       lines.push('Stima con regole fisse (badge grigio): i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
       lines.push(p.fromCm ? 'Nessun annuncio su CardTrader: si parte dalla tendenza Cardmarket della carta.' : `Nessun annuncio ${it.cond}: si parte da ${p.how || 'copie non gradate'}.`);
-      if (p.rawCents != null) lines.push(`Valore di base: ${money(p.rawCents)} × premio fisso del voto ${it.cond}, mai meno della carta più una quota del costo di gradazione.`);
+      if (p.rawCents != null && isGradeLabel(it.cond)) lines.push(`Valore di base: ${money(p.rawCents)} × premio fisso del voto ${it.cond}, mai meno della carta più una quota del costo di gradazione.`);
     } else {
       if (p.approx) lines.push('Stima semplice (badge grigio): i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
       if (p.revApprox) lines.push(it.reverse ? 'Nessun annuncio reverse holo: è il prezzo delle copie normali.' : 'Ci sono solo annunci reverse holo: è il loro prezzo.');

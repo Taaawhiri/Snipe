@@ -437,7 +437,9 @@ export class Scanner extends DurableObject {
       }
     }
     // Gradate senza nessun annuncio su CardTrader: stima dalla tendenza Cardmarket della carta.
-    const noPrice = coll.filter((c) => parseGradeLabel(c.cond) && !(prices[c.key] && prices[c.key].cents != null));
+    // Senza annunci su CardTrader (gradate, o carte già lette e senza annunci): si parte dalla tendenza Cardmarket.
+    const noListings = (c) => prices[c.key] && prices[c.key].cents == null && prices[c.key].v === PRICE_V;
+    const noPrice = coll.filter((c) => (parseGradeLabel(c.cond) || noListings(c)) && !(prices[c.key] && prices[c.key].cents != null));
     let collChanged = false;
     for (const c of noPrice) {
       if (c.cmId || !c.expansionId) continue;
@@ -454,8 +456,9 @@ export class Scanner extends DurableObject {
         const e = cmG.get(c.cmId);
         if (!e || !e.trend) continue;
         const base = Math.round(e.trend * 100);
-        const cents = gradedFromBase(base, parseGradeLabel(c.cond));
-        prices[c.key] = { cents, typCents: cents, approx: true, estimated: true, fromCm: true, rawCents: base, listings: 0, graded: c.cond, zeroCents: null, zeroTypCents: null, zeroApprox: null, ts: Date.now() };
+        const grade = parseGradeLabel(c.cond);
+        const cents = grade ? gradedFromBase(base, grade) : base;
+        prices[c.key] = { cents, typCents: cents, approx: true, estimated: true, fromCm: true, rawCents: base, listings: 0, graded: grade ? c.cond : null, zeroCents: null, zeroTypCents: null, zeroApprox: null, ts: Date.now(), v: PRICE_V };
         changed = true;
       }
     }
@@ -490,7 +493,7 @@ export class Scanner extends DurableObject {
     {
       const old = await this.get('collPrices', {});
       // Da rileggere: prezzi senza "tipico" (con Zero/tipico attivi) e, sempre, gradate e 1ª edizione calcolate con una versione vecchia.
-      const stale = coll.filter((c) => ((zeroOnly || typical) && (!old[c.key] || !('typCents' in old[c.key])))
+      const stale = coll.filter((c) => ((zeroOnly || typical) && (!old[c.key] || (!(old[c.key].cents == null && old[c.key].v === PRICE_V) && !('typCents' in old[c.key]))))
         || ((c.first || c.reverse || parseGradeLabel(c.cond) || (old[c.key] && old[c.key].approx)) && (!old[c.key] || old[c.key].v !== PRICE_V))).slice(0, 5);
       refreshing = stale.length;
       if (stale.length && !this.collRefreshing) {
