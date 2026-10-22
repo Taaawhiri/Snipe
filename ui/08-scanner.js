@@ -89,7 +89,7 @@
         openOwnAdd({ id: c.id, name: c.name, version: c.version, image: c.image, expansionId: c.expansionId, expName: c.expName }, lang, () => {
           btn.textContent = '✓ Aggiunta';
           btn.disabled = true;
-        }, sc.slab, /1st|first/i.test(sc.variant || '')); // dalla slab: società e voto già scelti; 1ª edizione dalla foto
+        }, sc.slab, /1st|first/i.test(sc.variant || ''), /reverse/i.test(sc.variant || '')); // dalla slab: società e voto già scelti; 1ª edizione dalla foto
       } }),
     )));
   }

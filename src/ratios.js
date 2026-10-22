@@ -16,6 +16,17 @@ export function isFirstEd(p) {
   return /\b(1st|first)\s*ed(ition|\.)?\b|prima edizione|1a edizione|1ª edizione/i.test(String((p && p.description) || ''));
 }
 
+/**
+ * Reverse holo: CardTrader la segna con una proprietà dell'annuncio (l'icona che si vede sul sito); in mancanza,
+ * si cerca nel commento del venditore. Se la proprietà c'è ed è falsa, il commento non conta.
+ */
+export function isReverse(p) {
+  const h = (p && p.properties_hash) || {};
+  const k = Object.keys(h).find((x) => /reverse/i.test(x));
+  if (k) return h[k] === true || h[k] === 'true';
+  return /\breverse(\s*holo)?\b/i.test(String((p && p.description) || ''));
+}
+
 /** Variante di un annuncio: lingua, condizione (o voto se gradata) ed edizione. null se non classificabile. */
 export function variantOf(p) {
   if (!p || !p.properties_hash) return null;
@@ -55,7 +66,7 @@ export function lowestByVariant(list, blocked = new Set()) {
  *   grade:<CO G> gradata rispetto alla Near Mint non gradata (stessa lingua, edizione normale)
  */
 export function samplesFromCard(list) {
-  const m = lowestByVariant((list || []).filter((p) => !isRiskySeller(p))); // i rapporti non si basano sui venditori a rischio
+  const m = lowestByVariant((list || []).filter((p) => !isRiskySeller(p) && !isReverse(p))); // le reverse hanno un prezzo a sé // i rapporti non si basano sui venditori a rischio
   const get = (lang, q, first = false) => { const x = m.get(vkey(lang, q, first)); return x ? x.cents : null; };
   const out = [];
   const push = (key, a, b) => {

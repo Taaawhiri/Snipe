@@ -1,14 +1,14 @@
 // Collezione: prezzo attuale di ogni carta posseduta (logica pura, testabile).
 import { condRank, gradeOf, isListable, isRiskySeller, isZero, listingLang, normLang, parseGradeLabel } from './deals.js';
-import { estimateFrom, isFirstEd } from './ratios.js';
+import { estimateFrom, isFirstEd, isReverse } from './ratios.js';
 
 export const COLL_LANGS = ['en', 'it', 'jp', 'fr', 'de', 'es', 'pt', 'ko', 'zh'];
 
-export function collKey(bp, lang, cond, first = false) {
-  return `${bp}|${lang || ''}|${cond || ''}${first ? '|1st' : ''}`;
+export function collKey(bp, lang, cond, first = false, reverse = false) {
+  return `${bp}|${lang || ''}|${cond || ''}${first ? '|1st' : ''}${reverse ? '|rev' : ''}`;
 }
 
-export { isFirstEd } from './ratios.js';
+export { isFirstEd, isReverse } from './ratios.js';
 
 /** Stima di una gradata da un prezzo di base (copia non gradata o tendenza Cardmarket). */
 export function gradedFromBase(base, grade) {
@@ -80,6 +80,14 @@ export function priceFor(list, lang, cond, opts = {}) {
   const grade = parseGradeLabel(cond);
   // Venditori poco affidabili (segnalati da CardTrader) esclusi dal valore, se l'opzione è attiva.
   const usable = (p) => p && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 && !(p.user && blocked.has(p.user.username)) && !(opts.reliable && isRiskySeller(p));
+  // Reverse holo: la copia si confronta con gli annunci reverse, quella normale con i non reverse (hanno prezzi diversi).
+  // Se non ce ne sono della stessa variante si usano gli altri, segnato come approssimato.
+  let revApprox = false;
+  if (!grade && opts.reverse != null) {
+    const same = (list || []).filter((p) => isReverse(p) === !!opts.reverse);
+    if (same.some((p) => usable(p) && isListable(p))) list = same;
+    else if ((list || []).some((p) => usable(p) && isListable(p))) revApprox = true;
+  }
   let ok = (list || []).filter((p) => {
     if (!usable(p)) return false;
     if (!grade) return isListable(p);
@@ -113,10 +121,10 @@ export function priceFor(list, lang, cond, opts = {}) {
     const all = stats(exact);
     const zero = stats(exact.filter(isZero)); // nessuno Zero giusto: pickPrice usa il prezzo di tutti, segnato "non Zero"
     return {
-      cents: all.low, typCents: all.typ, approx: false, edApprox: false, lowLang: want || '', listings: exact.length, graded: label,
+      cents: all.low, typCents: all.typ, approx: revApprox, edApprox: false, revApprox, lowLang: want || '', listings: exact.length, graded: label,
       skipped: all.skipped.length ? all.skipped : undefined, skipRef: all.skipped.length ? all.ref : undefined,
       zeroSkipped: zero && zero.skipped.length ? zero.skipped : undefined, zeroSkipRef: zero && zero.skipped.length ? zero.ref : undefined,
-      zeroCents: zero ? zero.low : null, zeroTypCents: zero ? zero.typ : null, zeroApprox: zero ? false : null, zeroLowLang: zero ? want || '' : null,
+      zeroCents: zero ? zero.low : null, zeroTypCents: zero ? zero.typ : null, zeroApprox: zero ? revApprox : null, zeroLowLang: zero ? want || '' : null,
     };
   }
 
@@ -156,7 +164,8 @@ export function priceFor(list, lang, cond, opts = {}) {
   return {
     cents: all.low,
     typCents: all.typ,
-    approx: all.approx || edApprox,
+    approx: all.approx || edApprox || revApprox,
+    revApprox,
     lowLang: all.lowLang,
     zeroLowLang: zero ? zero.lowLang : null,
     edApprox,

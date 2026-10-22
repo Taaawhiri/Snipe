@@ -19,7 +19,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 10; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 11; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -345,7 +345,8 @@ export class Scanner extends DurableObject {
     const lang = normLang(b.lang) || '';
     const cond = CONDITIONS.includes(b.cond) || parseGradeLabel(b.cond) ? b.cond : ''; // condizione o voto ('PSA 10')
     const first = !!b.first;
-    const key = collKey(bp, lang, cond, first);
+    const reverse = !!b.reverse;
+    const key = collKey(bp, lang, cond, first, reverse);
     const coll = await this.get('coll', []);
     const i = coll.findIndex((c) => c.key === key);
     const prev = i >= 0 ? coll[i] : null;
@@ -364,7 +365,7 @@ export class Scanner extends DurableObject {
       const paidCents = paid == null ? (prev && prev.paidCents != null ? prev.paidCents : 0)
         : b.add && prev && prev.paidCents != null ? Math.round((prev.paidCents * prev.qty + paid * (qty - prev.qty)) / qty) : paid;
       const item = {
-        key, bp, lang, cond, qty, paidCents, ...(first ? { first: true } : {}),
+        key, bp, lang, cond, qty, paidCents, ...(first ? { first: true } : {}), ...(reverse ? { reverse: true } : {}),
         name: String(b.name || (prev && prev.name) || '').slice(0, 120),
         image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : prev ? prev.image : null,
         expansionId: parseInt(b.expansionId, 10) || (prev && prev.expansionId) || null,
@@ -403,11 +404,11 @@ export class Scanner extends DurableObject {
       if (!hit) continue;
       // Gradate e 1ª edizione hanno bisogno degli annunci completi (voto e edizione sono nel commento):
       // con la versione leggera salvata su disco si aspetta la prossima lettura vera.
-      if (hit.slim && (c.first || parseGradeLabel(c.cond))) continue;
+      if (hit.slim && (c.first || c.reverse || parseGradeLabel(c.cond))) continue;
       const old = prices[c.key];
       if (!force && old && old.ts >= hit.ts && old.v === PRICE_V) continue;
       const era = c.expansionId && vintageEra(Number(c.expansionId)) ? 'vintage' : 'modern';
-      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, ratios, era, reliable });
+      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, reverse: !!c.reverse, ratios, era, reliable });
       prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
       // Prezzo precedente (per "cosa è cambiato"): si tiene quello di prima dell'ultimo cambio, per 24 ore.
       if (old && old.cents != null && pr) {
@@ -490,7 +491,7 @@ export class Scanner extends DurableObject {
       const old = await this.get('collPrices', {});
       // Da rileggere: prezzi senza "tipico" (con Zero/tipico attivi) e, sempre, gradate e 1ª edizione calcolate con una versione vecchia.
       const stale = coll.filter((c) => ((zeroOnly || typical) && (!old[c.key] || !('typCents' in old[c.key])))
-        || ((c.first || parseGradeLabel(c.cond) || (old[c.key] && old[c.key].approx)) && (!old[c.key] || old[c.key].v !== PRICE_V))).slice(0, 5);
+        || ((c.first || c.reverse || parseGradeLabel(c.cond) || (old[c.key] && old[c.key].approx)) && (!old[c.key] || old[c.key].v !== PRICE_V))).slice(0, 5);
       refreshing = stale.length;
       if (stale.length && !this.collRefreshing) {
         // In sottofondo: la risposta arriva subito e la pagina si aggiorna da sola quando i prezzi sono pronti.

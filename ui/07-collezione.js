@@ -39,7 +39,7 @@
     const LN = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH' };
     if (p.est && p.est.from) {
       const f = p.est.from;
-      lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
+      lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
       lines.push(`Si parte dall'annuncio più vicino: ${money(f.cents)} · ${[f.first ? '1ª ed.' : '', f.q, LN[f.lang] || f.lang.toUpperCase()].filter(Boolean).join(' · ')}.`);
       for (const x of p.est.parts) lines.push(`× ${String(x.r).replace('.', ',')}  ${x.label} (${x.scope}, ${x.n} carte)`);
       lines.push(`= ${money(p.cents)}. Stima di mercato (badge ambra): i rapporti sono le mediane dei prezzi delle stesse carte in vendita su CardTrader e si aggiornano da soli.`);
@@ -49,8 +49,9 @@
       if (p.rawCents != null) lines.push(`Valore di base: ${money(p.rawCents)} × premio fisso del voto ${it.cond}, mai meno della carta più una quota del costo di gradazione.`);
     } else {
       if (p.approx) lines.push('Stima semplice (badge grigio): i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
+      if (p.revApprox) lines.push(it.reverse ? 'Nessun annuncio reverse holo: è il prezzo delle copie normali.' : 'Ci sono solo annunci reverse holo: è il loro prezzo.');
       if (p.edApprox) lines.push('Nessun annuncio 1ª edizione: è il prezzo delle copie normali.');
-      if (p.approx && !p.edApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
+      if (p.approx && !p.edApprox && !p.revApprox) lines.push(`Nessun annuncio nella tua lingua (${(it.lang || '').toUpperCase()}) e condizione: prezzo più basso tra tutti${p.lowLang ? `, in ${p.lowLang.toUpperCase()}` : ''}.`);
       if (p.histAnomaly) lines.push(`Oggi l'annuncio più basso è ${money(p.histAnomaly.low)}, meno della metà del solito per questa copia. Si usa la mediana degli ultimi ${p.histAnomaly.days} giorni: ${money(p.histAnomaly.med)}.`);
       else if (!p.approx && p.skipped && p.skipped.length) lines.push(`Annuncio con la stessa combinazione della tua copia: il più basso affidabile. Ignorat${p.skipped.length > 1 ? 'i' : 'o'} ${p.skipped.map((c) => money(c)).join(' e ')}, molto sotto gli altri (circa ${money(p.skipRef)}): probabile errore, copia rovinata o svendita.`);
       else if (!p.approx) lines.push('Annuncio con la stessa combinazione della tua copia: il più basso.');
@@ -67,6 +68,7 @@
     if (!p) return null;
     const text = p.est ? '≈ stima di mercato'
       : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
+      : p.revApprox ? '≈ altra variante'
       : p.edApprox ? '≈ altra edizione'
       : p.approx ? `≈ altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
       : p.histAnomaly ? '≈ prezzo insolito, uso lo storico'
@@ -412,7 +414,7 @@
             el('button', { class: 't linklike', type: 'button', text: it.name, onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }),
             el('div', { class: 's' },
               isGradeLabel(it.cond) ? el('span', { class: 'grade-badge', text: it.cond }) : null,
-              document.createTextNode([it.expName, it.first && '1ª ed.', !isGradeLabel(it.cond) && it.cond && condShort(it.cond), it.lang && it.lang.toUpperCase()].filter(Boolean).join(' · '))),
+              document.createTextNode([it.expName, it.first && '1ª ed.', it.reverse && 'Reverse', !isGradeLabel(it.cond) && it.cond && condShort(it.cond), it.lang && it.lang.toUpperCase()].filter(Boolean).join(' · '))),
             el('div', { class: 'qty' }, step(-1), el('b', { text: String(it.qty) }), step(1),
               el('button', { class: 'ci-edit', type: 'button', 'aria-label': `Modifica ${it.name}`, title: 'Modifica prezzo, condizione, lingua', text: '✎', onclick: () => openOwnEdit(it) }),
               it.paidCents != null ? el('span', { class: 's', text: it.paidCents === 0 ? (it.qty > 1 ? 'trovate (0 €)' : 'trovata (0 €)') : it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
@@ -515,7 +517,7 @@
   /** "Ce l'ho": pulsante nel dettaglio carta e pannello per aggiungere copie. */
   const OWN_LANGS = [['en', 'EN'], ['jp', 'JP'], ['it', 'IT'], ['fr', 'FR'], ['de', 'DE'], ['es', 'ES'], ['pt', 'PT'], ['ko', 'KO'], ['zh', 'ZH']];
   const OWN_CONDS = [['Mint', 'M'], ['Near Mint', 'NM'], ['Slightly Played', 'SP'], ['Moderately Played', 'MP'], ['Played', 'PL'], ['Heavily Played', 'HP'], ['Poor', 'PO']];
-  const own = { qty: 1, lang: 'en', cond: 'Near Mint', gco: '', g: '10', first: false };
+  const own = { qty: 1, lang: 'en', cond: 'Near Mint', gco: '', g: '10', first: false, reverse: false };
   const GRADE_COS = [['', 'No'], ['PSA', 'PSA'], ['BGS', 'BGS'], ['CGC', 'CGC'], ['SGC', 'SGC'], ['ACE', 'ACE'], ['TAG', 'TAG'], ['PCG', 'PCG']];
   const GRADES = ['10', '9.5', '9', '8.5', '8', '7.5', '7', '6', '5'].map((g) => [g, g]);
   const isGradeLabel = (c) => /^(PSA|BGS|CGC|SGC|ACE|TAG|PCG) /.test(String(c || ''));
@@ -549,6 +551,7 @@
     own.qty = it.qty;
     own.lang = it.lang || 'en';
     own.first = !!it.first;
+    own.reverse = !!it.reverse;
     if (isGradeLabel(it.cond)) { const [co, g] = it.cond.split(' '); own.gco = co; own.g = g; own.cond = 'Near Mint'; }
     else { own.gco = ''; own.cond = it.cond || 'Near Mint'; }
     $('ownPaid').value = it.paidCents != null ? (it.paidCents / 100).toFixed(2) : '';
@@ -567,6 +570,7 @@
     $('ownQtyOut').textContent = String(own.qty);
     pills($('ownLangs'), OWN_LANGS, own.lang, (v) => { own.lang = v; renderOwnSheet(); });
     pills($('ownConds'), OWN_CONDS, own.cond, (v) => { own.cond = v; renderOwnSheet(); });
+    pills($('ownRev'), [['', 'Non reverse'], ['1', 'Reverse holo']], own.reverse ? '1' : '', (v) => { own.reverse = v === '1'; renderOwnSheet(); });
     pills($('ownFirst'), [['', 'Normale'], ['1', '1ª edizione']], own.first ? '1' : '', (v) => { own.first = v === '1'; renderOwnSheet(); });
     pills($('ownGradeCos'), GRADE_COS, own.gco, (v) => { own.gco = v; renderOwnSheet(); });
     pills($('ownGrades'), GRADES, own.g, (v) => { own.g = v; renderOwnSheet(); });
@@ -589,21 +593,21 @@
     const mineBox = $('dlgMine');
     mineBox.hidden = !mine.length;
     mineBox.replaceChildren(...mine.map((it) => el('div', { class: 'dm-row' },
-      el('span', { class: 'dm-k', text: `La tua copia · ${[it.first ? '1ª ed.' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}${it.qty > 1 ? ` · ×${it.qty}` : ''}` }),
+      el('span', { class: 'dm-k', text: `La tua copia · ${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}${it.qty > 1 ? ` · ×${it.qty}` : ''}` }),
       el('span', { class: 'dm-v' },
         it.price && isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
         el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents)}` : '…' })))));
     $('ownOpen').classList.toggle('on', n > 0);
     $('ownList').replaceChildren(...mine.map((it) => el('span', { class: 'own-chip' },
       el('b', { text: `${it.qty}×` }),
-      document.createTextNode(` ${it.first ? '1ª ed. · ' : ''}${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents != null ? ` · ${money(it.paidCents)}` : ''}`),
+      document.createTextNode(` ${it.first ? '1ª ed. · ' : ''}${it.reverse ? 'Reverse · ' : ''}${condShort(it.cond)} · ${(it.lang || '').toUpperCase()}${it.paidCents != null ? ` · ${money(it.paidCents)}` : ''}`),
       el('button', { type: 'button', 'aria-label': 'Togli', text: '✕', onclick: () => saveOwn({ ...it, qty: 0 }) }),
     )));
   }
 
   /** Apre "Ce l'ho" per una carta qualsiasi (es. dallo scanner), con lingua già proposta; onDone dopo il salvataggio. */
   let ownDone = null;
-  function openOwnAdd(c, lang, onDone, slab, first = false) {
+  function openOwnAdd(c, lang, onDone, slab, first = false, reverse = false) {
     current = c;
     ownDone = onDone || null;
     $('ownName').textContent = "Ce l'ho";
@@ -620,6 +624,7 @@
     own.cond = 'Near Mint';
     if (slab && GRADE_COS.some(([v]) => v === slab.co)) { own.gco = slab.co; own.g = slab.g; }
     own.first = !!first;
+    own.reverse = !!reverse;
     renderOwnSheet();
     renderOwnBox();
     openSheet($('ownDialog'));
@@ -632,6 +637,7 @@
     ownEditing = null;
     own.gco = '';
     own.first = false;
+    own.reverse = false;
     $('ownAdd').textContent = 'Aggiungi alla collezione';
     $('ownCardName').textContent = current.name + (current.version ? ` (${current.version})` : '');
     $('ownCardSet').textContent = current.expName || (dlgExp && dlgExp.name) || '';
@@ -660,8 +666,8 @@
         const it = ownEditing;
         const paidCents = $('ownPaid').value.trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null;
         // Lingua o condizione diverse = un'altra riga della collezione: si toglie la vecchia e si scrive la nuova.
-        if (own.lang !== (it.lang || '') || ownCond() !== (it.cond || '') || own.first !== !!it.first) await saveOwn({ ...it, qty: 0 });
-        await saveOwn({ ...it, lang: own.lang, cond: ownCond(), first: own.first, qty: own.qty, paidCents, add: false });
+        if (own.lang !== (it.lang || '') || ownCond() !== (it.cond || '') || own.first !== !!it.first || own.reverse !== !!it.reverse) await saveOwn({ ...it, qty: 0 });
+        await saveOwn({ ...it, lang: own.lang, cond: ownCond(), first: own.first, reverse: own.reverse, qty: own.qty, paidCents, add: false });
         $('ownPaid').value = '';
         $('ownDialog').close();
         toast('✓ Modifiche salvate');
@@ -670,7 +676,7 @@
       await saveOwn({
         bp: current.id, name: current.name + (current.version ? ` (${current.version})` : ''), image: current.image,
         expansionId: current.expansionId || (dlgExp && dlgExp.id), expName: current.expName || (dlgExp && dlgExp.name), cmId: current.cmId,
-        lang: own.lang, cond: ownCond(), first: own.first, qty: own.qty, add: true,
+        lang: own.lang, cond: ownCond(), first: own.first, reverse: own.reverse, qty: own.qty, add: true,
         paidCents: $('ownPaid').value.trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null,
       });
       $('ownPaid').value = '';

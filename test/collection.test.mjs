@@ -59,3 +59,21 @@ test('venditori segnalati da CardTrader esclusi dal valore', () => {
   assert.equal(priceFor(list, 'en', 'Near Mint').cents, 100);
   assert.equal(priceFor(list, 'en', 'Near Mint', { reliable: true }).cents, 1000);
 });
+
+test('reverse holo: la copia reverse usa solo annunci reverse, la normale solo i non reverse', () => {
+  const R = (cents, rev, cond = 'Near Mint') => ({ quantity: 1, price: { cents }, properties_hash: { condition: cond, pokemon_language: 'en', pokemon_reverse: rev }, user: { username: 'u' } });
+  const list = [R(200, false), R(300, true), R(220, false), R(450, true)];
+  assert.equal(priceFor(list, 'en', 'Near Mint', { reverse: true }).cents, 300);
+  assert.equal(priceFor(list, 'en', 'Near Mint', { reverse: false }).cents, 200);
+  // nessun annuncio reverse: si usa il prezzo dei normali, segnato come approssimato
+  const only = priceFor([R(200, false)], 'en', 'Near Mint', { reverse: true });
+  assert.equal(only.cents, 200);
+  assert.equal(only.approx, true);
+  assert.equal(only.revApprox, true);
+  // senza indicazione di variante (vecchie voci) il comportamento resta quello di prima
+  assert.equal(priceFor(list, 'en', 'Near Mint').cents, 200);
+  // reverse riconosciuta anche dal commento del venditore, ma non se la proprietà dice di no
+  const D = (cents, description, rev) => ({ quantity: 1, price: { cents }, description, properties_hash: { condition: 'Near Mint', pokemon_language: 'en', ...(rev === undefined ? {} : { pokemon_reverse: rev }) }, user: { username: 'u' } });
+  assert.equal(priceFor([D(100, 'carta bella'), D(400, 'Reverse Holo')], 'en', 'Near Mint', { reverse: true }).cents, 400);
+  assert.equal(priceFor([D(100, 'non reverse', false), D(400, 'x', true)], 'en', 'Near Mint', { reverse: false }).cents, 100);
+});
