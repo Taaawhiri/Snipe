@@ -482,6 +482,7 @@
                   el('span', { class: 'p', text: money(r.cents, r.currency) }),
                   el('span', { class: 'd', text: [r.grade || r.condition, r.language && r.language.toUpperCase(), r.seller && `${r.seller}${r.country ? ' (' + r.country + ')' : ''}`, r.quantity > 1 && `x${r.quantity}`].filter(Boolean).join(' · ') }),
                   r.zero ? el('span', { class: 'zero-tag', text: 'Zero' }) : null,
+                  r.reverse ? el('span', { class: 'chip lang', text: 'Reverse' }) : null,
                   r.blocked ? el('span', { class: 'chip warn', text: 'Escluso' }) : null,
                   el('span', { class: 'go', text: '↗' }),
                 ),

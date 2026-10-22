@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settin
 import { generateVapidKeys, sendPush } from './push.js';
 import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
-import { addSamples, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
+import { addSamples, isReverse, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
 import { RELEASED } from './expdates.js';
 import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
@@ -1309,6 +1309,7 @@ export class Scanner extends DurableObject {
               zero: isZero(p),
               seller: p.user && p.user.username,
               risky: isRiskySeller(p),
+              reverse: isReverse(p),
               country: p.user && p.user.country_code,
               quantity: p.quantity,
               blocked: !!(p.user && blockedSet.has(p.user.username)),

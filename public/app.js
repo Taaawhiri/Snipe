@@ -528,6 +528,7 @@
     if (p.est && p.est.from) {
       const f = p.est.from;
       lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
+      if (it.reverse) lines.push('Per una reverse holo si guardano solo gli annunci reverse; la condizione si converte con i rapporti di mercato (per esempio Slightly Played → Near Mint).');
       lines.push(`Si parte dall'annuncio più vicino: ${money(f.cents)} · ${[f.first ? '1ª ed.' : '', f.q, LN[f.lang] || f.lang.toUpperCase()].filter(Boolean).join(' · ')}.`);
       for (const x of p.est.parts) lines.push(`× ${String(x.r).replace('.', ',')}  ${x.label} (${x.scope}, ${x.n} carte)`);
       lines.push(`= ${money(p.cents)}. Stima di mercato (badge ambra): i rapporti sono le mediane dei prezzi delle stesse carte in vendita su CardTrader e si aggiornano da soli.`);
@@ -3220,6 +3221,7 @@
                   el('span', { class: 'p', text: money(r.cents, r.currency) }),
                   el('span', { class: 'd', text: [r.grade || r.condition, r.language && r.language.toUpperCase(), r.seller && `${r.seller}${r.country ? ' (' + r.country + ')' : ''}`, r.quantity > 1 && `x${r.quantity}`].filter(Boolean).join(' · ') }),
                   r.zero ? el('span', { class: 'zero-tag', text: 'Zero' }) : null,
+                  r.reverse ? el('span', { class: 'chip lang', text: 'Reverse' }) : null,
                   r.blocked ? el('span', { class: 'chip warn', text: 'Escluso' }) : null,
                   el('span', { class: 'go', text: '↗' }),
                 ),
