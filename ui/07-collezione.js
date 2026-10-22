@@ -425,7 +425,7 @@
             el('div', { class: 'price-line' },
               // STIMA ambra = calcolata con i rapporti di mercato; STIMA grigia = regole fisse, dati di mercato ancora insufficienti.
               isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', title: 'Valore stimato: tocca per sapere come', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
-              el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : '…' })),
+              el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : it.noListings ? '—' : '…' })),
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
             miniSpark(it.spark30),
@@ -598,7 +598,7 @@
       el('span', { class: 'dm-k', text: `La tua copia · ${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}${it.qty > 1 ? ` · ×${it.qty}` : ''}` }),
       el('span', { class: 'dm-v' },
         it.price && isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
-        el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents)}` : '…' })))));
+        el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents)}` : it.noListings ? '—' : '…' })))));
     $('ownOpen').classList.toggle('on', n > 0);
     $('ownList').replaceChildren(...mine.map((it) => el('span', { class: 'own-chip' },
       el('b', { text: `${it.qty}×` }),

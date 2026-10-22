@@ -87,7 +87,7 @@
       if (r.stale) { out.replaceChildren(el('p', { class: 'muted', text: 'Gli annunci di questo venditore sono stati letti prima di questo controllo: apri una sua carta o riprova tra qualche minuto, così i dati si aggiornano.' })); return; }
       const lines = [
         r.cancels ? 'Troppi annullamenti: CardTrader lo segnala per ordini annullati.' : 'Nessun problema di annullamenti segnalato.',
-        r.limit != null ? `Limite di vendite: al massimo ${r.limit} carte ogni 24 ore (di solito account nuovi o sotto osservazione).` : 'Nessun limite di vendite.',
+        r.limit != null ? `Tetto di vendite: al massimo ${r.limit} carte ogni 24 ore. È solo un'informazione, non conta come problema.` : 'Nessun tetto di vendite.',
       ];
       out.replaceChildren(
         el('p', { class: r.risky ? 'chip warn risky-tag' : 'zero-tag', text: r.risky ? 'Ha problemi' : 'Nessun problema segnalato' }),

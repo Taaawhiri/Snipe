@@ -139,7 +139,7 @@
               el('span', { class: 'd', text: [x.condition, x.language, x.seller].filter(Boolean).join(' · ') + (x.zero ? ' · Zero' : '') }),
               el('span', x.reasons.length ? { class: 'why', text: x.reasons.join(', ') } : { class: 'zero-tag', text: 'Valido' }),
             ),
-            x.risky ? el('span', { class: 'chip warn risky-tag', text: 'Annullamenti / limite vendite' }) : null,
+            x.risky ? el('span', { class: 'chip warn risky-tag', text: 'Troppi annullamenti' }) : null,
           ),
         ),
       );

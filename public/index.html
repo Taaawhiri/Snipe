@@ -94,9 +94,9 @@
           <div class="coll-opts">
             <label class="switch coll-zero"><input id="collZero" type="checkbox"><span>Solo venditori CardTrader Zero</span></label>
             <label class="switch coll-zero"><input id="collTypical" type="checkbox"><span>Prezzo tipico invece del più basso</span></label>
-            <label class="switch coll-zero"><input id="collReliable" type="checkbox"><span>Ignora i venditori con annullamenti o limite di vendite</span></label>
+            <label class="switch coll-zero"><input id="collReliable" type="checkbox"><span>Ignora i venditori con troppi annullamenti</span></label>
           </div>
-          <p class="muted small">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori da ignorare sono quelli con troppi annullamenti o con un limite di vendite giornaliere (di solito account nuovi): con l’opzione attiva non fanno scattare nemmeno gli alert. I venditori che hai escluso con ⛔ non contano mai. La scelta resta salvata.</p>
+          <p class="muted small">Il prezzo tipico è la mediana dei 5 annunci adatti più economici: un singolo prezzo stracciato non falsa il valore. I venditori da ignorare sono quelli che CardTrader segnala per troppi annullamenti: con l’opzione attiva non fanno scattare nemmeno gli alert. I venditori che hai escluso con ⛔ non contano mai. La scelta resta salvata.</p>
         </details>
         <div class="seg seg-sm" role="radiogroup" aria-label="Ordina la collezione">
           <label><input type="radio" name="csort" value="value" checked> Valore</label>
@@ -357,7 +357,7 @@
         <div class="panel-head">
           <h2>Controlla un venditore</h2>
         </div>
-        <p class="muted small">Scrivi il nome di un venditore CardTrader: ti dico se ha troppi annullamenti o un limite di vendite. Funziona per i venditori trovati negli annunci letti di recente.</p>
+        <p class="muted small">Scrivi il nome di un venditore CardTrader: ti dico se CardTrader lo segnala per troppi annullamenti. Funziona per i venditori trovati negli annunci letti di recente.</p>
         <form id="sellerCheckForm" class="row-btn">
           <input id="sellerCheckName" type="text" placeholder="Nome venditore" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Nome venditore">
           <button class="btn primary" type="submit">Controlla</button>

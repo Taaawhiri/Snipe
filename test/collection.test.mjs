@@ -55,9 +55,10 @@ test('prezzo tipico e venditori esclusi', () => {
 
 test('venditori segnalati da CardTrader esclusi dal valore', () => {
   const R = (c, u) => ({ ...L(c, 'en', 'Near Mint'), user: { username: 'x' + c, ...u } });
-  const list = [R(100, { max_sellable_in24h_quantity: 5 }), R(200, { too_many_request_for_cancel_as_seller: true }), R(1000, {})];
+  // Solo i troppi annullamenti escludono; il tetto di vendite giornaliero è un'informazione (lo hanno anche i venditori PRO).
+  const list = [R(100, { too_many_request_for_cancel_as_seller: true }), R(200, { max_sellable_in24h_quantity: 5 }), R(1000, {})];
   assert.equal(priceFor(list, 'en', 'Near Mint').cents, 100);
-  assert.equal(priceFor(list, 'en', 'Near Mint', { reliable: true }).cents, 1000);
+  assert.equal(priceFor(list, 'en', 'Near Mint', { reliable: true }).cents, 200);
 });
 
 test('reverse holo: la copia reverse usa solo annunci reverse, la normale solo i non reverse', () => {

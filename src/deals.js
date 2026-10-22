@@ -178,11 +178,16 @@ export function isSingleCard(bp, singleCategoryIds) {
 }
 
 /**
- * Venditore poco affidabile secondo CardTrader: troppe richieste di annullamento come venditore,
- * oppure un tetto di vendite giornaliere (lo applica ai venditori nuovi o sotto osservazione).
+ * Venditore poco affidabile secondo CardTrader: troppe richieste di annullamento come venditore.
+ * (Il tetto di vendite giornaliero non conta: lo hanno anche venditori grandi e affidabili.)
  */
 export function isRiskySeller(p) {
   const u = p && p.user;
-  if (!u) return false;
-  return u.too_many_request_for_cancel_as_seller === true || (u.max_sellable_in24h_quantity != null && u.max_sellable_in24h_quantity !== '');
+  return !!u && u.too_many_request_for_cancel_as_seller === true;
+}
+
+/** Tetto di vendite in 24 ore indicato da CardTrader: solo un'informazione, non esclude l'annuncio. */
+export function sellLimitOf(p) {
+  const u = p && p.user;
+  return u && u.max_sellable_in24h_quantity != null && u.max_sellable_in24h_quantity !== '' ? u.max_sellable_in24h_quantity : null;
 }

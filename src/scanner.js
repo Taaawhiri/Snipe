@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, condRank, findDeals, gradeOf, isGraded, isListable, isRiskySeller, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
+import { CONDITIONS, condRank, findDeals, gradeOf, isGraded, isListable, isRiskySeller, sellLimitOf, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons } from './deals.js';
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
@@ -19,7 +19,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 11; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 12; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -522,7 +522,7 @@ export class Scanner extends DurableObject {
         const before = pickPrice({ ...p, ...p.prev }, zeroOnly, typical);
         if (before && before.cents != null && before.cents !== price.cents) delta = { cents: price.cents - before.cents, at: p.changedAt };
       }
-      return { ...c, price, delta, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
+      return { ...c, price, noListings: !!(p && p.cents == null && p.ts), delta, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
     });
     // Variazione a 7 giorni dallo storico prezzi della carta (prezzo più basso in assoluto).
     for (const it of items) {
@@ -1014,7 +1014,7 @@ export class Scanner extends DurableObject {
           .slice(0, 15)
           .map((p) => {
             const reasons = rejectReasons(p, rule);
-            if (reliable && isRiskySeller(p)) reasons.push('venditore con troppi annullamenti o limite di vendita');
+            if (reliable && isRiskySeller(p)) reasons.push('venditore con troppi annullamenti');
             if (!reasons.length && rule.maxPriceCents && p.price.cents > rule.maxPriceCents) reasons.push('sopra il prezzo impostato');
             return {
               cents: p.price.cents,
@@ -1024,6 +1024,7 @@ export class Scanner extends DurableObject {
               zero: isZero(p),
               seller: p.user && p.user.username,
               risky: !reliable && isRiskySeller(p), // con il filtro attivo il motivo è già tra gli scarti
+              limit: sellLimitOf(p),
               url: `https://www.cardtrader.com/cards/${p.blueprint_id}`,
               reasons,
             };
@@ -1180,7 +1181,7 @@ export class Scanner extends DurableObject {
         }
       }
       if (!user) return json({ found: false });
-      return json({ found: true, username: user.username, country: user.country_code || null, listings, stale: informative === 0, cancels, limit, risky: cancels || limit != null });
+      return json({ found: true, username: user.username, country: user.country_code || null, listings, stale: informative === 0, cancels, limit, risky: cancels });
     }
 
     if (path === '/api/collection' && method === 'GET') {
@@ -1311,6 +1312,7 @@ export class Scanner extends DurableObject {
               seller: p.user && p.user.username,
               risky: isRiskySeller(p),
               reverse: isReverse(p),
+              limit: sellLimitOf(p),
               country: p.user && p.user.country_code,
               quantity: p.quantity,
               blocked: !!(p.user && blockedSet.has(p.user.username)),

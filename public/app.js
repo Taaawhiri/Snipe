@@ -913,7 +913,7 @@
             el('div', { class: 'price-line' },
               // STIMA ambra = calcolata con i rapporti di mercato; STIMA grigia = regole fisse, dati di mercato ancora insufficienti.
               isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', title: 'Valore stimato: tocca per sapere come', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
-              el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : '…' })),
+              el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : it.noListings ? '—' : '…' })),
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
             miniSpark(it.spark30),
@@ -1086,7 +1086,7 @@
       el('span', { class: 'dm-k', text: `La tua copia · ${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}${it.qty > 1 ? ` · ×${it.qty}` : ''}` }),
       el('span', { class: 'dm-v' },
         it.price && isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
-        el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents)}` : '…' })))));
+        el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents)}` : it.noListings ? '—' : '…' })))));
     $('ownOpen').classList.toggle('on', n > 0);
     $('ownList').replaceChildren(...mine.map((it) => el('span', { class: 'own-chip' },
       el('b', { text: `${it.qty}×` }),
@@ -1569,7 +1569,7 @@
       if (r.stale) { out.replaceChildren(el('p', { class: 'muted', text: 'Gli annunci di questo venditore sono stati letti prima di questo controllo: apri una sua carta o riprova tra qualche minuto, così i dati si aggiornano.' })); return; }
       const lines = [
         r.cancels ? 'Troppi annullamenti: CardTrader lo segnala per ordini annullati.' : 'Nessun problema di annullamenti segnalato.',
-        r.limit != null ? `Limite di vendite: al massimo ${r.limit} carte ogni 24 ore (di solito account nuovi o sotto osservazione).` : 'Nessun limite di vendite.',
+        r.limit != null ? `Tetto di vendite: al massimo ${r.limit} carte ogni 24 ore. È solo un'informazione, non conta come problema.` : 'Nessun tetto di vendite.',
       ];
       out.replaceChildren(
         el('p', { class: r.risky ? 'chip warn risky-tag' : 'zero-tag', text: r.risky ? 'Ha problemi' : 'Nessun problema segnalato' }),
@@ -2728,7 +2728,7 @@
               el('span', { class: 'd', text: [x.condition, x.language, x.seller].filter(Boolean).join(' · ') + (x.zero ? ' · Zero' : '') }),
               el('span', x.reasons.length ? { class: 'why', text: x.reasons.join(', ') } : { class: 'zero-tag', text: 'Valido' }),
             ),
-            x.risky ? el('span', { class: 'chip warn risky-tag', text: 'Annullamenti / limite vendite' }) : null,
+            x.risky ? el('span', { class: 'chip warn risky-tag', text: 'Troppi annullamenti' }) : null,
           ),
         ),
       );
@@ -3225,7 +3225,8 @@
                   r.blocked ? el('span', { class: 'chip warn', text: 'Escluso' }) : null,
                   el('span', { class: 'go', text: '↗' }),
                 ),
-                r.risky ? el('span', { class: 'chip warn risky-tag', title: 'CardTrader segnala troppi annullamenti oppure un limite di vendite giornaliero (di solito account nuovi). Questi annunci non contano nel valore e negli alert.', text: 'Annullamenti / limite vendite' }) : null,
+                r.risky ? el('span', { class: 'chip warn risky-tag', title: 'CardTrader segnala che questo venditore ha troppi annullamenti. I suoi annunci non contano nel valore e negli alert.', text: 'Troppi annullamenti' }) : null,
+                r.limit != null ? el('span', { class: 'chip risky-tag', title: 'CardTrader ha messo un tetto alle carte che può vendere ogni 24 ore. È solo un\'informazione: l\'annuncio conta normalmente.', text: `Limite vendite: ${r.limit}/24h` }) : null,
                 r.seller ? sellerButtons(r.seller, r.country) : null,
               ),
             )

@@ -486,7 +486,8 @@
                   r.blocked ? el('span', { class: 'chip warn', text: 'Escluso' }) : null,
                   el('span', { class: 'go', text: '↗' }),
                 ),
-                r.risky ? el('span', { class: 'chip warn risky-tag', title: 'CardTrader segnala troppi annullamenti oppure un limite di vendite giornaliero (di solito account nuovi). Questi annunci non contano nel valore e negli alert.', text: 'Annullamenti / limite vendite' }) : null,
+                r.risky ? el('span', { class: 'chip warn risky-tag', title: 'CardTrader segnala che questo venditore ha troppi annullamenti. I suoi annunci non contano nel valore e negli alert.', text: 'Troppi annullamenti' }) : null,
+                r.limit != null ? el('span', { class: 'chip risky-tag', title: 'CardTrader ha messo un tetto alle carte che può vendere ogni 24 ore. È solo un\'informazione: l\'annuncio conta normalmente.', text: `Limite vendite: ${r.limit}/24h` }) : null,
                 r.seller ? sellerButtons(r.seller, r.country) : null,
               ),
             )
