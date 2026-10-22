@@ -3,6 +3,7 @@
   let collPaid = 'all'; // filtro provenienza: acquistate (prezzo > 0), trovate (0 €), senza prezzo pagato
   let collEra = 'all'; // filtro epoca: moderne o vintage (WOTC ed EX, come nel selettore delle espansioni)
   let collType = 'all'; // filtro per tipo: Pokémon, allenatori, energie
+  let collRev = 'all'; // filtro variante: tutte, reverse holo, non reverse
   let collKind = 'all'; // filtro rapido: tutte, non gradate, gradate
   /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
   function ownedQty(bp) {
@@ -365,6 +366,13 @@
       .filter(([v]) => v === 'all' || nP[v]).map(([v, l]) =>
         el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collPaid === v), text: l, onclick: () => { collPaid = v; renderCollection(); } })));
     const paidOk = (it) => collPaid === 'all' || paidOf(it) === collPaid;
+    // Variante: compare solo se in collezione ci sono reverse holo.
+    const nR = items.filter((it) => it.reverse).length;
+    $('collRevG').hidden = !nR || nR === items.length;
+    if ($('collRevG').hidden) collRev = 'all';
+    $('collRev').replaceChildren(...[['all', 'Tutte'], ['rev', `Reverse holo (${nR})`], ['normal', `Non reverse (${items.length - nR})`]].map(([v, l]) =>
+      el('button', { class: 'chip-btn', type: 'button', 'aria-pressed': String(collRev === v), text: l, onclick: () => { collRev = v; renderCollection(); } })));
+    const revOk = (it) => collRev === 'all' || (collRev === 'rev') === !!it.reverse;
     // Rarità: dal nome salvato "Charizard ex (Special Illustration Rare | 199/165)".
     const rarOf = (it) => { const m = /\(([^()]*)\)\s*$/.exec(it.name || ''); return m ? rarityFromVersion(m[1]) : ''; };
     const rc = new Map();
@@ -385,6 +393,7 @@
       collEra !== 'all' && [lbl($('collEra')), () => { collEra = 'all'; }],
       collPaid !== 'all' && [lbl($('collPaid')), () => { collPaid = 'all'; }],
       collKind !== 'all' && [lbl($('collKind')), () => { collKind = 'all'; }],
+      collRev !== 'all' && [lbl($('collRev')), () => { collRev = 'all'; }],
     ].filter(Boolean);
     $('collFilterCount').hidden = !activeF.length;
     $('collFilterCount').textContent = String(activeF.length);
@@ -392,9 +401,9 @@
     $('collActive').replaceChildren(
       ...activeF.map(([label, clear]) => el('button', { class: 'af-chip', type: 'button', 'aria-label': `Togli il filtro ${label}`, onclick: () => { clear(); renderCollection(); } }, el('span', { text: label }), el('b', { text: '×', 'aria-hidden': 'true' }))),
       ...(activeF.length > 1 ? [el('button', { class: 'af-clear', type: 'button', text: 'Azzera tutti', onclick: resetCollFilters })] : []));
-    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && paidOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
+    const shownItems = items.filter((it) => kindOk(it) && typeOk(it) && eraOk(it) && paidOk(it) && revOk(it) && rarOk(it) && (!cq || cq.split(/\s+/).every((w) => plainText(`${it.name} ${it.expName || ''} ${it.cond || ''}`).includes(w))));
     $('collFilterClose').textContent = `Mostra ${shownItems.length} ${shownItems.length === 1 ? 'carta' : 'carte'}`;
-    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && collPaid === 'all' && !rar;
+    $('collCount').hidden = !cq && collKind === 'all' && collType === 'all' && collEra === 'all' && collPaid === 'all' && collRev === 'all' && !rar;
     $('collCount').textContent = shownItems.length ? `${shownItems.length} ${shownItems.length === 1 ? "carta" : "carte"} su ${items.length}` : `Nessuna carta per “${$('collSearch').value.trim()}”`;
     const list = [...shownItems].sort((a, b) =>
       sort === 'gain' ? g(b) - g(a)
@@ -490,7 +499,7 @@
     renderCollection();
   };
   function resetCollFilters() {
-    collType = 'all'; collEra = 'all'; collPaid = 'all'; collKind = 'all';
+    collType = 'all'; collEra = 'all'; collPaid = 'all'; collKind = 'all'; collRev = 'all';
     $('collRarity').value = ''; cselSync($('collRarity'));
     renderCollection();
   }
