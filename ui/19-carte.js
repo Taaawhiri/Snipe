@@ -414,9 +414,9 @@
     if (c && c.cm) $('alertCmHint').textContent = `Scatta sotto ${money(Math.floor(c.cm.trend * 100 * (1 - Number($('alertCmPct').value) / 100)), c.currency)} (tendenza ${money(Math.round(c.cm.trend * 100), c.currency)}, tutte le lingue e condizioni insieme). Se segui una lingua o una condizione precisa, "Sconto in %" confronta solo annunci con gli stessi filtri.`;
   }
 
-  let showGraded = false;
+  let listView = ''; // '' = normali, 'graded', 'reverse'
   async function openCard(c) {
-    if (current !== c) showGraded = false;
+    if (current !== c) listView = '';
     current = c;
     // Aperta da collezione, desideri o scansione: mancano prezzi e lingue della ricerca, si leggono dagli annunci.
     if (!c.lc && !c.sumDone) {
@@ -462,13 +462,13 @@
     const low = v.lowest;
     const base = low == null ? '' : (Math.floor((low * 0.8) / 50) * 0.5).toFixed(2);
     $('alertMax').value = base && Number(base) > 0 ? base : low == null ? '' : (low / 100).toFixed(2);
-    $('dlgGradeTabs').replaceChildren(...[[false, 'Normali'], [true, 'Gradate']].map(([g, t]) =>
-      el('button', { class: 'chip chip-pick' + (showGraded === g ? ' cond' : ''), type: 'button', text: t, onclick: () => { if (showGraded !== g) { showGraded = g; openCard(c); } } })));
+    $('dlgGradeTabs').replaceChildren(...[['', 'Normali'], ['graded', 'Gradate'], ['reverse', 'Reverse']].map(([g, t]) =>
+      el('button', { class: 'chip chip-pick' + (listView === g ? ' cond' : ''), type: 'button', text: t, onclick: () => { if (listView !== g) { listView = g; openCard(c); } } })));
     $('dlgListings').replaceChildren(el('p', { class: 'muted', text: 'Carico gli annunci…' }));
     const d = $('cardDialog');
     openSheet(d);
     try {
-      const rows = await api(`/api/listings?blueprint_id=${c.id}${dlgExp ? `&expansion_id=${dlgExp.id}` : ''}${lang ? `&lang=${lang}` : ''}${minRank !== '' ? `&minrank=${minRank}` : ''}${showGraded ? '&graded=1' : ''}`);
+      const rows = await api(`/api/listings?blueprint_id=${c.id}${dlgExp ? `&expansion_id=${dlgExp.id}` : ''}${lang ? `&lang=${lang}` : ''}${minRank !== '' ? `&minrank=${minRank}` : ''}${listView ? `&${listView}=1` : ''}`);
       if (current !== c) return;
       // Carta aperta fuori da una ricerca (collezione, lista desideri…): la scelta lingua offre quelle degli annunci.
       const have = new Set([...$('cardLang').options].map((o) => o.value).filter(Boolean));
@@ -490,7 +490,7 @@
                 r.seller ? sellerButtons(r.seller, r.country) : null,
               ),
             )
-          : [el('p', { class: 'muted', text: showGraded ? 'Nessuna copia gradata in vendita.' : 'Nessun annuncio in vendita.' })]),
+          : [el('p', { class: 'muted', text: listView === 'graded' ? 'Nessuna copia gradata in vendita.' : listView === 'reverse' ? 'Nessun annuncio reverse holo in vendita.' : 'Nessun annuncio in vendita.' })]),
       );
     } catch (e) {
       $('dlgListings').replaceChildren(el('p', { class: 'error', text: e.message }));

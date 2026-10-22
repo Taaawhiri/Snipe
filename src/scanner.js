@@ -1286,11 +1286,12 @@ export class Scanner extends DurableObject {
         const wanted = normLang(url.searchParams.get('lang'));
         const blockedSet = new Set((await this.get('sellers', { fav: [], block: [] })).block);
         const gradedView = !!url.searchParams.get('graded'); // solo le gradate (di norma l'elenco le esclude)
+        const reverseView = !!url.searchParams.get('reverse'); // solo le reverse holo, di qualunque condizione
         const list = (data[id] || data[String(id)] || [])
-          .filter((p) => (gradedView ? p && isGraded(p) && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 : isListable(p)))
+          .filter((p) => (gradedView ? p && isGraded(p) && !p.on_vacation && p.quantity > 0 && p.price && p.price.cents > 0 : isListable(p) && (!reverseView || isReverse(p))))
           .filter((p) => !wanted || normLang(listingLang(p)) === wanted)
           .filter((p) => {
-            const minRank = gradedView ? NaN : parseInt(url.searchParams.get('minrank'), 10);
+            const minRank = gradedView || reverseView ? NaN : parseInt(url.searchParams.get('minrank'), 10);
             const r = condRank(p.properties_hash && p.properties_hash.condition);
             return !Number.isInteger(minRank) || r < 0 || r >= minRank;
           })
