@@ -188,6 +188,12 @@ export function pickPrice(p, zeroOnly, typical = false) {
   return typical && p.typCents != null ? { ...p, cents: p.typCents, skipped: undefined } : p;
 }
 
+/** Opzione "il minore tra CardTrader e Cardmarket": se la tendenza Cardmarket è più bassa, il valore della copia è quella. */
+export function capToCm(price, cmCents) {
+  if (!price || cmCents == null || !(cmCents > 0) || price.cents <= cmCents) return price;
+  return { ...price, cents: cmCents, ctCents: price.cents, cmCapped: true };
+}
+
 /** Totali: valore, speso, quantità, copie senza prezzo. */
 export function summarize(items) {
   let value = 0;

@@ -526,7 +526,10 @@
     const p = it.price;
     const lines = [];
     const LN = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH' };
-    if (p.est && p.est.from) {
+    if (p.cmCapped) {
+      lines.push(`Hai scelto di usare il minore tra CardTrader e Cardmarket. Su CardTrader la tua copia costa ${money(p.ctCents)}, la tendenza Cardmarket della carta è ${money(p.cents)}: vale quest'ultima.`);
+      lines.push('La tendenza Cardmarket mescola lingue e condizioni, quindi è solo indicativa. Puoi spegnere l\'opzione in ⚙ Come si calcola il valore.');
+    } else if (p.est && p.est.from) {
       const f = p.est.from;
       lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
       if (it.reverse) lines.push('Per una reverse holo si guardano solo gli annunci reverse; la condizione si converte con i rapporti di mercato (per esempio Slightly Played → Near Mint).');
@@ -550,13 +553,14 @@
     if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
     dialog({ title: 'Come è calcolato', text: lines.join('\n\n') });
   }
-  const isEstimate = (p) => !!(p && (p.estimated || p.approx || p.histAnomaly || (p.skipped && p.skipped.length)));
+  const isEstimate = (p) => !!(p && (p.cmCapped || p.estimated || p.approx || p.histAnomaly || (p.skipped && p.skipped.length)));
 
   /** Scritta sotto il prezzo (stima, altra edizione/lingua, non Zero): si tocca per sapere come è calcolato. */
   function collPriceNote(it) {
     const p = it.price;
     if (!p) return null;
-    const text = p.est ? '≈ stima di mercato'
+    const text = p.cmCapped ? '≈ minore: Cardmarket'
+      : p.est ? '≈ stima di mercato'
       : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
       : p.revApprox ? '≈ altra variante'
       : p.edApprox ? '≈ altra edizione'
@@ -568,6 +572,21 @@
     return el('button', { class: 's linklike', type: 'button', text, onclick: () => explainPrice(it) });
   }
 
+
+  /** "Da verificare": pochi annunci, o prezzo molto lontano dalla tendenza Cardmarket (solo dove il confronto ha senso). */
+  function collCheckNote(it) {
+    const p = it.price;
+    if (!p || p.estimated || p.cmCapped || p.approx) return null;
+    const why = [];
+    if (p.listings > 0 && p.listings <= 2) why.push(`Per la tua combinazione ${p.listings === 1 ? "c'è un solo annuncio" : 'ci sono solo 2 annunci'}: il prezzo più basso può essere un caso isolato.`);
+    const comparable = !isGradeLabel(it.cond) && !it.first && !it.reverse && it.lang === 'en' && it.cmCents > 0;
+    if (comparable) {
+      const r = p.cents / it.cmCents - 1;
+      if (Math.abs(r) > 0.4) why.push(`Il prezzo su CardTrader (${money(p.cents)}) è ${r < 0 ? 'molto sotto' : 'molto sopra'} la tendenza Cardmarket (${money(it.cmCents)}), il ${Math.round(Math.abs(r) * 100)}% in ${r < 0 ? 'meno' : 'più'}. Cardmarket mescola lingue e condizioni, ma conviene dare un'occhiata.`);
+    }
+    if (!why.length) return null;
+    return el('button', { class: 's linklike', type: 'button', text: '⚠ da verificare', onclick: () => dialog({ title: 'Da verificare', text: why.join('\n\n') }) });
+  }
 
   let collPoll = null;
   async function loadCollection() {
@@ -783,6 +802,7 @@
     $('collZero').checked = !!coll.zeroOnly;
     $('collTypical').checked = !!coll.typical;
     $('collReliable').checked = coll.reliable !== false;
+    $('collCmMin').checked = !!coll.cmMin;
     const { items, summary: sm, history } = coll;
     const hist = history || [];
     const days = Math.min(collRange, hist.length - 1);
@@ -928,6 +948,7 @@
             miniSpark(it.spark30),
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             collPriceNote(it),
+            collCheckNote(it),
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
         );
@@ -1000,6 +1021,11 @@
   $('collTypical').addEventListener('change', async () => {
     $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });
+    loadCollection();
+  });
+  $('collCmMin').addEventListener('change', async () => {
+    $('collList').classList.add('loading');
+    await saveSettings({ collCmMin: $('collCmMin').checked });
     loadCollection();
   });
   $('collReliable').addEventListener('change', async () => {

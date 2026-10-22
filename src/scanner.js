@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
-import { checkAgainstHistory, collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
+import { capToCm, checkAgainstHistory, collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -465,10 +465,16 @@ export class Scanner extends DurableObject {
     if (!changed) return;
     await this.ctx.storage.put('collPrices', prices);
     const typical = !!(await this.settings()).collTypical;
-    const base = (zeroOnly) => coll.map((c) => ({ ...c, price: prices[c.key] && prices[c.key].cents != null ? pickPrice(prices[c.key], zeroOnly, typical) : null }));
-    const items = base(false);
+    const cmMin = !!(await this.settings()).collCmMin;
     const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
-    for (const it of items) { const e = it.cmId && cm.get(it.cmId); it.cmCents = e && e.trend ? Math.round(e.trend * 100) : null; }
+    const base = (zeroOnly) => coll.map((c) => {
+      const e = c.cmId && cm.get(c.cmId);
+      const cmC = e && e.trend ? Math.round(e.trend * 100) : null;
+      let price = prices[c.key] && prices[c.key].cents != null ? pickPrice(prices[c.key], zeroOnly, typical) : null;
+      if (cmMin) price = capToCm(price, cmC);
+      return { ...c, price, cmCents: cmC };
+    });
+    const items = base(false);
     const sum = summarize(items);
     const sumZero = summarize(base(true));
     const hist = await this.get('collHist', []);
@@ -481,6 +487,7 @@ export class Scanner extends DurableObject {
   async collectionView() {
     const zeroOnly = !!(await this.settings()).collZero;
     const typical = !!(await this.settings()).collTypical;
+    const cmMin = !!(await this.settings()).collCmMin;
     const coll = await this.get('coll', []);
     // Carte salvate senza prezzo pagato: da ora contano come trovate (0 €).
     if (coll.some((c) => c.paidCents == null)) {
@@ -518,14 +525,16 @@ export class Scanner extends DurableObject {
     const items = coll.map((c) => {
       const p = prices[c.key];
       const e = c.cmId && cm.get(c.cmId);
-      const price = p && p.cents != null ? pickPrice(p, zeroOnly, typical) : null;
+      const cmC = e && e.trend ? Math.round(e.trend * 100) : null;
+      let price = p && p.cents != null ? pickPrice(p, zeroOnly, typical) : null;
+      if (cmMin) price = capToCm(price, cmC);
       // Variazione recente del valore di questa copia (con le stesse impostazioni Zero/tipico), ultime 24 ore.
       let delta = null;
       if (price && p.prev && Date.now() - (p.changedAt || 0) < 24 * 3600_000) {
         const before = pickPrice({ ...p, ...p.prev }, zeroOnly, typical);
         if (before && before.cents != null && before.cents !== price.cents) delta = { cents: price.cents - before.cents, at: p.changedAt };
       }
-      return { ...c, price, noListings: !!(p && p.cents == null && p.ts), delta, cmCents: e && e.trend ? Math.round(e.trend * 100) : null };
+      return { ...c, price, noListings: !!(p && p.cents == null && p.ts), delta, cmCents: cmC };
     });
     // Variazione a 7 giorni dallo storico prezzi della carta (prezzo più basso in assoluto).
     for (const it of items) {
@@ -537,7 +546,7 @@ export class Scanner extends DurableObject {
     }
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
     const reliable = (await this.settings()).collReliable !== false;
-    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, reliable, refreshing };
+    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, cmMin, reliable, refreshing };
   }
 
   async reportError(where, err) {
