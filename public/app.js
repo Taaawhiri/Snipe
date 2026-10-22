@@ -905,6 +905,7 @@
               document.createTextNode([it.expName, it.first && '1ª ed.', it.reverse && 'Reverse', !isGradeLabel(it.cond) && it.cond && condShort(it.cond), it.lang && it.lang.toUpperCase()].filter(Boolean).join(' · '))),
             el('div', { class: 'qty' }, step(-1), el('b', { text: String(it.qty) }), step(1),
               el('button', { class: 'ci-edit', type: 'button', 'aria-label': `Modifica ${it.name}`, title: 'Modifica prezzo, condizione, lingua', text: '✎', onclick: () => openOwnEdit(it) }),
+              el('button', { class: 'ci-more', type: 'button', 'aria-label': `Aggiungi un'altra versione di ${it.name}`, title: 'Aggiungi la stessa carta in un\'altra lingua o condizione', text: '＋ Versione', onclick: () => addVersion(it) }),
               it.paidCents != null ? el('span', { class: 's', text: it.paidCents === 0 ? (it.qty > 1 ? 'trovate (0 €)' : 'trovata (0 €)') : it.qty > 1 ? `pagate ${money(it.paidCents)} l'una` : `pagata ${money(it.paidCents)}` }) : null),
           ),
           el('div', { class: 'r' },
@@ -1116,6 +1117,13 @@
     renderOwnSheet();
     renderOwnBox();
     openSheet($('ownDialog'));
+  }
+
+  /** Stessa carta in un'altra lingua, condizione o variante: si apre "Ce l'ho" già pronto, senza foto né ricerca. */
+  function addVersion(it) {
+    const owned = new Set(coll.items.filter((x) => x.bp === it.bp).map((x) => x.lang));
+    const lang = (OWN_LANGS.find(([v]) => !owned.has(v)) || ['en'])[0];
+    openOwnAdd({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, cmId: it.cmId }, lang, null);
   }
 
   $('ownOpen').addEventListener('click', () => {

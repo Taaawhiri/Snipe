@@ -346,6 +346,7 @@
     "Variante": "Variant", "Non reverse": "Not reverse", "Reverse holo": "Reverse holo", "≈ altra variante": "≈ other variant",
     "Nessun annuncio reverse holo: è il prezzo delle copie normali.": "No reverse holo listings: this is the price of regular copies.",
     "Ci sono solo annunci reverse holo: è il loro prezzo.": "There are only reverse holo listings: this is their price.",
+    "＋ Versione": "＋ Version", "Aggiungi la stessa carta in un'altra lingua o condizione": "Add the same card in another language or condition",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",
