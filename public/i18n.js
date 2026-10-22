@@ -357,6 +357,7 @@
     "≈ prezzo Cardmarket (scelto)": "≈ Cardmarket price (chosen)", "Usa Cardmarket": "Use Cardmarket", "Torna a CardTrader": "Back to CardTrader", "Chiudi": "Close",
     "⚠ da verificare": "⚠ check",
     "Da verificare": "Check this",
+    "Apri la carta con il confronto Cardmarket": "Open the card with the Cardmarket comparison",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",
@@ -437,6 +438,7 @@
     // Regole specifiche prima di quelle generiche (es. "… Cardmarket", "… carta").
     [/^(\d+) annunci in vendita, i (\d+) più economici qui sotto\.(.*)$/, (m, a, b, r) => `${a} listings on sale, the ${b} cheapest below.${r.replace(' I prezzi arrivano nei prossimi minuti.', ' Prices arrive in the next few minutes.').replace(' Nessuno rispetta i filtri.', ' None matches the filters.').replace(' 1 rispetta i filtri e fa scattare l’alert.', ' 1 matches the filters and triggers the alert.').replace(/ (\d+) rispettano i filtri e fanno scattare l’alert\./, ' $1 match the filters and trigger the alert.')}`],
     [/^Nessuna copia NM in (.+) ora$/, 'No NM copy in $1 now'],
+    [/^Cardmarket (.+)$/, 'Cardmarket $1'],
     [/^fino a (\d+)$/, 'up to $1'],
     [/^Il piano (.+) permette (\d+) alert con la stella: toglila a un altro alert per darla a questo\.$/, 'The $1 plan allows $2 starred alerts: remove the star from another alert to give it to this one.'],
     [/^(.*)letta in media ogni (\d+) (s|min)(.*)$/, (m, a, n, u, r) => `${a}read every ${n} ${u} on average${r}`],

@@ -421,9 +421,9 @@
     // Aperta da collezione, desideri o scansione: mancano prezzi e lingue della ricerca, si leggono dagli annunci.
     if (!c.lc && !c.sumDone) {
       c.sumDone = true;
-      api(`/api/listings?summary=1&blueprint_id=${c.id}${c.expansionId ? `&expansion_id=${c.expansionId}` : ''}`).then((s) => {
+      api(`/api/listings?summary=1&blueprint_id=${c.id}${c.expansionId ? `&expansion_id=${c.expansionId}` : ''}${c.cmId ? `&cm_id=${c.cmId}` : ''}`).then((s) => {
         if (current !== c) return;
-        Object.assign(c, { lowest: s.lowest, lowestZero: s.lowestZero, lc: s.lc, langs: s.langs, currency: s.currency || c.currency });
+        Object.assign(c, { lowest: s.lowest, lowestZero: s.lowestZero, lc: s.lc, langs: s.langs, currency: s.currency || c.currency, ...(s.cm && !c.cm ? { cm: s.cm } : {}) });
         fillLanguages(Object.keys(s.langs).filter((x) => x !== 'sconosciuta').sort((a, b) => s.langs[b] - s.langs[a]));
         if ($('cardDialog').open) openCard(c);
       }).catch(() => null);

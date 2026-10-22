@@ -469,6 +469,7 @@
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             collPriceNote(it),
             collCheckNote(it),
+            it.cmCents > 0 ? el('button', { class: 's linklike', type: 'button', text: `Cardmarket ${money(it.cmCents)}`, title: 'Apri la carta con il confronto Cardmarket', onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }) : null,
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
         );

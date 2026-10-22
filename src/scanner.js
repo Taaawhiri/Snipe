@@ -1293,7 +1293,10 @@ export class Scanner extends DurableObject {
             langs[code] = (langs[code] || 0) + 1;
           }
           const zero = all.find(isZero);
-          return json({ lowest: all[0] ? all[0].price.cents : null, lowestZero: zero ? zero.price.cents : null, currency: (all[0] && all[0].price.currency) || 'EUR', langs, lc });
+          // Prezzi Cardmarket della carta (se si conosce il suo id), per le carte aperte da collezione o desideri.
+          const cmId = parseInt(url.searchParams.get('cm_id'), 10);
+          const cm = Number.isInteger(cmId) && cmId > 0 ? (await this.cmLookup([cmId]).catch(() => new Map())).get(cmId) || null : null;
+          return json({ lowest: all[0] ? all[0].price.cents : null, lowestZero: zero ? zero.price.cents : null, currency: (all[0] && all[0].price.currency) || 'EUR', langs, lc, cm });
         }
         const wanted = normLang(url.searchParams.get('lang'));
         const blockedSet = new Set((await this.get('sellers', { fav: [], block: [] })).block);
