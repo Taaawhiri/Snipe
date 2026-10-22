@@ -400,7 +400,7 @@
       el('div', { class: 'cmtitle', text: 'Cardmarket · tutte le lingue e condizioni' }),
       el('div', { class: 'cmrow' }, ...[cell('tendenza', c.cm.trend), cell('media 30 giorni', c.cm.avg30), cell('più basso', c.cm.low)].filter(Boolean)),
       d == null ? null : el('div', { class: 'delta ' + (d >= 0.05 ? 'good' : d <= -0.05 ? 'bad' : ''), text: d >= 0 ? `CardTrader conviene: −${Math.round(d * 100)}% rispetto alla tendenza Cardmarket` : `Su CardTrader costa il ${Math.round(-d * 100)}% in più della tendenza Cardmarket` }),
-      el('div', { class: 'cmwarn', text: 'Il listino pubblico di Cardmarket non distingue lingue e condizioni: il "più basso" può essere una copia rovinata o in un’altra lingua, quindi il confronto è solo indicativo.' }),
+      el('div', { class: 'cmwarn', text: 'Il prezzo Cardmarket è uno solo per carta: non dipende dalla condizione né dalla lingua. Il "più basso" può essere una copia rovinata o in un’altra lingua, quindi il confronto è solo indicativo.' }),
       el('a', { href: cmSearchUrl(c), target: '_blank', rel: 'noopener noreferrer', text: 'Cerca su Cardmarket ↗' }),
     ];
     box.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"

@@ -528,7 +528,7 @@
     const LN = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH' };
     if (p.cmCapped) {
       lines.push(`Hai scelto di usare la tendenza Cardmarket per questa copia: ${money(p.cents)}. Su CardTrader ci sono pochi annunci e il più basso è ${money(p.ctCents)}.`);
-      lines.push('La tendenza Cardmarket mescola lingue e condizioni, quindi è solo indicativa.');
+      lines.push('Attenzione: il prezzo Cardmarket è uno solo per carta e NON dipende dalla condizione né dalla lingua della tua copia. È solo un riferimento indicativo.');
     } else if (p.est && p.est.from) {
       const f = p.est.from;
       lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
@@ -538,7 +538,7 @@
       lines.push(`= ${money(p.cents)}. Stima di mercato (badge ambra): i rapporti sono le mediane dei prezzi delle stesse carte in vendita su CardTrader e si aggiornano da soli.`);
     } else if (p.estimated) {
       lines.push('Stima con regole fisse (badge grigio): i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
-      lines.push(p.fromCm ? 'Nessun annuncio su CardTrader: si parte dalla tendenza Cardmarket della carta.' : `Nessun annuncio ${it.cond}: si parte da ${p.how || 'copie non gradate'}.`);
+      lines.push(p.fromCm ? 'Nessun annuncio su CardTrader: si parte dalla tendenza Cardmarket della carta. Attenzione: il prezzo Cardmarket è uno solo per carta e NON dipende dalla condizione né dalla lingua della tua copia.' : `Nessun annuncio ${it.cond}: si parte da ${p.how || 'copie non gradate'}.`);
       if (p.rawCents != null && isGradeLabel(it.cond)) lines.push(`Valore di base: ${money(p.rawCents)} × premio fisso del voto ${it.cond}, mai meno della carta più una quota del costo di gradazione.`);
     } else {
       if (p.approx) lines.push('Stima semplice (badge grigio): i rapporti di mercato per questo caso si basano ancora su meno di 20 carte.');
@@ -560,9 +560,9 @@
   function collPriceNote(it) {
     const p = it.price;
     if (!p) return null;
-    const text = p.cmCapped ? '≈ prezzo Cardmarket (scelto)'
+    const text = p.cmCapped ? '≈ Cardmarket (generico)'
       : p.est ? '≈ stima di mercato'
-      : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
+      : p.estimated ? (p.fromCm ? '≈ Cardmarket (generico)' : '≈ stima dal voto')
       : p.revApprox ? '≈ altra variante'
       : p.edApprox ? '≈ altra edizione'
       : p.approx ? `≈ altra lingua${p.lowLang && p.lowLang !== it.lang ? ` (${p.lowLang.toUpperCase()})` : ''}`
@@ -585,12 +585,12 @@
     const comparable = !isGradeLabel(it.cond) && !it.first && !it.reverse && it.lang === 'en' && it.cmCents > 0;
     if (comparable) {
       const r = p.cents / it.cmCents - 1;
-      if (Math.abs(r) > 0.4) why.push(`Il prezzo su CardTrader (${money(p.cents)}) è ${r < 0 ? 'molto sotto' : 'molto sopra'} la tendenza Cardmarket (${money(it.cmCents)}), il ${Math.round(Math.abs(r) * 100)}% in ${r < 0 ? 'meno' : 'più'}. Cardmarket mescola lingue e condizioni, ma conviene dare un'occhiata.`);
+      if (Math.abs(r) > 0.4) why.push(`Il prezzo su CardTrader (${money(p.cents)}) è ${r < 0 ? 'molto sotto' : 'molto sopra'} la tendenza Cardmarket (${money(it.cmCents)}), il ${Math.round(Math.abs(r) * 100)}% in ${r < 0 ? 'meno' : 'più'}. Il prezzo Cardmarket non dipende da condizione né lingua, ma conviene dare un'occhiata.`);
     }
     if (!why.length) return null;
     // Con 1 o 2 annunci si può scegliere, a mano, di usare la tendenza Cardmarket per questa copia.
     const canCm = p.listings > 0 && p.listings <= 2 && cmCappableUi(it) && it.cmCents > 0;
-    if (canCm) why.push(`Se preferisci, per questa copia puoi usare la tendenza Cardmarket: ${money(it.cmCents)} (indicativa: mescola lingue e condizioni).`);
+    if (canCm) why.push(`Se preferisci, per questa copia puoi usare la tendenza Cardmarket: ${money(it.cmCents)} (indicativa: non dipende da condizione né lingua).`);
     return el('button', { class: 's linklike', type: 'button', text: '⚠ da verificare', onclick: () => {
       if (!canCm) { dialog({ title: 'Da verificare', text: why.join('\n\n') }); return; }
       dialog({ title: 'Da verificare', text: why.join('\n\n'), ok: 'Usa Cardmarket', cancel: 'Chiudi' }).then((v) => { if (v) saveOwn({ ...it, cmPrice: true, add: false }); });
@@ -957,7 +957,7 @@
             it.change7 != null && Math.abs(it.change7) >= 0.005 ? el('span', { class: 'trend ' + (it.change7 >= 0 ? 'up' : 'dn'), text: `${it.change7 >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(it.change7) * 100)}% 7g` }) : null,
             collPriceNote(it),
             collCheckNote(it),
-            it.cmCents > 0 ? el('button', { class: 's linklike', type: 'button', text: `Cardmarket ${money(it.cmCents)}`, title: 'Apri la carta con il confronto Cardmarket', onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }) : null,
+            it.cmCents > 0 ? el('button', { class: 's linklike', type: 'button', text: `Cardmarket ${money(it.cmCents)}`, title: 'Prezzo generico per carta, non per condizione né lingua. Tocca per il confronto.', onclick: () => openCard({ id: it.bp, name: it.name, image: it.image, expansionId: it.expansionId, expName: it.expName, currency: 'EUR', cmId: it.cmId }) }) : null,
             !it.price && isGradeLabel(it.cond) ? el('span', { class: 's', text: `nessun annuncio ${it.cond}` }) : null,
           ),
         );
@@ -3178,7 +3178,7 @@
       el('div', { class: 'cmtitle', text: 'Cardmarket · tutte le lingue e condizioni' }),
       el('div', { class: 'cmrow' }, ...[cell('tendenza', c.cm.trend), cell('media 30 giorni', c.cm.avg30), cell('più basso', c.cm.low)].filter(Boolean)),
       d == null ? null : el('div', { class: 'delta ' + (d >= 0.05 ? 'good' : d <= -0.05 ? 'bad' : ''), text: d >= 0 ? `CardTrader conviene: −${Math.round(d * 100)}% rispetto alla tendenza Cardmarket` : `Su CardTrader costa il ${Math.round(-d * 100)}% in più della tendenza Cardmarket` }),
-      el('div', { class: 'cmwarn', text: 'Il listino pubblico di Cardmarket non distingue lingue e condizioni: il "più basso" può essere una copia rovinata o in un’altra lingua, quindi il confronto è solo indicativo.' }),
+      el('div', { class: 'cmwarn', text: 'Il prezzo Cardmarket è uno solo per carta: non dipende dalla condizione né dalla lingua. Il "più basso" può essere una copia rovinata o in un’altra lingua, quindi il confronto è solo indicativo.' }),
       el('a', { href: cmSearchUrl(c), target: '_blank', rel: 'noopener noreferrer', text: 'Cerca su Cardmarket ↗' }),
     ];
     box.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
