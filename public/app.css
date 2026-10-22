@@ -773,6 +773,8 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 @keyframes cs-up{from{transform:translateY(30px);opacity:.6}}
 @keyframes cs-fade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){.cs-overlay,.cs-sheet{animation:none}}
+/* Desktop: le tendine non sono un foglio attaccato al fondo della finestra (che può finire sotto la barra del sistema), ma un riquadro al centro, come le schede. */
+@media (min-width:641px){.cs-overlay{align-items:center}.cs-sheet{border:2px solid var(--line);border-radius:22px;max-height:70vh;box-shadow:0 20px 60px rgba(0,0,0,.5)}.cs-sheet.im{max-height:85vh}}
 .reg-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .reg-stats .rs{font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 9px}
 .reg-stats .ok{background:#1d3d2e;color:#7fe0a6}.reg-stats .none{background:#4a3c12;color:#ffd66b}.reg-stats .err{background:#4a1d27;color:#ff9aac}
