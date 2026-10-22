@@ -191,10 +191,10 @@ export function pickPrice(p, zeroOnly, typical = false) {
 /** Il tetto Cardmarket vale solo per copie normali: la tendenza è un prezzo da carta non gradata, non 1ª edizione, non reverse. */
 export const cmCappable = (c) => !parseGradeLabel(c.cond) && !c.first && !c.reverse;
 
-/** Opzione "il minore tra CardTrader e Cardmarket": se la tendenza Cardmarket è più bassa, il valore della copia è quella. */
-export function capToCm(price, cmCents) {
-  if (!price || cmCents == null || !(cmCents > 0) || price.cents <= cmCents) return price;
-  return { ...price, cents: cmCents, ctCents: price.cents, cmCapped: true };
+/** Copia con "usa Cardmarket" (scelta a mano dove gli annunci sono pochi): il valore è la tendenza Cardmarket. */
+export function useCmPrice(price, cmCents) {
+  if (!price || cmCents == null || !(cmCents > 0)) return price;
+  return { ...price, cents: cmCents, typCents: cmCents, zeroCents: cmCents, zeroTypCents: cmCents, zeroApprox: true, ctCents: price.cents, cmCapped: true };
 }
 
 /** Totali: valore, speso, quantità, copie senza prezzo. */

@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
-import { capToCm, checkAgainstHistory, cmCappable, collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
+import { checkAgainstHistory, cmCappable, collKey, gradedFromBase, pickPrice, priceFor, summarize, useCmPrice } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -366,6 +366,7 @@ export class Scanner extends DurableObject {
         : b.add && prev && prev.paidCents != null ? Math.round((prev.paidCents * prev.qty + paid * (qty - prev.qty)) / qty) : paid;
       const item = {
         key, bp, lang, cond, qty, paidCents, ...(first ? { first: true } : {}), ...(reverse ? { reverse: true } : {}),
+        ...((b.cmPrice === undefined ? prev && prev.cmPrice : b.cmPrice) ? { cmPrice: true } : {}),
         name: String(b.name || (prev && prev.name) || '').slice(0, 120),
         image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : prev ? prev.image : null,
         expansionId: parseInt(b.expansionId, 10) || (prev && prev.expansionId) || null,
@@ -465,13 +466,12 @@ export class Scanner extends DurableObject {
     if (!changed) return;
     await this.ctx.storage.put('collPrices', prices);
     const typical = !!(await this.settings()).collTypical;
-    const cmMin = !!(await this.settings()).collCmMin;
     const cm = await this.cmLookup(coll.map((c) => c.cmId).filter(Boolean));
     const base = (zeroOnly) => coll.map((c) => {
       const e = c.cmId && cm.get(c.cmId);
       const cmC = e && e.trend ? Math.round(e.trend * 100) : null;
       let price = prices[c.key] && prices[c.key].cents != null ? pickPrice(prices[c.key], zeroOnly, typical) : null;
-      if (cmMin && cmCappable(c)) price = capToCm(price, cmC);
+      if (c.cmPrice && cmCappable(c)) price = useCmPrice(price, cmC);
       return { ...c, price, cmCents: cmC };
     });
     const items = base(false);
@@ -487,7 +487,6 @@ export class Scanner extends DurableObject {
   async collectionView() {
     const zeroOnly = !!(await this.settings()).collZero;
     const typical = !!(await this.settings()).collTypical;
-    const cmMin = !!(await this.settings()).collCmMin;
     const coll = await this.get('coll', []);
     // Carte salvate senza prezzo pagato: da ora contano come trovate (0 €).
     if (coll.some((c) => c.paidCents == null)) {
@@ -527,7 +526,7 @@ export class Scanner extends DurableObject {
       const e = c.cmId && cm.get(c.cmId);
       const cmC = e && e.trend ? Math.round(e.trend * 100) : null;
       let price = p && p.cents != null ? pickPrice(p, zeroOnly, typical) : null;
-      if (cmMin && cmCappable(c)) price = capToCm(price, cmC);
+      if (c.cmPrice && cmCappable(c)) price = useCmPrice(price, cmC);
       // Variazione recente del valore di questa copia (con le stesse impostazioni Zero/tipico), ultime 24 ore.
       let delta = null;
       if (price && p.prev && Date.now() - (p.changedAt || 0) < 24 * 3600_000) {
@@ -546,7 +545,7 @@ export class Scanner extends DurableObject {
     }
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
     const reliable = (await this.settings()).collReliable !== false;
-    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, cmMin, reliable, refreshing };
+    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, reliable, refreshing };
   }
 
   async reportError(where, err) {

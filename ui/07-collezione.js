@@ -39,8 +39,8 @@
     const lines = [];
     const LN = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH' };
     if (p.cmCapped) {
-      lines.push(`Hai scelto di usare il minore tra CardTrader e Cardmarket. Su CardTrader la tua copia costa ${money(p.ctCents)}, la tendenza Cardmarket della carta è ${money(p.cents)}: vale quest'ultima.`);
-      lines.push('La tendenza Cardmarket mescola lingue e condizioni, quindi è solo indicativa. Puoi spegnere l\'opzione in ⚙ Come si calcola il valore.');
+      lines.push(`Hai scelto di usare la tendenza Cardmarket per questa copia: ${money(p.cents)}. Su CardTrader ci sono pochi annunci e il più basso è ${money(p.ctCents)}.`);
+      lines.push('La tendenza Cardmarket mescola lingue e condizioni, quindi è solo indicativa.');
     } else if (p.est && p.est.from) {
       const f = p.est.from;
       lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
@@ -63,7 +63,8 @@
     }
     if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
     if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
-    dialog({ title: 'Come è calcolato', text: lines.join('\n\n') });
+    if (p.cmCapped) dialog({ title: 'Come è calcolato', text: lines.join('\n\n'), ok: 'Torna a CardTrader', cancel: 'Chiudi' }).then((v) => { if (v) saveOwn({ ...it, cmPrice: false, add: false }); });
+    else dialog({ title: 'Come è calcolato', text: lines.join('\n\n') });
   }
   const isEstimate = (p) => !!(p && (p.cmCapped || p.estimated || p.approx || p.histAnomaly || (p.skipped && p.skipped.length)));
 
@@ -71,7 +72,7 @@
   function collPriceNote(it) {
     const p = it.price;
     if (!p) return null;
-    const text = p.cmCapped ? '≈ minore: Cardmarket'
+    const text = p.cmCapped ? '≈ prezzo Cardmarket (scelto)'
       : p.est ? '≈ stima di mercato'
       : p.estimated ? (p.fromCm ? '≈ stima da Cardmarket' : '≈ stima dal voto')
       : p.revApprox ? '≈ altra variante'
@@ -85,6 +86,8 @@
   }
 
 
+  const cmCappableUi = (it) => !isGradeLabel(it.cond) && !it.first && !it.reverse;
+
   /** "Da verificare": pochi annunci, o prezzo molto lontano dalla tendenza Cardmarket (solo dove il confronto ha senso). */
   function collCheckNote(it) {
     const p = it.price;
@@ -97,7 +100,13 @@
       if (Math.abs(r) > 0.4) why.push(`Il prezzo su CardTrader (${money(p.cents)}) è ${r < 0 ? 'molto sotto' : 'molto sopra'} la tendenza Cardmarket (${money(it.cmCents)}), il ${Math.round(Math.abs(r) * 100)}% in ${r < 0 ? 'meno' : 'più'}. Cardmarket mescola lingue e condizioni, ma conviene dare un'occhiata.`);
     }
     if (!why.length) return null;
-    return el('button', { class: 's linklike', type: 'button', text: '⚠ da verificare', onclick: () => dialog({ title: 'Da verificare', text: why.join('\n\n') }) });
+    // Con 1 o 2 annunci si può scegliere, a mano, di usare la tendenza Cardmarket per questa copia.
+    const canCm = p.listings > 0 && p.listings <= 2 && cmCappableUi(it) && it.cmCents > 0;
+    if (canCm) why.push(`Se preferisci, per questa copia puoi usare la tendenza Cardmarket: ${money(it.cmCents)} (indicativa: mescola lingue e condizioni).`);
+    return el('button', { class: 's linklike', type: 'button', text: '⚠ da verificare', onclick: () => {
+      if (!canCm) { dialog({ title: 'Da verificare', text: why.join('\n\n') }); return; }
+      dialog({ title: 'Da verificare', text: why.join('\n\n'), ok: 'Usa Cardmarket', cancel: 'Chiudi' }).then((v) => { if (v) saveOwn({ ...it, cmPrice: true, add: false }); });
+    } });
   }
 
   let collPoll = null;
@@ -314,7 +323,6 @@
     $('collZero').checked = !!coll.zeroOnly;
     $('collTypical').checked = !!coll.typical;
     $('collReliable').checked = coll.reliable !== false;
-    $('collCmMin').checked = !!coll.cmMin;
     const { items, summary: sm, history } = coll;
     const hist = history || [];
     const days = Math.min(collRange, hist.length - 1);
@@ -533,11 +541,6 @@
   $('collTypical').addEventListener('change', async () => {
     $('collList').classList.add('loading');
     await saveSettings({ collTypical: $('collTypical').checked });
-    loadCollection();
-  });
-  $('collCmMin').addEventListener('change', async () => {
-    $('collList').classList.add('loading');
-    await saveSettings({ collCmMin: $('collCmMin').checked });
     loadCollection();
   });
   $('collReliable').addEventListener('change', async () => {

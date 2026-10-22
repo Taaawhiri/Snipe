@@ -12,7 +12,6 @@ export const DEFAULT_SETTINGS = {
   summary: true, // riepilogo giornaliero alle 9
   collZero: true, // valore della collezione con i soli prezzi CardTrader Zero
   collTypical: true, // valore con il prezzo tipico (mediana dei 5 più economici) invece del più basso
-  collCmMin: false, // valore = il minore tra il prezzo CardTrader e la tendenza Cardmarket
   collReliable: true, // valore della collezione senza i venditori segnalati da CardTrader (annullamenti, venditori nuovi)
 };
 
@@ -67,7 +66,6 @@ export function cleanSettings(input, old = DEFAULT_SETTINGS) {
     summary: b.summary === undefined ? old.summary !== false : !!b.summary,
     collZero: b.collZero === undefined ? !!old.collZero : !!b.collZero,
     collTypical: b.collTypical === undefined ? !!old.collTypical : !!b.collTypical,
-    collCmMin: b.collCmMin === undefined ? !!old.collCmMin : !!b.collCmMin,
     collReliable: b.collReliable === undefined ? old.collReliable !== false : !!b.collReliable,
   };
 }

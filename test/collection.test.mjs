@@ -79,15 +79,15 @@ test('reverse holo: la copia reverse usa solo annunci reverse, la normale solo i
   assert.equal(priceFor([D(100, 'non reverse', false), D(400, 'x', true)], 'en', 'Near Mint', { reverse: false }).cents, 100);
 });
 
-import { capToCm } from '../src/collection.js';
-test('il minore tra CardTrader e Cardmarket', () => {
+import { useCmPrice } from '../src/collection.js';
+test('usa Cardmarket per una copia con pochi annunci', () => {
   const p = { cents: 1000, typCents: 1000 };
-  assert.equal(capToCm(p, 700).cents, 700);
-  assert.equal(capToCm(p, 700).ctCents, 1000);
-  assert.equal(capToCm(p, 700).cmCapped, true);
-  assert.equal(capToCm(p, 1500), p); // Cardmarket più alta: resta il prezzo CardTrader
-  assert.equal(capToCm(p, null), p);
-  assert.equal(capToCm(null, 700), null);
+  const q = useCmPrice(p, 700);
+  assert.equal(q.cents, 700);
+  assert.equal(q.ctCents, 1000);
+  assert.equal(q.cmCapped, true);
+  assert.equal(useCmPrice(p, null), p);
+  assert.equal(useCmPrice(null, 700), null);
 });
 
 import { cmCappable } from '../src/collection.js';
