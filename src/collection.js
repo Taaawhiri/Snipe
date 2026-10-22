@@ -188,6 +188,9 @@ export function pickPrice(p, zeroOnly, typical = false) {
   return typical && p.typCents != null ? { ...p, cents: p.typCents, skipped: undefined } : p;
 }
 
+/** Il tetto Cardmarket vale solo per copie normali: la tendenza è un prezzo da carta non gradata, non 1ª edizione, non reverse. */
+export const cmCappable = (c) => !parseGradeLabel(c.cond) && !c.first && !c.reverse;
+
 /** Opzione "il minore tra CardTrader e Cardmarket": se la tendenza Cardmarket è più bassa, il valore della copia è quella. */
 export function capToCm(price, cmCents) {
   if (!price || cmCents == null || !(cmCents > 0) || price.cents <= cmCents) return price;

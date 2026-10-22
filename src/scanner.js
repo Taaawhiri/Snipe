@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
-import { capToCm, checkAgainstHistory, collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
+import { capToCm, checkAgainstHistory, cmCappable, collKey, gradedFromBase, pickPrice, priceFor, summarize } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -471,7 +471,7 @@ export class Scanner extends DurableObject {
       const e = c.cmId && cm.get(c.cmId);
       const cmC = e && e.trend ? Math.round(e.trend * 100) : null;
       let price = prices[c.key] && prices[c.key].cents != null ? pickPrice(prices[c.key], zeroOnly, typical) : null;
-      if (cmMin) price = capToCm(price, cmC);
+      if (cmMin && cmCappable(c)) price = capToCm(price, cmC);
       return { ...c, price, cmCents: cmC };
     });
     const items = base(false);
@@ -527,7 +527,7 @@ export class Scanner extends DurableObject {
       const e = c.cmId && cm.get(c.cmId);
       const cmC = e && e.trend ? Math.round(e.trend * 100) : null;
       let price = p && p.cents != null ? pickPrice(p, zeroOnly, typical) : null;
-      if (cmMin) price = capToCm(price, cmC);
+      if (cmMin && cmCappable(c)) price = capToCm(price, cmC);
       // Variazione recente del valore di questa copia (con le stesse impostazioni Zero/tipico), ultime 24 ore.
       let delta = null;
       if (price && p.prev && Date.now() - (p.changedAt || 0) < 24 * 3600_000) {

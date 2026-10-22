@@ -89,3 +89,11 @@ test('il minore tra CardTrader e Cardmarket', () => {
   assert.equal(capToCm(p, null), p);
   assert.equal(capToCm(null, 700), null);
 });
+
+import { cmCappable } from '../src/collection.js';
+test('il tetto Cardmarket non vale per gradate, 1ª edizione e reverse', () => {
+  assert.equal(cmCappable({ cond: 'Near Mint' }), true);
+  assert.equal(cmCappable({ cond: 'PSA 10' }), false);
+  assert.equal(cmCappable({ cond: 'Near Mint', first: true }), false);
+  assert.equal(cmCappable({ cond: 'Near Mint', reverse: true }), false);
+});
