@@ -143,7 +143,12 @@
     const unseen = state.alerts.filter((a) => !a.test && !a.mark).length;
     $('alertsLabel').replaceChildren('Avvisi', ...(unseen ? [el('span', { class: 'count-dot', text: unseen > 99 ? '99+' : String(unseen) })] : []));
     $('alertDot').hidden = !unseen;
-    if (!hviewChosen) { hviewChosen = true; setHview(unseen ? 'alerts' : 'coll'); }
+    if (!hviewChosen) {
+      hviewChosen = true;
+      let saved = null;
+      try { saved = localStorage.getItem('snipe.hview'); } catch {}
+      setHview(saved === 'alerts' || saved === 'coll' ? saved : unseen ? 'alerts' : 'coll');
+    }
 
     renderWish();
     renderRviewCounts();

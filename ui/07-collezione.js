@@ -516,7 +516,7 @@
     $('alertsView').hidden = v !== 'alerts';
     if (v === 'coll') loadCollection();
   }
-  document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
+  document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; try { localStorage.setItem('snipe.hview', r.value); } catch {} setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
   $('collSearch').addEventListener('input', renderCollection);
   $('collRarity').addEventListener('change', renderCollection);

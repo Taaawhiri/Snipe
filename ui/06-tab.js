@@ -3,6 +3,7 @@
   function goTab(name, fromPop) {
     if (!fromPop && name !== curTab) history.pushState({ tab: name }, '');
     curTab = name;
+    try { localStorage.setItem('snipe.tab', name); } catch {} // dopo "aggiorna" si torna qui
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
     for (const t of ['alerts', 'cards', 'deals', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
     if (name === 'deals') loadDeals();

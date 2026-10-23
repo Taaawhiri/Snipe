@@ -263,6 +263,7 @@
   function goTab(name, fromPop) {
     if (!fromPop && name !== curTab) history.pushState({ tab: name }, '');
     curTab = name;
+    try { localStorage.setItem('snipe.tab', name); } catch {} // dopo "aggiorna" si torna qui
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === name));
     for (const t of ['alerts', 'cards', 'deals', 'rules', 'settings']) $(`tab-${t}`).hidden = t !== name;
     if (name === 'deals') loadDeals();
@@ -1004,7 +1005,7 @@
     $('alertsView').hidden = v !== 'alerts';
     if (v === 'coll') loadCollection();
   }
-  document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; setHview(r.value); }));
+  document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; try { localStorage.setItem('snipe.hview', r.value); } catch {} setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));
   $('collSearch').addEventListener('input', renderCollection);
   $('collRarity').addEventListener('change', renderCollection);
@@ -2141,7 +2142,12 @@
     const unseen = state.alerts.filter((a) => !a.test && !a.mark).length;
     $('alertsLabel').replaceChildren('Avvisi', ...(unseen ? [el('span', { class: 'count-dot', text: unseen > 99 ? '99+' : String(unseen) })] : []));
     $('alertDot').hidden = !unseen;
-    if (!hviewChosen) { hviewChosen = true; setHview(unseen ? 'alerts' : 'coll'); }
+    if (!hviewChosen) {
+      hviewChosen = true;
+      let saved = null;
+      try { saved = localStorage.getItem('snipe.hview'); } catch {}
+      setHview(saved === 'alerts' || saved === 'coll' ? saved : unseen ? 'alerts' : 'coll');
+    }
 
     renderWish();
     renderRviewCounts();
@@ -3474,6 +3480,11 @@
     }
     $('login').hidden = true;
     $('app').hidden = false;
+    // Dopo un aggiornamento della pagina si torna nella scheda dove eri, non alla prima.
+    try {
+      const t = localStorage.getItem('snipe.tab');
+      if (t && t !== curTab && ['alerts', 'cards', 'deals', 'rules', 'settings'].includes(t)) { goTab(t, true); history.replaceState({ tab: t }, ''); }
+    } catch {}
     maybeWelcome();
     // Collezione caricata subito: serve al badge "Ce l'ho" in Cerca, Affari e Regole.
     if (!coll) api('/api/collection').then((d) => { if (!coll) coll = d; render(); renderCards(); if (dealsData) renderDeals(dealsData); }).catch(() => null);

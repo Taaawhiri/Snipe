@@ -8,6 +8,11 @@
     }
     $('login').hidden = true;
     $('app').hidden = false;
+    // Dopo un aggiornamento della pagina si torna nella scheda dove eri, non alla prima.
+    try {
+      const t = localStorage.getItem('snipe.tab');
+      if (t && t !== curTab && ['alerts', 'cards', 'deals', 'rules', 'settings'].includes(t)) { goTab(t, true); history.replaceState({ tab: t }, ''); }
+    } catch {}
     maybeWelcome();
     // Collezione caricata subito: serve al badge "Ce l'ho" in Cerca, Affari e Regole.
     if (!coll) api('/api/collection').then((d) => { if (!coll) coll = d; render(); renderCards(); if (dealsData) renderDeals(dealsData); }).catch(() => null);
