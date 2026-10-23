@@ -113,6 +113,12 @@ test('carte singole contro sigillati e accessori', () => {
   }
   // un nome da carta ma con "Box" nel nome viene scartato anche se la categoria sembra giusta
   assert.equal(single('Charizard Box', 'Holo Rare | 1/1'), false);
+  // Prodotto sigillato nella categoria delle singole: senza numero di collezione non è una carta.
+  const withFp = (name, version, fp) => isSingleCard({ name, version, category_id: 1, fp }, [1]);
+  assert.equal(withFp('Lugia', '142/103', { collector_number: '142' }), true);
+  assert.equal(withFp('30th Celebration: Starter', '', { language: 'ja' }), false);
+  assert.equal(withFp('Lugia', '142/103', {}), true); // niente proprietà fisse: si resta sulla categoria
+  assert.equal(withFp('30th Celebration: Card Set', '', { collector_number: '1' }), false);
   // senza categorie note e senza versione: valgono nome e assenza di parole da sigillato
   assert.equal(isSingleCard({ name: 'Mew', version: null }, null), true);
   assert.equal(isSingleCard({ name: 'Mew', version: null, category_id: 9 }, [1]), false);

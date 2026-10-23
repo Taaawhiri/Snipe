@@ -164,7 +164,7 @@ export function findDeals(products, rule, opts = {}) {
 }
 
 // Nomi che indicano prodotti sigillati o accessori, mai carte singole.
-export const SEALED_NAME = /\b(booster|boosters|box|boxes|display|bundle|deck|decks|tin|tins|collection|collections|case|pack|packs|elite trainer|etb|trainer kit|kit|sleeve|sleeves|playmat|mat|binder|portfolio|album|folder|coin|blister|starter|figure|pin|pins|build\s*&\s*battle|prerelease|promo set|gift|calendar|poster|mug|dice|marker|counter|lot|bulk|jumbo|oversize)\b/i;
+export const SEALED_NAME = /\b(booster|boosters|box|boxes|display|bundle|deck|decks|tin|tins|collection|collections|case|pack|packs|elite trainer|etb|trainer kit|kit|sleeve|sleeves|playmat|mat|binder|portfolio|album|folder|coin|blister|starter|figure|pin|pins|build\s*&\s*battle|prerelease|promo set|gift|calendar|poster|mug|dice|marker|counter|lot|bulk|jumbo|oversize|card set|special set|first partner)\b/i;
 
 /**
  * Distingue le carte singole dai prodotti sigillati e dagli accessori.
@@ -173,6 +173,10 @@ export const SEALED_NAME = /\b(booster|boosters|box|boxes|display|bundle|deck|de
 export function isSingleCard(bp, singleCategoryIds) {
   if (SEALED_NAME.test(String(bp.name || ''))) return false;
   if (typeof bp.version === 'string' && bp.version.includes('|')) return true;
+  // Le carte singole hanno un numero di collezione tra le proprietà fisse; i prodotti sigillati no, anche se stanno nella stessa categoria.
+  // (Solo se le proprietà fisse ci sono: se mancano del tutto non si può dire, e si resta sulla categoria.)
+  const fp = bp.fixed_properties || bp.fp;
+  if (fp && typeof fp === 'object' && Object.keys(fp).length && !Object.keys(fp).some((k) => /collector_number/i.test(k) && fp[k])) return false;
   if (singleCategoryIds) return singleCategoryIds.includes(bp.category_id);
   return true;
 }
