@@ -1700,12 +1700,8 @@ export class Scanner extends DurableObject {
   }
 
   /** Carte di un'espansione con immagine e prezzo più basso (in totale e con CardTrader Zero). */
-  async cardsFor(expansionId) {
-    const hit = this.cardCache.get(expansionId);
-    const prodHit = this.productCache.get(expansionId);
-    if (hit && prodHit && hit.ts >= prodHit.ts) return hit.data; // calcolate sugli annunci più recenti
-
-    const singleIds = await this.singleCategoryIds();
+  /** Carte (blueprint) di un'espansione, con una copia salvata per un giorno. */
+  async blueprintsFor(expansionId) {
     const bpKey = `bp4:${expansionId}`;
     let blueprints;
     const savedBp = await this.get(bpKey, null);
@@ -1717,6 +1713,16 @@ export class Scanner extends DurableObject {
       blueprints = raw.map((b) => ({ id: b.id, name: b.name, version: b.version, image_url: b.image_url, category_id: b.category_id, fp: b.fixed_properties || {}, cm: Array.isArray(b.card_market_ids) ? b.card_market_ids[0] || null : null }));
       await this.ctx.storage.put(bpKey, { ts: Date.now(), list: blueprints });
     }
+    return blueprints;
+  }
+
+  async cardsFor(expansionId) {
+    const hit = this.cardCache.get(expansionId);
+    const prodHit = this.productCache.get(expansionId);
+    if (hit && prodHit && hit.ts >= prodHit.ts) return hit.data; // calcolate sugli annunci più recenti
+
+    const singleIds = await this.singleCategoryIds();
+    const blueprints = await this.blueprintsFor(expansionId);
     const products = await this.productsFor(expansionId);
 
     const cmMap = await this.cmLookup(blueprints.map((b) => b.cm).filter(Boolean));
@@ -1795,17 +1801,42 @@ export class Scanner extends DurableObject {
     return (await this.usableExpansions()).sort((a, b) => b.id - a.id).slice(0, DEALS_SETS);
   }
 
-  /** Giro su tutte le altre: prima quelle mai lette (le più nuove per prime), poi quelle lette da più tempo. */
+  /** Valore di un'espansione: somma delle 5 carte con la tendenza Cardmarket più alta (in euro). Si calcola una volta. */
+  async probeSetValue(expId) {
+    const blueprints = await this.blueprintsFor(expId);
+    const cm = await this.cmLookup(blueprints.map((b) => b.cm).filter(Boolean));
+    const top = blueprints.map((b) => (b.cm && cm.get(b.cm) && cm.get(b.cm).trend) || 0).sort((x, y) => y - x).slice(0, 5);
+    const val = Math.round(top.reduce((t, x) => t + x, 0));
+    await this.ctx.storage.put(`sv:${expId}`, { val, ts: Date.now() });
+    return val;
+  }
+
+  /**
+   * Giro su tutte le altre espansioni, per valore: prima quelle mai lette, dalle più preziose; poi si rileggono
+   * quelle dove l'attesa pesa di più (valore × ore dall'ultima lettura). Senza ancora un valore si va dalle più nuove.
+   */
   async nextRotationSet(recent) {
     const taken = new Set(recent.map((e) => e.id));
     const rest = (await this.usableExpansions()).filter((e) => !taken.has(e.id));
     if (!rest.length) return null;
-    const got = await this.ctx.storage.list({ prefix: 'dd:' });
     const ts = new Map();
-    for (const [k, v] of got) ts.set(Number(k.slice(3)), v.ts || 0);
-    const unread = rest.filter((e) => !ts.has(e.id)).sort((a, b) => b.id - a.id);
-    if (unread.length) return unread[0];
-    return rest.sort((a, b) => ts.get(a.id) - ts.get(b.id))[0];
+    for (const [k, v] of await this.ctx.storage.list({ prefix: 'dd:' })) ts.set(Number(k.slice(3)), v.ts || 0);
+    const vals = new Map();
+    for (const [k, v] of await this.ctx.storage.list({ prefix: 'sv:' })) vals.set(Number(k.slice(3)), v.val || 0);
+    const unread = rest.filter((e) => !ts.has(e.id));
+    const unreadKnown = unread.filter((e) => vals.has(e.id)).sort((a, b) => vals.get(b.id) - vals.get(a.id));
+    if (unreadKnown.length) return unreadKnown[0];
+    const unreadUnknown = unread.filter((e) => !vals.has(e.id)).sort((a, b) => b.id - a.id);
+    if (unreadUnknown.length) return unreadUnknown[0];
+    const hours = (e) => Math.min(72, (Date.now() - ts.get(e.id)) / 3600_000);
+    return rest.sort((a, b) => ((vals.get(b.id) || 0) + 1) * hours(b) - ((vals.get(a.id) || 0) + 1) * hours(a))[0];
+  }
+
+  /** Un'espansione ancora senza valore, per calcolarlo (una al giro: costa al massimo la lettura delle sue carte). */
+  async nextUnprobed(recent) {
+    const have = new Set();
+    for (const k of (await this.ctx.storage.list({ prefix: 'sv:' })).keys()) have.add(Number(k.slice(3)));
+    return (await this.usableExpansions()).filter((e) => !have.has(e.id)).sort((a, b) => b.id - a.id)[0] || null;
   }
 
   async dealsStep() {
@@ -1816,6 +1847,14 @@ export class Scanner extends DurableObject {
     if (!recent.length) return;
     // Un giro sì e uno no: una espansione recente, oppure la prossima della rotazione su tutte le altre.
     const exp = st.i % 2 === 0 ? recent[(st.i >> 1) % recent.length] : (await this.nextRotationSet(recent)) || recent[(st.i >> 1) % recent.length];
+    // Intanto si calcola il valore di un'espansione che non ce l'ha ancora: serve a scegliere cosa leggere per prima.
+    const probe = await this.nextUnprobed(recent).catch(() => null);
+    if (probe) {
+      await this.probeSetValue(probe.id).catch(async (e) => {
+        // Un errore vero (non il limite di richieste) non deve bloccare le altre: si segna con valore 0 e si va avanti.
+        if (!e.rateLimited && !e.budget) await this.ctx.storage.put(`sv:${probe.id}`, { val: 0, ts: Date.now(), err: true });
+      });
+    }
     const { cards } = await this.cardsFor(exp.id);
     const products = await this.productsFor(exp.id);
     await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromProducts(cards, products), itemsZero: zeroDealsFromProducts(cards, products) });
