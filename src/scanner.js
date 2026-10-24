@@ -37,7 +37,7 @@ const MARKET_MAX_SCAN = 6; // letture normali al massimo per giro, quando i gett
 const FAST_SHARE = 0.6; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
-const DEALS_EVERY_MS = 3 * 60_000; // una espansione ogni 3 minuti
+const DEALS_EVERY_MS = 5 * 60_000; // una espansione ogni 5 minuti
 const DEALS_MAX_AGE_MS = 12 * 3600_000; // un affare più vecchio di così non si mostra più
 
 
@@ -50,7 +50,7 @@ function withoutSellers(data, blocked, risky = false) {
 }
 const CATALOG = 'main';
 const STUCK_MS = 15 * 60_000;
-const MKT_BUCKET = 12; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
+const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
 const MKT_RESERVE = 2; // gettoni che lo scan lascia sempre all'utente
 const MKT_GAP_START = 3000; // un gettone ogni 3 s = 20 letture al minuto
 const MKT_GAP_MIN = 2000;
@@ -1185,6 +1185,44 @@ export class Scanner extends DurableObject {
       return json({ rows, sources: this.bpCache.size + this.productCache.size });
     }
 
+    if (path === '/api/orders' && method === 'GET') {
+      // I tuoi acquisti su CardTrader (sola lettura, niente viene salvato): elenco con stato, venditore e carte.
+      const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+      const q = new URLSearchParams({ order_as: 'buyer', limit: '20', page: String(page), sort: 'date.desc' });
+      const state = url.searchParams.get('state');
+      if (state && /^[a-z_]+$/.test(state)) q.set('state', state);
+      try {
+        const raw = await this.ct(`/orders?${q}`);
+        const list = Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || [];
+        const owner = (await this.plan()).id === 'owner';
+        const pick = (o, ...keys) => { for (const k of keys) { const v = k.split('.').reduce((a, x) => (a == null ? a : a[x]), o); if (v != null && v !== '') return v; } return null; };
+        const orders = list.slice(0, 20).map((o) => {
+          const items = pick(o, 'order_items', 'items', 'products') || [];
+          return {
+            id: o.id,
+            state: pick(o, 'state', 'status'),
+            zero: !!pick(o, 'via_cardtrader_zero'),
+            date: pick(o, 'paid_at', 'created_at', 'ordered_at', 'date'),
+            seller: pick(o, 'seller.username', 'seller_username', 'seller'),
+            tracking: pick(o, 'tracking_code', 'tracking.code'),
+            totalCents: pick(o, 'total.cents', 'total_cents', 'total_price.cents', 'seller_total.cents'),
+            currency: pick(o, 'total.currency', 'currency', 'total_price.currency') || 'EUR',
+            items: Array.isArray(items) ? items.slice(0, 30).map((it) => ({
+              name: pick(it, 'name', 'blueprint.name', 'product.name_en', 'name_en', 'description'),
+              expansion: pick(it, 'expansion', 'expansion.name', 'blueprint.expansion.name_en'),
+              qty: pick(it, 'quantity', 'qty') || 1,
+              cents: pick(it, 'price_cents', 'price.cents', 'unit_price.cents'),
+            })) : [],
+          };
+        });
+        return json({ orders, page, more: list.length >= 20, ...(owner && list[0] ? { sample: list[0] } : {}) });
+      } catch (e) {
+        const m = String(e.message || e);
+        if (/40[13]/.test(m) || /unauthor|forbidden/i.test(m)) return json({ error: 'Il tuo accesso a CardTrader non permette di leggere gli ordini.' }, 403);
+        return json({ error: m }, e.rateLimited ? 429 : 502);
+      }
+    }
+
     if (path === '/api/sellercheck' && method === 'GET') {
       // Un venditore è affidabile? Si guardano i suoi dati negli annunci letti di recente (CardTrader non permette di chiederli da soli).
       const name = (url.searchParams.get('username') || '').trim().toLowerCase();
@@ -1864,7 +1902,7 @@ export class Scanner extends DurableObject {
   async dealsStep() {
     if (!(await this.dealsDue())) return;
     const st = await this.get('ddState', { i: 0, ts: 0 });
-    await this.ctx.storage.put('ddState', { i: st.i + 1, ts: Date.now() });
+    await this.ctx.storage.put('ddState', { ...st, ts: Date.now() }); // si aspetta comunque il prossimo turno, anche se questo non riesce
     const recent = await this.recentExpansions();
     if (!recent.length) return;
     // Un giro sì e uno no: una espansione recente, oppure la prossima della rotazione su tutte le altre.
@@ -1876,6 +1914,14 @@ export class Scanner extends DurableObject {
         // Un errore vero (non il limite di richieste) non deve bloccare le altre: si segna con valore 0 e si va avanti.
         if (!e.rateLimited && !e.budget) await this.setSetValue(probe.id, 0);
       });
+    }
+    // La lettura degli annunci passa dopo gli alert: usa solo i gettoni che avanzano. Se non ce ne sono (o CardTrader
+    // chiede di rallentare) si salta questo turno senza segnalare un errore.
+    try {
+      await this.productsFor(exp.id, 0, true);
+    } catch (e) {
+      if (e.budget || e.rateLimited) return;
+      throw e;
     }
     const { cards } = await this.cardsFor(exp.id);
     const products = await this.productsFor(exp.id);
@@ -2205,6 +2251,7 @@ export class Scanner extends DurableObject {
     }
     try {
       await this.dealsStep();
+      status.dealsError = null;
     } catch (e) {
       status.dealsError = String(e.message || e);
     }
@@ -2349,7 +2396,8 @@ export class Scanner extends DurableObject {
     // La corsia veloce (alert con la stella, a rotazione, i più vecchi per primi) ne prende una parte e il resto
     // va agli altri alert: se la corsia veloce li prendesse tutti, gli alert senza stella non verrebbero mai riletti.
     this.refill();
-    const avail = Math.max(0, Math.floor(this.tokens) - MKT_RESERVE);
+    // Un gettone resta libero per la lettura degli affari del giorno (che passa dopo gli alert).
+    const avail = Math.max(0, Math.floor(this.tokens) - MKT_RESERVE - 1);
     // Con pochi gettoni (limite stretto di CardTrader) si alterna: un giro tocca a una carta con la stella, il giro dopo agli altri.
     const fastCap = avail > MARKET_PER_SCAN ? Math.max(1, Math.min(Math.round(avail * FAST_SHARE), avail - MARKET_PER_SCAN)) : (this.fastTurn = !this.fastTurn) ? 1 : 0;
     const fast = all.filter((x) => x.prio >= 6 && now - age(x) > FAST_MIN_AGE_MS).sort((a, b) => age(a) - age(b)).slice(0, fastCap);
