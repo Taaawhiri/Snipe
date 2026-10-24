@@ -10,6 +10,16 @@
     );
   }
 
+  /** Giro degli affari del giorno: quante espansioni sono state lette di recente e quando è stata l'ultima lettura. */
+  function dealsRow(d) {
+    const late = !d.lastTs || Date.now() - d.lastTs > 15 * 60_000;
+    const row = kvRow('Affari del giorno', d.total ? `${d.fresh} espansioni su ${d.total} lette nelle ultime 12 ore` : `${d.fresh} espansioni lette nelle ultime 12 ore`, d.error ? 'bad' : late ? 'warn' : '', d.total ? d.fresh / d.total : null, true);
+    row.append(el('span', { class: 'small muted', text: d.lastTs ? `Ultima lettura ${ago(d.lastTs)}${d.last ? `: ${d.last}` : ''}${late ? ' · più lenta del solito' : ''}` : 'Nessuna lettura ancora: parte entro qualche minuto.' }));
+    if (d.total) row.append(el('span', { class: 'small muted', text: `Valori delle espansioni calcolati: ${d.probed} su ${d.total} · lette almeno una volta: ${d.everRead}` }));
+    if (d.error) row.append(el('span', { class: 'small muted', text: `Ultimo errore: ${friendlyError(d.error)}` }));
+    return row;
+  }
+
   /** Avanzamento del riconoscimento delle regioni: trovate in verde, senza annunci in giallo, errori in rosso. */
   function regionsRow(r, error) {
     const left = r.total - r.done;
@@ -68,6 +78,7 @@
       ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'warn' : '')] : []),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? friendlyError(st.lastError) : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
+      ...(sys.deals ? [dealsRow(sys.deals)] : []),
       kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
       kvRow('Prezzi Cardmarket', sys.cm ? `aggiornati ${ago(sys.cm.ts)}` : sys.cmError ? `non disponibili: ${sys.cmError}` : 'in scaricamento…', !sys.cm && sys.cmError ? 'bad' : ''),
       kvRow('Iscrizioni alle notifiche', String(state.pushDevices)),

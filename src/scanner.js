@@ -591,6 +591,24 @@ export class Scanner extends DurableObject {
       cmError: (status && status.cmError) || null,
       regions: (status && status.regions) || null,
       regionError: (status && status.regionError) || null,
+      deals: await this.dealsInfo(m, status),
+    };
+  }
+
+  /** Stato del giro degli affari del giorno, per Opzioni. */
+  async dealsInfo(ixmeta, status) {
+    const idx = await this.get('ddIdx', {});
+    const st = await this.get('ddState', { i: 0, ts: 0 });
+    const sv = await this.get('svIdx', {});
+    const total = ixmeta && ixmeta.have ? ixmeta.have.length : null;
+    return {
+      fresh: Object.values(idx).filter((t) => Date.now() - t < DEALS_MAX_AGE_MS).length,
+      everRead: Object.keys(idx).length,
+      total,
+      probed: Object.keys(sv).length,
+      lastTs: st.ts || null,
+      last: st.last || null,
+      error: (status && status.dealsError) || null,
     };
   }
 
@@ -1807,8 +1825,15 @@ export class Scanner extends DurableObject {
     const cm = await this.cmLookup(blueprints.map((b) => b.cm).filter(Boolean));
     const top = blueprints.map((b) => (b.cm && cm.get(b.cm) && cm.get(b.cm).trend) || 0).sort((x, y) => y - x).slice(0, 5);
     const val = Math.round(top.reduce((t, x) => t + x, 0));
-    await this.ctx.storage.put(`sv:${expId}`, { val, ts: Date.now() });
+    await this.setSetValue(expId, val);
     return val;
+  }
+
+  /** Valori delle espansioni (id -> euro) e ultime letture (id -> ora): piccoli elenchi, comodi per scegliere e per lo stato in Opzioni. */
+  async setSetValue(expId, val) {
+    const idx = await this.get('svIdx', {});
+    idx[expId] = val;
+    await this.ctx.storage.put('svIdx', idx);
   }
 
   /**
@@ -1819,10 +1844,8 @@ export class Scanner extends DurableObject {
     const taken = new Set(recent.map((e) => e.id));
     const rest = (await this.usableExpansions()).filter((e) => !taken.has(e.id));
     if (!rest.length) return null;
-    const ts = new Map();
-    for (const [k, v] of await this.ctx.storage.list({ prefix: 'dd:' })) ts.set(Number(k.slice(3)), v.ts || 0);
-    const vals = new Map();
-    for (const [k, v] of await this.ctx.storage.list({ prefix: 'sv:' })) vals.set(Number(k.slice(3)), v.val || 0);
+    const ts = new Map(Object.entries(await this.get('ddIdx', {})).map(([k, v]) => [Number(k), v]));
+    const vals = new Map(Object.entries(await this.get('svIdx', {})).map(([k, v]) => [Number(k), v]));
     const unread = rest.filter((e) => !ts.has(e.id));
     const unreadKnown = unread.filter((e) => vals.has(e.id)).sort((a, b) => vals.get(b.id) - vals.get(a.id));
     if (unreadKnown.length) return unreadKnown[0];
@@ -1834,8 +1857,7 @@ export class Scanner extends DurableObject {
 
   /** Un'espansione ancora senza valore, per calcolarlo (una al giro: costa al massimo la lettura delle sue carte). */
   async nextUnprobed(recent) {
-    const have = new Set();
-    for (const k of (await this.ctx.storage.list({ prefix: 'sv:' })).keys()) have.add(Number(k.slice(3)));
+    const have = new Set(Object.keys(await this.get('svIdx', {})).map(Number));
     return (await this.usableExpansions()).filter((e) => !have.has(e.id)).sort((a, b) => b.id - a.id)[0] || null;
   }
 
@@ -1852,17 +1874,23 @@ export class Scanner extends DurableObject {
     if (probe) {
       await this.probeSetValue(probe.id).catch(async (e) => {
         // Un errore vero (non il limite di richieste) non deve bloccare le altre: si segna con valore 0 e si va avanti.
-        if (!e.rateLimited && !e.budget) await this.ctx.storage.put(`sv:${probe.id}`, { val: 0, ts: Date.now(), err: true });
+        if (!e.rateLimited && !e.budget) await this.setSetValue(probe.id, 0);
       });
     }
     const { cards } = await this.cardsFor(exp.id);
     const products = await this.productsFor(exp.id);
     await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromProducts(cards, products), itemsZero: zeroDealsFromProducts(cards, products) });
+    const idx = await this.get('ddIdx', {});
+    idx[exp.id] = Date.now();
+    await this.ctx.storage.put({ ddIdx: idx, ddState: { i: st.i + 1, ts: Date.now(), last: exp.name } });
     // Ogni tanto si buttano le letture più vecchie di tre giorni.
     if (st.i % 40 === 0) {
-      const old = [];
-      for (const [k, v] of await this.ctx.storage.list({ prefix: 'dd:' })) if (Date.now() - (v.ts || 0) > 3 * 86400_000) old.push(k);
-      if (old.length) await this.ctx.storage.delete(old);
+      const old = Object.keys(idx).filter((k) => Date.now() - idx[k] > 3 * 86400_000);
+      if (old.length) {
+        for (const k of old) delete idx[k];
+        await this.ctx.storage.put('ddIdx', idx);
+        await this.ctx.storage.delete(old.map((k) => `dd:${k}`));
+      }
     }
   }
 
