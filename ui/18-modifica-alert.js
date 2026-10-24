@@ -140,6 +140,7 @@
               el('span', x.reasons.length ? { class: 'why', text: x.reasons.join(', ') } : { class: 'zero-tag', text: 'Valido' }),
             ),
             x.risky ? el('span', { class: 'chip warn risky-tag', text: 'Troppi annullamenti' }) : null,
+            ...(x.seenAt && !x.reasons.length ? [el('span', { class: 'chip risky-tag', text: `Già segnalato ${new Date(x.seenAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: non si segnala due volte` })] : []),
           ),
         ),
       );

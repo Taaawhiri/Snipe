@@ -513,6 +513,7 @@
     [/^Mostro (\d+) carte su (\d+) dell'ordine: le altre non mi arrivano da CardTrader\.$/, 'Showing $1 of $2 cards in the order: CardTrader does not send me the others.'],
     [/^(.+) sopra la soglia$/, '$1 above the threshold'], [/^Nessun annuncio con i tuoi criteri \((\d+) in tutto\)$/, 'No listing matches your criteria ($1 in total)'],
     [/^letto (.+)$/, (m, t) => 'read ' + t.replace(/ fa$/, ' ago')],
+    [/^Già segnalato (.+): non si segnala due volte$/, 'Already reported $1: it is not reported twice'],
     [/^Nessuna copia NM in (.+) ora$/, 'No NM copy in $1 now'],
     [/^Cardmarket (.+)$/, 'Cardmarket $1'],
     [/^fino a (\d+)$/, 'up to $1'],

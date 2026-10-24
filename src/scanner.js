@@ -1099,6 +1099,7 @@ export class Scanner extends DurableObject {
               risky: !reliable && isRiskySeller(p), // con il filtro attivo il motivo è già tra gli scarti
               limit: sellLimitOf(p),
               url: `https://www.cardtrader.com/cards/${p.blueprint_id}`,
+              seenAt: seenMap[`${rule.id}:${p.id}:${p.price.cents}`] || null, // quando l'app l'ha già segnalato (stesso annuncio e stesso prezzo)
               reasons,
             };
           });
