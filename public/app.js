@@ -2198,6 +2198,23 @@
     if (age <= 30 * 60_000) return { st: 'slow', c, why: state.system && state.system.limitUntil ? 'In ritardo: CardTrader sta rallentando le richieste' : 'In ritardo rispetto al solito giro' };
     return { st: 'stop', c, why: 'Non controllato da oltre 30 minuti' };
   }
+  /** "Ora il più basso": il prezzo minore tra gli annunci che rispettano i criteri dell'alert, confrontato con la soglia. */
+  function nowLine(r) {
+    const c = (state.checks || {})[r.id];
+    if (!c || !c.ts || c.listings == null || !r.enabled) return null;
+    if (c.bestCents == null) {
+      return el('div', { class: 'now-line none', text: c.listings ? `Nessun annuncio con i tuoi criteri (${c.listings} in tutto)` : 'Nessun annuncio in vendita' });
+    }
+    const cur = c.currency || 'EUR';
+    const max = r.blueprintId || r.maxPriceCents ? r.maxPriceCents : 0;
+    let rel = null;
+    if (max) {
+      const gap = c.bestCents - max;
+      rel = gap <= 0 ? el('span', { class: 'nl-rel ok', text: 'sotto la soglia ✓' }) : el('span', { class: 'nl-rel over', text: `${money(gap, cur)} sopra la soglia` });
+    }
+    return el('div', { class: 'now-line' }, el('span', { class: 'nl-k', text: 'Ora il più basso' }), el('b', { text: money(c.bestCents, cur) }), ...(rel ? [rel] : []));
+  }
+
   const openChecks = new Set();
   function checkRow(r) {
     const { st, c, why } = checkState(r);
@@ -2413,6 +2430,7 @@
               r.enabled ? null : chip('In pausa', 'warn'),
               (state.outOfPlan || []).includes(r.id) ? chip('Fermo: oltre il limite del piano', 'warn') : null,
             ),
+            ...(nowLine(r) ? [nowLine(r)] : []),
           ),
           el('div', { class: 'rule-side' },
             !(state.account && state.account.plan.priority) ? null : el('button', { class: 'icon-tog star' + (r.priority ? ' on' : ''), type: 'button', title: r.priority ? 'Priorità: controllato più spesso' : 'Dai priorità (controlla più spesso)', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', 'aria-pressed': String(!!r.priority),
