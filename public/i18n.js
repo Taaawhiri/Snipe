@@ -126,7 +126,7 @@
 
     // affari del giorno
     'Affari del giorno': 'Deals of the day',
-    'Annunci delle espansioni più recenti e più ricercate su HoloSnipe che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest and most searched expansions on HoloSnipe at least 25% cheaper than the typical price of the same card on CardTrader, compared only with listings in the same language. Near Mint or better, from €5. Updates by itself during the day.',
+    'Annunci delle espansioni più recenti e di quelle più preziose, a rotazione, che costano almeno il 25% meno del prezzo tipico della stessa carta su CardTrader, confrontati solo con gli annunci nella stessa lingua. Near Mint o meglio, da 5 € in su. Si aggiorna da solo durante il giorno.': 'Listings from the latest expansions and the most valuable ones, in rotation, at least 25% cheaper than the typical price of the same card on CardTrader, compared only with listings in the same language. Near Mint or better, from €5. Updates by itself during the day.',
     'Carico gli affari…': 'Loading deals…', 'Italiano o inglese': 'Italian or English', 'Cinese': 'Chinese', 'Coreano': 'Korean', 'Inglese o giapponese': 'English or Japanese', 'Tutti gli scan in corso': 'All scans running', 'Cerca un Pokémon (es. Charizard)': 'Search a Pokémon (e.g. Charizard)',
     'Sto raccogliendo i primi dati: le espansioni si controllano una ogni 10 minuti. Riprova più tardi.': 'Collecting the first data: one expansion is checked every 10 minutes. Try again later.',
 
