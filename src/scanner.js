@@ -2758,14 +2758,15 @@ export class Scanner extends DurableObject {
       // Prezzi troppo vecchi (es. ricaricati dal disco dopo un aggiornamento): si aspetta una lettura nuova,
       // altrimenti un annuncio già venduto potrebbe far scattare l'alert.
       const srcHit = rule.blueprintId ? this.bpCache.get(rule.blueprintId) : this.productCache.get(rule.expansionId);
-      if (srcHit && Date.now() - srcHit.ts > 15 * 60_000) continue;
+      const staleData = !!(srcHit && Date.now() - srcHit.ts > 15 * 60_000); // niente avvisi da dati vecchi, ma il prezzo più basso si mostra comunque
       if (blocked.size || risky) data = withoutSellers(data, blocked, risky);
       {
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const valid = all.filter((p) => p && p.price && !rejectReasons(p, evalRule).length);
         this.ruleInfo = this.ruleInfo || new Map();
-        this.ruleInfo.set(rule.id, { listings: all.length, valid: valid.length, bestCents: valid.length ? Math.min(...valid.map((p) => p.price.cents)) : null, currency: (all[0] && all[0].price && all[0].price.currency) || 'EUR' });
+        this.ruleInfo.set(rule.id, { listings: all.length, valid: valid.length, bestCents: valid.length ? Math.min(...valid.map((p) => p.price.cents)) : null, currency: (all[0] && all[0].price && all[0].price.currency) || 'EUR' , infoTs: srcHit ? srcHit.ts : null });
       }
+      if (staleData) continue;
       let refKind = cmRef ? 'cardmarket' : null;
       let dropRef = null;
       if (rule.dropPct) {
