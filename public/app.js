@@ -1736,8 +1736,9 @@
     const open = ordersAll.filter((o) => !['done', 'canceled', 'lost'].includes(o.state));
     const closed = ordersAll.filter((o) => ['done', 'canceled', 'lost'].includes(o.state));
     box.replaceChildren(
-      ...(open.length ? [el('h3', { class: 'oc-h', text: `In corso (${open.length})` }), ...open.map(orderCard)] : [el('p', { class: 'muted', text: 'Nessun ordine in corso.' })]),
+      ...(open.length ? [el('h3', { class: 'oc-h', text: `In corso (${open.length})` }), ...open.map(orderCard)] : [el('p', { class: 'muted', text: 'Nessun ordine in corso visibile.' })]),
       ...(closed.length ? [el('h3', { class: 'oc-h', text: `Conclusi (${closed.length})` }), ...closed.map(orderCard)] : []),
+      el('p', { class: 'small muted', text: 'Gli ordini CardTrader Zero ancora in arrivo al magazzino (prima del pagamento finale) non vengono restituiti da CardTrader a questa app: compaiono qui quando passano a “Pagato”. Fino ad allora li vedi sul sito.' }),
       ...(more ? [el('button', { class: 'btn mini', type: 'button', text: 'Mostra altri', onclick: () => loadOrders(ordersPage + 1) })] : []),
     );
   }
