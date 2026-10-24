@@ -1269,7 +1269,16 @@ export class Scanner extends DurableObject {
       if (!Number.isInteger(oid) || oid <= 0) return json({ error: 'Ordine non indicato.' }, 400);
       try {
         const o = await this.ct(`/orders/${oid}`);
-        const items = Array.isArray(o.order_items) ? o.order_items : [];
+        let items = Array.isArray(o.order_items) ? o.order_items : [];
+        // Se il dettaglio porta meno righe di quante ne conta l'ordine, si riprova dall'elenco (filtrato su questo ordine).
+        const qtyOf = (arr) => arr.reduce((t, it) => t + (it.quantity || 1), 0);
+        if (qtyOf(items) < (o.size || 0)) {
+          try {
+            const raw = await this.ct(`/orders?${new URLSearchParams({ order_as: 'buyer', from_id: String(oid), to_id: String(oid), limit: '20' })}`);
+            const again = (Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || []).find((x) => x && x.id === oid);
+            if (again && Array.isArray(again.order_items) && again.order_items.length > items.length) items = again.order_items;
+          } catch { /* resta il dettaglio che c'è */ }
+        }
         const exps = await this.pokemonExpansions();
         const byName = new Map(exps.map((e) => [String(e.name || '').trim().toLowerCase(), e]));
         const bps = new Map();
@@ -1312,7 +1321,7 @@ export class Scanner extends DurableObject {
             }
           })());
         }
-        return json({ id: oid, items: out, pending: missing.length });
+        return json({ id: oid, items: out, pending: missing.length, size: o.size || null, listed: qtyOf(items) });
       } catch (e) {
         return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
       }

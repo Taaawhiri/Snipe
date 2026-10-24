@@ -507,6 +507,7 @@
     [/^✓ (\d+) (carta aggiunta|carte aggiunte)(.*)$/, (m, n, w, r) => `✓ ${n} ${n === '1' ? 'card' : 'cards'} added${r.replace(/, (\d+) unite a quelle che avevi/, ', $1 merged with ones you had').replace(/, (\d+) non entrano nel piano/, ', $1 do not fit in your plan')}`],
     [/^Segui il pacco: (.+)$/, 'Track the parcel: $1'],
     [/^Mostra le carte \((\d+)\)$/, 'Show the cards ($1)'], [/^＋ Aggiungi le (\d+) nuove alla collezione$/, '＋ Add the $1 new ones to the collection'],
+    [/^Mostro (\d+) carte su (\d+) dell'ordine: le altre non mi arrivano da CardTrader\.$/, 'Showing $1 of $2 cards in the order: CardTrader does not send me the others.'],
     [/^Nessuna copia NM in (.+) ora$/, 'No NM copy in $1 now'],
     [/^Cardmarket (.+)$/, 'Cardmarket $1'],
     [/^fino a (\d+)$/, 'up to $1'],

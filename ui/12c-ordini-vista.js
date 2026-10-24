@@ -48,14 +48,18 @@
     const ctx = { redraw: () => draw() };
     const toggle = el('button', { class: 'btn mini oc-toggle', type: 'button' });
     function draw() {
-      const rows = (det ? det.items : o.items || []);
+      // Righe dell'elenco e dei dettagli unite (per codice riga): se una delle due ne ha di più, nessuna carta sparisce.
+      const base = new Map((o.items || []).map((it) => [it.iid, it]));
+      for (const it of (det ? det.items : [])) base.set(it.iid, { ...(base.get(it.iid) || {}), ...it });
+      const rows = [...base.values()];
+      const qty = rows.reduce((t, it) => t + (it.qty || 1), 0);
       const fresh = rows.filter((it) => !it.inColl && !it.imported && !it.graded && it.iid);
       toggle.textContent = open ? 'Nascondi le carte' : `Mostra le carte (${o.size || rows.length})`;
       body.hidden = !open;
       body.replaceChildren(
         ...(open ? [
           ...rows.map((it) => orderItemRow(it, ctx)),
-          ...((o.size || 0) > rows.length ? [el('div', { class: 'small muted', text: `e altre ${o.size - rows.length} carte` })] : []),
+          ...((o.size || 0) > qty ? [el('div', { class: 'small muted', text: `Mostro ${qty} carte su ${o.size} dell'ordine: le altre non mi arrivano da CardTrader.` })] : []),
           ...(!det ? [el('div', { class: 'small muted', text: 'Carico miniature e prezzi attuali…' })] : []),
           ...(det && det.pending && tries < 4 ? [el('div', { class: 'small muted', text: 'Prezzi attuali in arrivo…' })] : []),
           ...(fresh.length > 1 ? [el('button', { class: 'btn mini', type: 'button', text: `＋ Aggiungi le ${fresh.length} nuove alla collezione`, onclick: async (e) => {
