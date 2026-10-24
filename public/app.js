@@ -1699,67 +1699,61 @@
     }
     box.replaceChildren(...rows);
   }
-  // ---------- i miei acquisti (Opzioni): sola lettura degli ordini CardTrader ----------
-  const ORDER_STATES = {
-    pending: ['In attesa', 'wait'], hub_pending: ['In attesa del magazzino CardTrader', 'wait'], paid: ['Pagato, da spedire', 'wait'], sent: ['Spedito', 'go'],
-    arrived: ['Arrivato', 'ok'], done: ['Concluso', 'ok'], request_for_cancel: ['Annullamento richiesto', 'bad'], canceled: ['Annullato', 'bad'], lost: ['Smarrito', 'bad'],
-  };
-  let ordersAll = [];
-  let ordersPage = 1;
+  // ---------- importa in collezione le carte degli ordini CardTrader (lettura al momento, non si salva niente) ----------
+  const ORD_LANG = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH', cn: 'CN' };
 
-  const LANG_SHORT = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH', cn: 'CN' };
-  function orderItemLine(it) {
-    const tags = [it.condition && condShort(it.condition), it.lang && (LANG_SHORT[it.lang] || it.lang.toUpperCase()), it.reverse && 'Reverse', it.first && '1ª ed.', it.graded && 'gradata'].filter(Boolean).join(' · ');
-    return el('div', { class: 'oc-item' },
-      el('span', { class: 'oi-n' }, el('b', { text: `${it.qty > 1 ? it.qty + '× ' : ''}${it.name}` }), el('small', { text: [it.expansion, tags].filter(Boolean).join(' · ') })),
-      it.cents != null ? el('span', { class: 'oi-p', text: money(it.cents * (it.qty || 1)) }) : null);
-  }
-
-  function orderCard(o) {
-    const [label, kind] = ORDER_STATES[o.state] || [o.state || 'Stato sconosciuto', 'wait'];
-    const d = (t) => { const x = t ? new Date(t) : null; return x && !Number.isNaN(x.getTime()) ? x.toLocaleDateString('it-IT') : null; };
-    const when = o.sentAt ? `spedito il ${d(o.sentAt)}` : o.paidAt ? `pagato il ${d(o.paidAt)}` : null;
-    const shown = (o.items || []).slice(0, 6);
-    return el('div', { class: 'order-card' },
-      el('div', { class: 'oc-head' }, el('b', { text: `Ordine ${o.code || o.id}` }), el('span', { class: `oc-state ${kind}`, text: label })),
-      el('div', { class: 'small muted', text: [o.seller && `da ${o.seller}`, when, o.zero && 'CardTrader Zero', o.totalCents != null && `totale ${money(o.totalCents, o.currency)}`].filter(Boolean).join(' · ') }),
-      ...shown.map(orderItemLine),
-      ...((o.items || []).length > shown.length ? [el('div', { class: 'small muted', text: `e altre ${o.items.length - shown.length} carte` })] : []),
-      ...(o.shipping && o.shipping.name ? [el('div', { class: 'small', text: `Spedizione: ${o.shipping.name}${o.shipping.cents != null ? ` (${money(o.shipping.cents)})` : ''}${o.shipping.days && !['arrived', 'done'].includes(o.state) ? ` · consegna stimata entro ${o.shipping.days} giorni` : ''}` })] : []),
-      ...(o.tracking ? [el('div', { class: 'small', text: `Tracciamento: ${o.tracking}` })] : []),
+  async function openOrdersImport() {
+    let data;
+    const open = $('ordersImportOpen');
+    const label = open.textContent;
+    open.disabled = true;
+    open.textContent = 'Leggo i tuoi ordini…';
+    try { data = await api('/api/orders/importable'); } catch (e) { await alert(e.message); return; } finally { open.disabled = false; open.textContent = label; }
+    const fresh = data.items.filter((it) => !it.dup);
+    const dups = data.items.filter((it) => it.dup);
+    const sel = new Set(fresh.map((it) => it.iid)); // le nuove sono già spuntate, quelle già in collezione no
+    const ov = el('div', { class: 'cs-overlay', onclick: (e) => { if (e.target === ov) ov.remove(); } });
+    const body = el('div', { class: 'cs-list im-list' });
+    const btn = el('button', { class: 'btn primary', type: 'button' });
+    const box = (it) => {
+      const c = el('input', { type: 'checkbox', onchange: (e) => { if (e.target.checked) sel.add(it.iid); else sel.delete(it.iid); paint(); } });
+      c.checked = sel.has(it.iid); // come proprietà: l'attributo "checked: false" varrebbe comunque come spuntato
+      return c;
+    };
+    const row = (it) => el('label', { class: 'im-row ord-row' },
+      box(it),
+      el('span', { class: 'ord-main' },
+        el('b', { text: `${it.qty > 1 ? it.qty + '× ' : ''}${it.name}` }),
+        el('small', { text: [it.expansion, it.condition && condShort(it.condition), it.lang && (ORD_LANG[it.lang] || it.lang.toUpperCase()), it.reverse && 'Reverse', it.first && '1ª ed.', it.cents != null && money(it.cents)].filter(Boolean).join(' · ') })));
+    const paint = () => {
+      btn.textContent = sel.size ? `Importa ${sel.size} ${sel.size === 1 ? 'carta' : 'carte'}` : 'Nessuna carta scelta';
+      btn.disabled = !sel.size;
+    };
+    body.replaceChildren(
+      el('p', { class: 'small muted', text: `Dai tuoi ${data.orders} ordini su CardTrader. Si aggiungono con il prezzo pagato, la condizione e la lingua dell'ordine. Le carte gradate non si importano (negli ordini manca il voto).` }),
+      ...(fresh.length ? [el('h3', { class: 'oc-h', text: `Nuove (${fresh.length})` }), ...fresh.map(row)] : [el('p', { class: 'muted', text: 'Nessuna carta nuova da importare.' })]),
+      ...(dups.length ? [el('h3', { class: 'oc-h', text: `Forse già in collezione (${dups.length})` }), el('p', { class: 'small muted', text: 'Stessa carta e stessa lingua di una che hai già, magari aggiunta a mano: non sono spuntate. Spuntale solo se sono copie in più.' }), ...dups.map(row)] : []),
     );
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.textContent = 'Importo…';
+      try {
+        const r = await api('/api/orders/import', { method: 'POST', body: JSON.stringify({ iids: [...sel] }) });
+        ov.remove();
+        toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}${r.merged ? `, ${r.merged} unite a quelle che avevi` : ''}${r.limited ? `, ${r.limited} non entrano nel piano` : ''}`);
+        loadCollection();
+      } catch (e) {
+        paint();
+        await alert(e.message);
+      }
+    };
+    paint();
+    ov.append(el('div', { class: 'cs-sheet im', role: 'dialog', 'aria-label': 'Importa dagli ordini CardTrader' },
+      el('div', { class: 'cs-grab' }), el('div', { class: 'cs-title', text: 'Importa dagli ordini CardTrader' }), body,
+      el('div', { class: 'cs-actions' }, el('button', { class: 'btn', type: 'button', text: 'Chiudi', onclick: () => ov.remove() }), btn)));
+    document.body.append(ov);
   }
-
-  function renderOrders(more) {
-    const box = $('ordersBody');
-    box.hidden = false;
-    const open = ordersAll.filter((o) => !['done', 'canceled', 'lost'].includes(o.state));
-    const closed = ordersAll.filter((o) => ['done', 'canceled', 'lost'].includes(o.state));
-    box.replaceChildren(
-      ...(open.length ? [el('h3', { class: 'oc-h', text: `In corso (${open.length})` }), ...open.map(orderCard)] : [el('p', { class: 'muted', text: 'Nessun ordine in corso visibile.' })]),
-      ...(closed.length ? [el('h3', { class: 'oc-h', text: `Conclusi (${closed.length})` }), ...closed.map(orderCard)] : []),
-      el('p', { class: 'small muted', text: 'Gli ordini CardTrader Zero ancora in arrivo al magazzino (prima del pagamento finale) non vengono restituiti da CardTrader a questa app: compaiono qui quando passano a “Pagato”. Fino ad allora li vedi sul sito.' }),
-      ...(more ? [el('button', { class: 'btn mini', type: 'button', text: 'Mostra altri', onclick: () => loadOrders(ordersPage + 1) })] : []),
-    );
-  }
-
-  async function loadOrders(page = 1) {
-    const box = $('ordersBody');
-    box.hidden = false;
-    if (page === 1) box.replaceChildren(el('p', { class: 'muted', text: 'Leggo gli ordini…' }));
-    try {
-      const r = await api(`/api/orders?page=${page}`);
-      ordersAll = page === 1 ? r.orders : [...ordersAll, ...r.orders];
-      ordersPage = page;
-      if (page === 1 && !r.orders.length) { box.replaceChildren(el('p', { class: 'muted', text: 'Nessun ordine trovato su CardTrader.' })); return; }
-      renderOrders(!!r.more);
-      if (r.debug) box.append(el('p', { class: 'small muted', text: 'Richieste (solo proprietario):' }), el('pre', { class: 'diag-pre', text: r.debug.join('\n') }));
-      if (r.sample) box.append(el('details', { class: 'small muted' }, el('summary', { text: 'Dati grezzi del primo ordine (solo proprietario)' }), el('pre', { class: 'diag-pre', text: JSON.stringify(r.sample, null, 2).slice(0, 4000) })));
-    } catch (e) {
-      box.replaceChildren(el('p', { class: 'error', text: e.message }));
-    }
-  }
-  $('ordersLoad').addEventListener('click', () => loadOrders(1));
+  $('ordersImportOpen').addEventListener('click', openOrdersImport);
   // ---------- admin ----------
   const isOwner = () => !!(state && state.account && state.account.plan && state.account.plan.id === 'owner');
   let adminLoaded = 0;

@@ -299,6 +299,44 @@ export class Scanner extends DurableObject {
     });
   }
 
+  /**
+   * Righe degli ordini CardTrader (come compratore) pronte per la collezione. Si leggono al momento, non si salvano.
+   * Le carte già importate da un ordine (ordImp) non si riproporranno; quelle che sembrano già in collezione (stesso
+   * blueprint e stessa lingua, magari aggiunte a mano) sono segnate con dup, così l'utente sceglie.
+   */
+  async importableFromOrders(includeDone = false) {
+    const asList = (raw) => (Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || []);
+    const orders = [];
+    for (let page = 1; page <= 10; page++) {
+      const list = asList(await this.ct(`/orders?${new URLSearchParams({ order_as: 'buyer', limit: '20', page: String(page), sort: 'date.desc' })}`));
+      orders.push(...list);
+      if (list.length < 20) break;
+    }
+    const imported = new Set(await this.get('ordImp', []));
+    const coll = await this.get('coll', []);
+    const owned = new Set(coll.map((c) => `${c.bp}|${c.lang || ''}`));
+    const items = [];
+    for (const o of orders) {
+      if (!o || o.state === 'canceled' || o.state === 'lost') continue;
+      for (const it of Array.isArray(o.order_items) ? o.order_items : []) {
+        if (!it || it.deleted_at || it.graded || !it.blueprint_id) continue; // le gradate non hanno il voto negli ordini: si aggiungono a mano
+        const pr = it.properties || {};
+        const iid = Number(it.id);
+        const lang = normLang(pr.pokemon_language) || '';
+        const row = {
+          iid, oid: o.id, code: o.code || null, date: o.paid_at || null, state: o.state || null,
+          bp: Number(it.blueprint_id), name: it.name || 'Carta', expansion: it.expansion || null, qty: it.quantity || 1,
+          cents: it.buyer_price ? it.buyer_price.cents : null, condition: CONDITIONS.includes(pr.condition) ? pr.condition : '', lang,
+          first: pr.first_edition === true, reverse: pr.pokemon_reverse === true, cmId: it.mkm_id || null,
+          done: imported.has(iid), dup: owned.has(`${Number(it.blueprint_id)}|${lang}`),
+        };
+        if (row.done && !includeDone) continue;
+        items.push(row);
+      }
+    }
+    return { items, orders: orders.length };
+  }
+
   /** Aggiunge molte carte in una volta (importazione): una sola scrittura, prezzi letti dal giro in background. */
   async collectionImport(list) {
     const coll = await this.get('coll', []);
@@ -311,7 +349,9 @@ export class Scanner extends DurableObject {
       if (!Number.isInteger(bp) || bp <= 0) continue;
       const lang = normLang(b.lang) || '';
       const cond = CONDITIONS.includes(b.cond) || parseGradeLabel(b.cond) ? b.cond : ''; // condizione o voto ('PSA 10')
-      const key = collKey(bp, lang, cond);
+      const first = !!b.first;
+      const reverse = !!b.reverse;
+      const key = collKey(bp, lang, cond, first, reverse);
       const qty = Math.max(1, Math.min(999, parseInt(b.qty, 10) || 1));
       // 0 è un prezzo valido (carta trovata in una busta): "nessun prezzo" è solo null o vuoto.
       const paid = b.paidCents != null && b.paidCents !== '' && Number(b.paidCents) >= 0 ? Math.round(Number(b.paidCents)) : null;
@@ -326,11 +366,12 @@ export class Scanner extends DurableObject {
       if (coll.length >= plan.maxColl) { limited++; continue; }
       coll.unshift({
         key, bp, lang, cond, qty, paidCents: paid ?? 0, // senza prezzo = trovata (0 €)
+        ...(first ? { first: true } : {}), ...(reverse ? { reverse: true } : {}),
         name: String(b.name || '').slice(0, 120),
         image: /^https:\/\//.test(b.image || '') ? String(b.image).slice(0, 300) : null,
         expansionId: parseInt(b.expansionId, 10) || null,
         expName: String(b.expName || '').slice(0, 80),
-        cmId: null,
+        cmId: parseInt(b.cmId, 10) || null,
         ts: Date.now(),
       });
       added++;
@@ -1185,79 +1226,45 @@ export class Scanner extends DurableObject {
       return json({ rows, sources: this.bpCache.size + this.productCache.size });
     }
 
-    if (path === '/api/orders' && method === 'GET') {
-      // I tuoi acquisti su CardTrader (sola lettura, niente viene salvato): elenco con stato, venditore e carte.
-      const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
-      const owner = (await this.plan()).id === 'owner';
-      const asList = (raw) => (Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || []);
-      const debug = [];
+    if (path === '/api/orders/importable' && method === 'GET') {
+      // Carte dei tuoi ordini CardTrader (sola lettura) che si possono aggiungere alla collezione.
       try {
-        // Ultimi ordini in generale, e (alla prima pagina) quelli in corso stato per stato: l'elenco generale potrebbe non includerli.
-        const got = new Map();
-        const run = async (label, extra, noRole = false) => {
-          const q = new URLSearchParams({ ...(noRole ? {} : { order_as: 'buyer' }), limit: '20', sort: 'date.desc', ...extra });
-          try {
-            const list = asList(await this.ct(`/orders?${q}`));
-            // Nel controllo: quanti, in che stati, e da quando a quando.
-            const states = {};
-            for (const o of list) states[o && o.state] = (states[o && o.state] || 0) + 1;
-            const times = list.map((o) => Date.parse((o && (o.paid_at || o.created_at)) || '')).filter(Boolean).sort((x, y) => x - y);
-            const span = times.length ? ` dal ${new Date(times[0]).toISOString().slice(0, 10)} al ${new Date(times[times.length - 1]).toISOString().slice(0, 10)}` : '';
-            debug.push(`${label}: ${list.length}${list.length ? ` (${Object.entries(states).map(([k, v]) => `${k}×${v}`).join(', ')}${span})` : ''}`);
-            for (const o of list) if (o && o.id != null && !got.has(o.id)) got.set(o.id, o);
-            return list;
-          } catch (e) {
-            debug.push(`${label}: errore ${String(e.message || e).slice(0, 60)}`);
-            if (e.rateLimited) throw e;
-            return [];
+        return json(await this.importableFromOrders());
+      } catch (e) {
+        return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
+      }
+    }
+
+    if (path === '/api/orders/import' && method === 'POST') {
+      const b = await req.json().catch(() => ({}));
+      const want = new Set((Array.isArray(b.iids) ? b.iids : []).map(Number).filter(Number.isInteger).slice(0, 500));
+      if (!want.size) return json({ error: 'Nessuna carta scelta.' }, 400);
+      try {
+        const { items } = await this.importableFromOrders(true);
+        const chosen = items.filter((it) => want.has(it.iid));
+        const exps = await this.pokemonExpansions();
+        const byName = new Map(exps.map((e) => [String(e.name || '').trim().toLowerCase(), e]));
+        const bpCache = new Map();
+        const list = [];
+        for (const it of chosen) {
+          const exp = byName.get(String(it.expansion || '').trim().toLowerCase());
+          let found = null;
+          if (exp) {
+            if (!bpCache.has(exp.id)) bpCache.set(exp.id, await this.blueprintsFor(exp.id).catch(() => []));
+            found = bpCache.get(exp.id).find((x) => x.id === it.bp) || null;
           }
-        };
-        const main = await run('tutti', { page: String(page) });
-        if (page === 1) {
-          for (const st of ['pending', 'hub_pending', 'paid', 'sent', 'arrived', 'request_for_cancel']) await run(st, { state: st });
-          await run('senza ruolo', {}, true); // se il ruolo escludesse qualcosa
+          list.push({
+            bp: it.bp, lang: it.lang, cond: it.condition, qty: it.qty, paidCents: it.cents, first: it.first, reverse: it.reverse,
+            name: found ? `${found.name}${found.version ? ` (${found.version})` : ''}` : it.name,
+            image: found ? imageUrl(found.image_url) : null,
+            expansionId: exp ? exp.id : null, expName: it.expansion || (exp && exp.name) || '', cmId: it.cmId,
+          });
         }
-        if (!main.length && !got.size && debug.every((d) => /errore/.test(d))) return json({ error: 'Il tuo accesso a CardTrader non permette di leggere gli ordini.' }, 403);
-        const when = (o) => Date.parse(o.paid_at || o.created_at || '') || 0;
-        const list = [...got.values()].sort((x, y) => when(y) - when(x));
-        const orders = list.map((o) => {
-          const items = Array.isArray(o.order_items) ? o.order_items : [];
-          const ship = o.order_shipping_method || null;
-          return {
-            id: o.id,
-            code: o.code || null,
-            state: o.state || null,
-            zero: !!o.via_cardtrader_zero,
-            paidAt: o.paid_at || null,
-            sentAt: o.sent_at || null,
-            seller: (o.seller && o.seller.username) || null,
-            tracking: (ship && ship.tracking_code) || null,
-            shipping: ship ? { name: ship.name || null, cents: ship.buyer_price ? ship.buyer_price.cents : null, days: ship.max_estimate_shipping_days || null } : null,
-            totalCents: o.buyer_total ? o.buyer_total.cents : null,
-            subtotalCents: o.buyer_subtotal ? o.buyer_subtotal.cents : null,
-            currency: (o.buyer_total && o.buyer_total.currency) || 'EUR',
-            size: o.size || items.length,
-            items: items.slice(0, 40).map((it) => {
-              const pr = it.properties || {};
-              return {
-                blueprintId: it.blueprint_id, name: it.name || 'Carta', expansion: it.expansion || null, qty: it.quantity || 1,
-                cents: it.buyer_price ? it.buyer_price.cents : null,
-                condition: pr.condition || null, lang: pr.pokemon_language || null, reverse: pr.pokemon_reverse === true, first: pr.first_edition === true, graded: !!it.graded,
-                number: pr.collector_number || null, rarity: pr.pokemon_rarity || null, cmId: it.mkm_id || null,
-              };
-            }),
-          };
-        });
-        // Per il controllo dei dati: il primo ordine, senza indirizzi, telefoni ed email.
-        const redact = (o) => {
-          if (!o) return null;
-          const c = JSON.parse(JSON.stringify(o));
-          delete c.order_shipping_address; delete c.order_billing_address;
-          if (c.seller) { delete c.seller.email; delete c.seller.phone; }
-          if (Array.isArray(c.order_items)) c.order_items = c.order_items.slice(0, 2);
-          return c;
-        };
-        return json({ orders, page, more: main.length >= 20, ...(owner ? { debug, sample: redact(list[0]) } : {}) });
+        const res = await this.collectionImport(list);
+        const done = await this.get('ordImp', []);
+        await this.ctx.storage.put('ordImp', [...new Set([...done, ...chosen.map((it) => it.iid)])].slice(-5000));
+        await this.collectionPrices(true).catch(() => null);
+        return json({ ...res, imported: chosen.length });
       } catch (e) {
         return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
       }
