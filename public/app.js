@@ -1754,6 +1754,20 @@
     document.body.append(ov);
   }
   $('ordersImportOpen').addEventListener('click', openOrdersImport);
+  // ---------- "＋ Aggiungi" in cima alla collezione: tutti i modi di aggiungere carte in un menu ----------
+  $('collAddBtn').addEventListener('click', () => {
+    const ov = el('div', { class: 'cs-overlay', onclick: (e) => { if (e.target === ov) ov.remove(); } });
+    const item = (icon, title, sub, go) => el('button', { class: 'cs-opt add-opt', type: 'button', onclick: () => { ov.remove(); go(); } },
+      el('span', { class: 'ao-i', text: icon }), el('span', { class: 'ao-t' }, el('b', { text: title }), el('small', { text: sub })));
+    ov.append(el('div', { class: 'cs-sheet', role: 'dialog', 'aria-label': 'Aggiungi carte' },
+      el('div', { class: 'cs-grab' }), el('div', { class: 'cs-title', text: 'Aggiungi carte' }),
+      el('div', { class: 'cs-list' },
+        item('📷', 'Scansiona una carta', 'Con la fotocamera: la riconosco io', () => document.querySelector('.coll-actions [data-scan]').click()),
+        item('🗂️', 'Più carte insieme', 'Scansione di più carte o importazione da file', () => $('batchOpen').click()),
+        item('🧾', 'Dagli ordini CardTrader', 'Importa gli acquisti con il prezzo pagato', () => openOrdersImport()),
+        item('＋', 'Cerca una carta', 'Per nome o per espansione', () => goTab('cards')))));
+    document.body.append(ov);
+  });
   // ---------- admin ----------
   const isOwner = () => !!(state && state.account && state.account.plan && state.account.plan.id === 'owner');
   let adminLoaded = 0;
@@ -2424,6 +2438,7 @@
     if (free('setScan')) $('setScan').value = String(s.scanEverySec);
     if (free('setQuiet')) $('setQuiet').checked = !!s.quietEnabled;
     if (free('setSummary')) $('setSummary').checked = s.summary !== false;
+    if (free('setOrderAlerts')) $('setOrderAlerts').checked = s.orderAlerts !== false;
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
@@ -2443,6 +2458,7 @@
   $('setScan').addEventListener('change', () => saveSettings({ scanEverySec: Number($('setScan').value) }));
   $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
   $('setSummary').addEventListener('change', () => saveSettings({ summary: $('setSummary').checked }));
+  $('setOrderAlerts').addEventListener('change', () => saveSettings({ orderAlerts: $('setOrderAlerts').checked }));
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
   $('setSound').addEventListener('change', () => {

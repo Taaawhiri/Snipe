@@ -107,6 +107,7 @@
         <div class="rule-tools coll-tools">
           <input id="collSearch" type="search" placeholder="Cerca (es. Charizard, 151)" autocomplete="off">
           <button id="collFilterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="collFilters"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Filtri</span><b id="collFilterCount" hidden></b></button>
+          <button id="collAddBtn" class="filter-btn add-btn" type="button" aria-haspopup="dialog" aria-label="Aggiungi carte" title="Aggiungi carte"><span aria-hidden="true">＋</span></button>
         </div>
         <div id="collActive" class="active-filters" hidden></div>
         <div id="collFiltersBg" class="fs-bg" hidden></div>
@@ -125,7 +126,7 @@
         <p id="collCount" class="count" hidden></p>
         <div id="collList" class="list"></div>
         <p class="muted small">Aggiungi le carte dal loro dettaglio con <b>Ce l'ho</b>, oppure in automatico segnando un avviso come <b>Comprato</b>. Il valore usa il prezzo più basso su CardTrader nella lingua e condizione della tua copia, aggiornato ogni ora.</p>
-        <div class="dlg-actions coll-actions">
+        <div class="dlg-actions coll-actions" hidden>
           <button class="btn act scan-btn" type="button" data-scan>📷 Scansiona</button>
           <button class="btn act" type="button" id="batchOpen">🗂️ Più carte</button>
           <button class="btn act" type="button" id="ordersImportOpen">🧾 Dagli ordini CardTrader</button>
@@ -397,6 +398,7 @@
         <p class="muted small">Negli orari silenziosi non ricevi notifiche, ma gli avvisi compaiono comunque nell'elenco.</p>
         <label class="switch"><input id="setSound" type="checkbox"><span>Suono e vibrazione con l'app aperta</span></label>
         <label class="switch"><input id="setSummary" type="checkbox"><span>Riepilogo ogni mattina alle 9</span></label>
+        <label class="switch"><input id="setOrderAlerts" type="checkbox"><span>Avviso quando cambia lo stato di un ordine</span></label>
         <p class="muted small">Avvisi delle ultime 24 ore e carte della lista dei desideri scese di prezzo. Arriva solo se c'è qualcosa da dire.</p>
       </div>
 

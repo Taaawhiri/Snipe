@@ -108,6 +108,7 @@
     if (free('setScan')) $('setScan').value = String(s.scanEverySec);
     if (free('setQuiet')) $('setQuiet').checked = !!s.quietEnabled;
     if (free('setSummary')) $('setSummary').checked = s.summary !== false;
+    if (free('setOrderAlerts')) $('setOrderAlerts').checked = s.orderAlerts !== false;
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
@@ -127,6 +128,7 @@
   $('setScan').addEventListener('change', () => saveSettings({ scanEverySec: Number($('setScan').value) }));
   $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
   $('setSummary').addEventListener('change', () => saveSettings({ summary: $('setSummary').checked }));
+  $('setOrderAlerts').addEventListener('change', () => saveSettings({ orderAlerts: $('setOrderAlerts').checked }));
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
   $('setSound').addEventListener('change', () => {

@@ -13,6 +13,7 @@ import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settin
 import { generateVapidKeys, sendPush } from './push.js';
 import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
+import { nextOrderStates, orderChanges } from './orders.js';
 import { addSamples, isReverse, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
 import { RELEASED } from './expdates.js';
 import { expScore, mapRows, parseCsv } from './importcsv.js';
@@ -863,7 +864,7 @@ export class Scanner extends DurableObject {
       // L'ultima cosa da notificare: un avviso, un problema dello scan o il riepilogo del mattino.
       const batch = await this.get('lastBatch', null);
       const group = batch && Date.now() - batch.ts < 120_000 && alerts[0] && alerts[0].ts <= batch.ts ? { kind: 'group', id: `group-${batch.ts}`, ts: batch.ts + 1, n: batch.n, top: batch.top } : null;
-      const items = [group || alerts[0], await this.get('notice', null), await this.get('summaryNotice', null), await this.get('ownerNotice', null)].filter(Boolean);
+      const items = [group || alerts[0], await this.get('notice', null), await this.get('summaryNotice', null), await this.get('orderNotice', null), await this.get('ownerNotice', null)].filter(Boolean);
       return json(items.sort((x, y) => y.ts - x.ts)[0] || null);
     }
 
@@ -1988,6 +1989,43 @@ export class Scanner extends DurableObject {
   }
 
   /**
+   * Avviso quando cambia lo stato di un ordine CardTrader (nuovo ordine, spedito, arrivato…). Ogni 15 minuti una sola
+   * richiesta; la prima volta si memorizza lo stato di adesso senza avvisare. Si legge solo, non si salva altro che gli stati.
+   */
+  async ordersStep(status) {
+    if (await this.get('suspended', false)) return;
+    const settings = await this.settings();
+    if (settings.orderAlerts === false) return;
+    if (!(await this.get('subs', [])).length) return; // senza notifiche attive non serve guardare
+    if (!(await this.token())) return;
+    if (Date.now() - (await this.get('ordersAt', 0)) < 15 * 60_000) return;
+    await this.ctx.storage.put('ordersAt', Date.now());
+    let raw;
+    try {
+      raw = await this.ct(`/orders?${new URLSearchParams({ order_as: 'buyer', limit: '20', sort: 'date.desc' })}`, true);
+    } catch (e) {
+      if (e.budget || e.rateLimited) return;
+      throw e;
+    }
+    const list = (Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || []).filter((o) => o && o.id != null);
+    status.ordersError = null;
+    const prev = await this.get('ordState', null);
+    await this.ctx.storage.put('ordState', nextOrderStates(prev, list));
+    if (prev === null) return; // primo giro: solo la fotografia di adesso
+    const LABEL = { pending: 'in attesa', hub_pending: 'in attesa del magazzino', paid: 'pagato', sent: 'spedito', arrived: 'arrivato', done: 'concluso', request_for_cancel: 'annullamento richiesto', canceled: 'annullato', lost: 'smarrito' };
+    const changed = orderChanges(prev, list);
+    if (!changed.length) return;
+    const lines = changed.slice(0, 3).map((o) => {
+      const st = LABEL[o.state] || o.state || 'aggiornato';
+      const track = o.state === 'sent' && o.order_shipping_method && o.order_shipping_method.tracking_code ? ` (tracciamento ${o.order_shipping_method.tracking_code})` : '';
+      const n = Array.isArray(o.order_items) ? o.order_items.reduce((t, it) => t + (it.quantity || 1), 0) : 0;
+      return `Ordine ${o.code || o.id}${n ? ` · ${n} ${n === 1 ? 'carta' : 'carte'}` : ''}: ${prev[o.id] === undefined ? 'nuovo, ' : ''}${st}${track}`;
+    });
+    await this.ctx.storage.put('orderNotice', { id: `order:${Date.now()}`, ts: Date.now(), kind: 'system', name: changed.length === 1 ? 'il tuo ordine è cambiato' : 'i tuoi ordini sono cambiati', text: lines.join('\n') + (changed.length > 3 ? `\n…e altri ${changed.length - 3}` : '') });
+    await this.notify();
+  }
+
+  /**
    * Giro lento: ogni minuto riconosce la regione di un'espansione che non l'ha ancora.
    * La lettura aspetta il suo turno come una richiesta dell'utente (lasciando sempre un gettone libero):
    * in background, subito dopo lo scan, i gettoni non bastavano mai e il giro non avanzava.
@@ -2301,6 +2339,11 @@ export class Scanner extends DurableObject {
       status.dealsError = null;
     } catch (e) {
       status.dealsError = String(e.message || e);
+    }
+    try {
+      await this.ordersStep(status);
+    } catch (e) {
+      status.ordersError = String(e.message || e);
     }
     try {
       await this.regionStep(status);
