@@ -1251,13 +1251,68 @@ export class Scanner extends DurableObject {
               items: items.slice(0, 40).map((it) => {
                 const pr = it.properties || {};
                 return {
-                  name: it.name || it.name_en || 'Carta', expansion: expansionNameOf(it), qty: it.quantity || 1, cents: it.buyer_price ? it.buyer_price.cents : null,
+                  iid: Number(it.id), name: it.name || it.name_en || 'Carta', expansion: expansionNameOf(it), qty: it.quantity || 1, cents: it.buyer_price ? it.buyer_price.cents : null,
                   condition: pr.condition || null, lang: pr.pokemon_language || null, reverse: pr.pokemon_reverse === true, first: pr.first_edition === true, graded: !!it.graded,
                 };
               }),
             };
           }),
         });
+      } catch (e) {
+        return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
+      }
+    }
+
+    if (path === '/api/orders/details' && method === 'GET') {
+      // Dettagli di un ordine per la scheda Ordini: miniature, prezzo attuale delle carte e se sono già in collezione.
+      const oid = parseInt(url.searchParams.get('id'), 10);
+      if (!Number.isInteger(oid) || oid <= 0) return json({ error: 'Ordine non indicato.' }, 400);
+      try {
+        const o = await this.ct(`/orders/${oid}`);
+        const items = Array.isArray(o.order_items) ? o.order_items : [];
+        const exps = await this.pokemonExpansions();
+        const byName = new Map(exps.map((e) => [String(e.name || '').trim().toLowerCase(), e]));
+        const bps = new Map();
+        const coll = await this.get('coll', []);
+        const owned = new Set(coll.map((c) => `${c.bp}|${c.lang || ''}`));
+        const imported = new Set(await this.get('ordImp', []));
+        const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
+        const missing = [];
+        const out = [];
+        for (const it of items.slice(0, 80)) {
+          const pr = it.properties || {};
+          const bp = Number(it.blueprint_id);
+          const lang = normLang(pr.pokemon_language) || '';
+          const expName = expansionNameOf(it);
+          const exp = byName.get(String(expName || '').trim().toLowerCase());
+          if (exp && !bps.has(exp.id)) bps.set(exp.id, await this.blueprintsFor(exp.id).catch(() => []));
+          const found = exp ? (bps.get(exp.id) || []).find((x) => x.id === bp) : null;
+          // Prezzo attuale più basso per la stessa lingua e condizione, dagli annunci già letti di recente.
+          let nowCents = null;
+          const hit = this.bpCache.get(bp);
+          const plain = pr.first_edition !== true && pr.pokemon_reverse !== true && !it.graded;
+          if (!it.graded && hit && (plain || !hit.slim) && Date.now() - hit.ts < 3600_000) {
+            const p = priceFor(hit.data[bp] || hit.data[String(bp)], lang, CONDITIONS.includes(pr.condition) ? pr.condition : '', { blocked, first: pr.first_edition === true, reverse: pr.pokemon_reverse === true, reliable: true });
+            if (p && p.cents != null) nowCents = p.cents;
+          } else if (!it.graded && !missing.includes(bp)) missing.push(bp);
+          out.push({
+            iid: Number(it.id), bp, name: it.name || it.name_en || 'Carta', expansion: expName, qty: it.quantity || 1,
+            paidCents: it.buyer_price ? it.buyer_price.cents : null, nowCents,
+            image: found ? imageUrl(found.image_url) : null, number: pr.collector_number || null,
+            condition: pr.condition || null, lang, reverse: pr.pokemon_reverse === true, first: pr.first_edition === true, graded: !!it.graded,
+            inColl: owned.has(`${bp}|${lang}`), imported: imported.has(Number(it.id)),
+          });
+        }
+        // Gli annunci delle carte che mancano si leggono in background (poche per volta, dopo gli alert): la scheda li richiede di nuovo.
+        const todo = missing.slice(0, 8);
+        if (todo.length) {
+          this.ctx.waitUntil((async () => {
+            for (const bp of todo) {
+              try { await this.productsForCard(bp, 3600_000, true); } catch (e) { if (e.budget || e.rateLimited) break; }
+            }
+          })());
+        }
+        return json({ id: oid, items: out, pending: missing.length });
       } catch (e) {
         return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
       }

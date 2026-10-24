@@ -134,10 +134,21 @@ details.more[open] > summary { margin-bottom: 10px; }
 .oc-state.go { color: var(--blue); }
 .oc-state.wait { color: var(--yellow); }
 .oc-state.bad { color: #ff8a98; }
-.oc-item { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 2px 0; }
-.oc-item .oi-n { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
-.oc-item small { color: var(--muted); font-size: 12px; }
-.oc-item .oi-p { white-space: nowrap; font-weight: 700; }
+.oc-body { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.oc-toggle { align-self: flex-start; margin-top: 2px; }
+.oi-row { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
+.oi-row .thumbimg { width: 44px; height: 62px; border-radius: 6px; object-fit: cover; background: var(--surface); }
+.oi-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+.oi-main small { color: var(--muted); font-size: 12px; }
+.oi-add { align-self: flex-start; margin-top: 2px; border: 2px solid var(--line); background: var(--surface); color: var(--text); font: 700 12px var(--body, inherit); padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.oi-add:disabled { opacity: .6; }
+.oi-in { align-self: flex-start; margin-top: 2px; color: var(--green); font-size: 12px; font-weight: 800; }
+.oi-prices { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; font-size: 13px; }
+.oi-prices i { display: block; font-style: normal; font-size: 11px; color: var(--muted); }
+.oi-prices b { font-size: 14px; }
+.oi-now em { display: block; font-style: normal; font-size: 12px; font-weight: 800; }
+.oi-now em.up { color: var(--green); }
+.oi-now em.down { color: #ff8a98; }
 .ord-row { display: flex; gap: 10px; align-items: flex-start; }
 .ord-row input { margin-top: 3px; width: 20px; height: 20px; flex: none; accent-color: var(--red, #e0334c); }
 .ord-main { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
