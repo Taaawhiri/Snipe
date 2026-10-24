@@ -466,6 +466,7 @@
     [/^Valori delle espansioni calcolati: (\d+) su (\d+) · lette almeno una volta: (\d+)$/, 'Expansion values computed: $1 of $2 · read at least once: $3'],
     [/^Richieste \(solo proprietario\): (.+)$/, 'Requests (owner only): $1'],
     [/^In corso \((\d+)\)$/, 'In progress ($1)'], [/^Conclusi \((\d+)\)$/, 'Completed ($1)'], [/^Ordine (\d+)$/, 'Order $1'], [/^Tracciamento: (.+)$/, 'Tracking: $1'], [/^da (.+?)( · .+)?$/, (m, a, r) => `from ${a}${r || ''}`],
+    [/^Spedizione: (.+)$/, 'Shipping: $1'], [/^totale (.+)$/, 'total $1'], [/^e altre (\d+) carte$/, 'and $1 more cards'], [/^(.*)spedito il (.+)$/, '$1shipped on $2'], [/^(.*)pagato il (.+)$/, '$1paid on $2'], [/ · consegna stimata entro (\d+) giorni$/, ' · estimated delivery within $1 days'],
     [/^Nessuna copia NM in (.+) ora$/, 'No NM copy in $1 now'],
     [/^Cardmarket (.+)$/, 'Cardmarket $1'],
     [/^fino a (\d+)$/, 'up to $1'],

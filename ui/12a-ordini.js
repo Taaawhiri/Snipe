@@ -6,16 +6,25 @@
   let ordersAll = [];
   let ordersPage = 1;
 
+  const LANG_SHORT = { en: 'EN', jp: 'JP', it: 'IT', fr: 'FR', de: 'DE', es: 'ES', pt: 'PT', ko: 'KO', zh: 'ZH', cn: 'CN' };
+  function orderItemLine(it) {
+    const tags = [it.condition && condShort(it.condition), it.lang && (LANG_SHORT[it.lang] || it.lang.toUpperCase()), it.reverse && 'Reverse', it.first && '1ª ed.', it.graded && 'gradata'].filter(Boolean).join(' · ');
+    return el('div', { class: 'oc-item' },
+      el('span', { class: 'oi-n' }, el('b', { text: `${it.qty > 1 ? it.qty + '× ' : ''}${it.name}` }), el('small', { text: [it.expansion, tags].filter(Boolean).join(' · ') })),
+      it.cents != null ? el('span', { class: 'oi-p', text: money(it.cents * (it.qty || 1)) }) : null);
+  }
+
   function orderCard(o) {
     const [label, kind] = ORDER_STATES[o.state] || [o.state || 'Stato sconosciuto', 'wait'];
-    const names = (o.items || []).map((it) => `${it.qty > 1 ? it.qty + '× ' : ''}${it.name || 'Carta'}`);
-    const date = o.date ? new Date(o.date) : null;
+    const d = (t) => { const x = t ? new Date(t) : null; return x && !Number.isNaN(x.getTime()) ? x.toLocaleDateString('it-IT') : null; };
+    const when = o.sentAt ? `spedito il ${d(o.sentAt)}` : o.paidAt ? `pagato il ${d(o.paidAt)}` : null;
+    const shown = (o.items || []).slice(0, 6);
     return el('div', { class: 'order-card' },
-      el('div', { class: 'oc-head' },
-        el('b', { text: `Ordine ${o.id}` }),
-        el('span', { class: `oc-state ${kind}`, text: label })),
-      el('div', { class: 'small muted', text: [o.seller && `da ${typeof o.seller === 'string' ? o.seller : o.seller.username || ''}`, date && !Number.isNaN(date.getTime()) && date.toLocaleDateString('it-IT'), o.zero && 'CardTrader Zero', o.totalCents != null && money(o.totalCents, o.currency)].filter(Boolean).join(' · ') }),
-      ...(names.length ? [el('div', { class: 'oc-items', text: names.slice(0, 6).join(', ') + (names.length > 6 ? ` e altre ${names.length - 6}` : '') })] : []),
+      el('div', { class: 'oc-head' }, el('b', { text: `Ordine ${o.code || o.id}` }), el('span', { class: `oc-state ${kind}`, text: label })),
+      el('div', { class: 'small muted', text: [o.seller && `da ${o.seller}`, when, o.zero && 'CardTrader Zero', o.totalCents != null && `totale ${money(o.totalCents, o.currency)}`].filter(Boolean).join(' · ') }),
+      ...shown.map(orderItemLine),
+      ...((o.items || []).length > shown.length ? [el('div', { class: 'small muted', text: `e altre ${o.items.length - shown.length} carte` })] : []),
+      ...(o.shipping && o.shipping.name ? [el('div', { class: 'small', text: `Spedizione: ${o.shipping.name}${o.shipping.cents != null ? ` (${money(o.shipping.cents)})` : ''}${o.shipping.days && !['arrived', 'done'].includes(o.state) ? ` · consegna stimata entro ${o.shipping.days} giorni` : ''}` })] : []),
       ...(o.tracking ? [el('div', { class: 'small', text: `Tracciamento: ${o.tracking}` })] : []),
     );
   }

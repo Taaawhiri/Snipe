@@ -1210,29 +1210,46 @@ export class Scanner extends DurableObject {
         const main = await run('tutti', { page: String(page) });
         if (page === 1) for (const st of ['hub_pending', 'paid', 'sent', 'arrived', 'request_for_cancel']) await run(st, { state: st });
         if (!main.length && !got.size && debug.every((d) => /errore/.test(d))) return json({ error: 'Il tuo accesso a CardTrader non permette di leggere gli ordini.' }, 403);
-        const pick = (o, ...keys) => { for (const k of keys) { const v = k.split('.').reduce((a, x) => (a == null ? a : a[x]), o); if (v != null && v !== '') return v; } return null; };
-        const when = (o) => Date.parse(pick(o, 'paid_at', 'created_at', 'ordered_at', 'date') || '') || 0;
+        const when = (o) => Date.parse(o.paid_at || o.created_at || '') || 0;
         const list = [...got.values()].sort((x, y) => when(y) - when(x));
         const orders = list.map((o) => {
-          const items = pick(o, 'order_items', 'items', 'products') || [];
+          const items = Array.isArray(o.order_items) ? o.order_items : [];
+          const ship = o.order_shipping_method || null;
           return {
             id: o.id,
-            state: pick(o, 'state', 'status'),
-            zero: !!pick(o, 'via_cardtrader_zero'),
-            date: pick(o, 'paid_at', 'created_at', 'ordered_at', 'date'),
-            seller: pick(o, 'seller.username', 'seller_username', 'seller'),
-            tracking: pick(o, 'tracking_code', 'tracking.code'),
-            totalCents: pick(o, 'total.cents', 'total_cents', 'total_price.cents', 'seller_total.cents'),
-            currency: pick(o, 'total.currency', 'currency', 'total_price.currency') || 'EUR',
-            items: Array.isArray(items) ? items.slice(0, 30).map((it) => ({
-              name: pick(it, 'name', 'blueprint.name', 'product.name_en', 'name_en', 'description'),
-              expansion: pick(it, 'expansion', 'expansion.name', 'blueprint.expansion.name_en'),
-              qty: pick(it, 'quantity', 'qty') || 1,
-              cents: pick(it, 'price_cents', 'price.cents', 'unit_price.cents'),
-            })) : [],
+            code: o.code || null,
+            state: o.state || null,
+            zero: !!o.via_cardtrader_zero,
+            paidAt: o.paid_at || null,
+            sentAt: o.sent_at || null,
+            seller: (o.seller && o.seller.username) || null,
+            tracking: (ship && ship.tracking_code) || null,
+            shipping: ship ? { name: ship.name || null, cents: ship.buyer_price ? ship.buyer_price.cents : null, days: ship.max_estimate_shipping_days || null } : null,
+            totalCents: o.buyer_total ? o.buyer_total.cents : null,
+            subtotalCents: o.buyer_subtotal ? o.buyer_subtotal.cents : null,
+            currency: (o.buyer_total && o.buyer_total.currency) || 'EUR',
+            size: o.size || items.length,
+            items: items.slice(0, 40).map((it) => {
+              const pr = it.properties || {};
+              return {
+                blueprintId: it.blueprint_id, name: it.name || 'Carta', expansion: it.expansion || null, qty: it.quantity || 1,
+                cents: it.buyer_price ? it.buyer_price.cents : null,
+                condition: pr.condition || null, lang: pr.pokemon_language || null, reverse: pr.pokemon_reverse === true, first: pr.first_edition === true, graded: !!it.graded,
+                number: pr.collector_number || null, rarity: pr.pokemon_rarity || null, cmId: it.mkm_id || null,
+              };
+            }),
           };
         });
-        return json({ orders, page, more: main.length >= 20, ...(owner ? { debug, sample: list[0] || null } : {}) });
+        // Per il controllo dei dati: il primo ordine, senza indirizzi, telefoni ed email.
+        const redact = (o) => {
+          if (!o) return null;
+          const c = JSON.parse(JSON.stringify(o));
+          delete c.order_shipping_address; delete c.order_billing_address;
+          if (c.seller) { delete c.seller.email; delete c.seller.phone; }
+          if (Array.isArray(c.order_items)) c.order_items = c.order_items.slice(0, 2);
+          return c;
+        };
+        return json({ orders, page, more: main.length >= 20, ...(owner ? { debug, sample: redact(list[0]) } : {}) });
       } catch (e) {
         return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
       }

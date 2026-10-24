@@ -130,7 +130,10 @@ details.more[open] > summary { margin-bottom: 10px; }
 .oc-state.go { color: var(--blue); }
 .oc-state.wait { color: var(--yellow); }
 .oc-state.bad { color: #ff8a98; }
-.oc-items { font-size: 13.5px; overflow-wrap: anywhere; }
+.oc-item { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 2px 0; }
+.oc-item .oi-n { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.oc-item small { color: var(--muted); font-size: 12px; }
+.oc-item .oi-p { white-space: nowrap; font-weight: 700; }
 .sellercheck { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .sellercheck p { margin: 0; }
 #sellerCheckForm input { flex: 1; min-width: 0; }
