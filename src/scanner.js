@@ -1286,6 +1286,7 @@ export class Scanner extends DurableObject {
         const owned = new Set(coll.map((c) => `${c.bp}|${c.lang || ''}`));
         const imported = new Set(await this.get('ordImp', []));
         const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
+        const collPr = await this.get('collPrices', {});
         const missing = [];
         const out = [];
         for (const it of items.slice(0, 80)) {
@@ -1298,9 +1299,13 @@ export class Scanner extends DurableObject {
           const found = exp ? (bps.get(exp.id) || []).find((x) => x.id === bp) : null;
           // Prezzo attuale più basso per la stessa lingua e condizione, dagli annunci già letti di recente.
           let nowCents = null;
+          // Carta già in collezione con un prezzo esatto: si usa quello, senza rileggere gli annunci.
+          const cp = collPr[collKey(bp, lang, CONDITIONS.includes(pr.condition) ? pr.condition : '', pr.first_edition === true, pr.pokemon_reverse === true)];
+          const fromColl = cp && cp.cents != null && !cp.estimated && !cp.approx && !it.graded;
+          if (fromColl) nowCents = cp.cents;
           const hit = this.bpCache.get(bp);
           const plain = pr.first_edition !== true && pr.pokemon_reverse !== true && !it.graded;
-          if (!it.graded && hit && (plain || !hit.slim) && Date.now() - hit.ts < 3600_000) {
+          if (fromColl) { /* già pronto */ } else if (!it.graded && hit && (plain || !hit.slim) && Date.now() - hit.ts < 3600_000) {
             const p = priceFor(hit.data[bp] || hit.data[String(bp)], lang, CONDITIONS.includes(pr.condition) ? pr.condition : '', { blocked, first: pr.first_edition === true, reverse: pr.pokemon_reverse === true, reliable: true });
             if (p && p.cents != null) nowCents = p.cents;
           } else if (!it.graded && !missing.includes(bp)) missing.push(bp);
