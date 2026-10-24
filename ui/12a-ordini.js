@@ -1,6 +1,6 @@
   // ---------- i miei acquisti (Opzioni): sola lettura degli ordini CardTrader ----------
   const ORDER_STATES = {
-    hub_pending: ['In attesa del magazzino CardTrader', 'wait'], paid: ['Pagato, da spedire', 'wait'], sent: ['Spedito', 'go'],
+    pending: ['In attesa', 'wait'], hub_pending: ['In attesa del magazzino CardTrader', 'wait'], paid: ['Pagato, da spedire', 'wait'], sent: ['Spedito', 'go'],
     arrived: ['Arrivato', 'ok'], done: ['Concluso', 'ok'], request_for_cancel: ['Annullamento richiesto', 'bad'], canceled: ['Annullato', 'bad'], lost: ['Smarrito', 'bad'],
   };
   let ordersAll = [];

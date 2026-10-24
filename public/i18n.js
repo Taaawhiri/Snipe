@@ -382,6 +382,7 @@
     "Il tuo accesso a CardTrader non permette di leggere gli ordini.": "Your CardTrader access doesn't allow reading orders.",
     "Nessun ordine in corso visibile.": "No visible orders in progress.",
     "Gli ordini CardTrader Zero ancora in arrivo al magazzino (prima del pagamento finale) non vengono restituiti da CardTrader a questa app: compaiono qui quando passano a “Pagato”. Fino ad allora li vedi sul sito.": "CardTrader Zero orders still on their way to the hub (before the final payment) are not returned by CardTrader to this app: they show up here once they become “Paid”. Until then you can see them on the website.",
+    "In attesa": "Pending",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",

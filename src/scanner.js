@@ -1214,7 +1214,7 @@ export class Scanner extends DurableObject {
         };
         const main = await run('tutti', { page: String(page) });
         if (page === 1) {
-          for (const st of ['hub_pending', 'paid', 'sent', 'arrived', 'request_for_cancel']) await run(st, { state: st });
+          for (const st of ['pending', 'hub_pending', 'paid', 'sent', 'arrived', 'request_for_cancel']) await run(st, { state: st });
           await run('senza ruolo', {}, true); // se il ruolo escludesse qualcosa
         }
         if (!main.length && !got.size && debug.every((d) => /errore/.test(d))) return json({ error: 'Il tuo accesso a CardTrader non permette di leggere gli ordini.' }, 403);
