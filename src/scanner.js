@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { CONDITIONS, condRank, cheapestPerCard, findDeals, gradeOf, isGraded, isListable, isRiskySeller, sellLimitOf, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons, replaceAlerts } from './deals.js';
+import { CONDITIONS, alertDue, condRank, cheapestPerCard, findDeals, gradeOf, isGraded, isListable, isRiskySeller, sellLimitOf, isSingleCard, isZero, listingLang, normLang, parseGradeLabel, rejectReasons, replaceAlerts } from './deals.js';
 import { BUILD } from './build.js';
 import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
@@ -1071,7 +1071,7 @@ export class Scanner extends DurableObject {
         const bpHit = rule.blueprintId && this.bpCache.get(rule.blueprintId);
         const scanTs = Math.max(expHit ? expHit.ts : 0, bpHit ? bpHit.ts : 0) || null;
         const seenMap = await this.get('seen', {});
-        const seenCount = Object.keys(seenMap).filter((k) => k.startsWith(`${rule.id}:`)).length;
+        const seenCount = Object.keys(seenMap).filter((k) => k.startsWith(`${rule.id}:`) && !k.includes('#')).length;
         // Verifica veloce: se lo scan ha letto gli annunci da poco (meno di 5 minuti) si usano quelli, senza chiedere
         // di nuovo a CardTrader. Così passare da un alert all'altro è immediato e non consuma il limite di richieste.
         const recent = rule.blueprintId ? (bpHit && !bpHit.slim ? bpHit : null) : expHit;
@@ -2737,6 +2737,7 @@ export class Scanner extends DurableObject {
     const baselined = new Set(await this.get('baselined', []));
     const seen = await this.get('seen', {});
     const seenBefore = Object.keys(seen).length;
+    let reminderAlerts = null;
     const baselinedBefore = baselined.size;
     const fresh = [];
     const requests = await this.refreshSources(rules, status);
@@ -2797,7 +2798,7 @@ export class Scanner extends DurableObject {
 
       // Prima di avvisare: se i prezzi hanno più di un minuto, si rilegge la carta e si tengono solo
       // gli annunci ancora in vendita allo stesso prezzo. Succede di rado (solo quando c'è un affare).
-      const unseen = deals.filter((d) => !seen[`${rule.id}:${d.product.id}:${d.cents}`]);
+      const unseen = deals.filter((d) => alertDue(seen, `${rule.id}:${d.product.id}:${d.cents}`));
       if (unseen.length && rule.blueprintId && srcHit && Date.now() - srcHit.ts > 60_000) {
         const fresh = await this.productsForCard(rule.blueprintId, 0).catch(() => null);
         const still = fresh && (fresh[rule.blueprintId] || fresh[String(rule.blueprintId)]);
@@ -2809,7 +2810,15 @@ export class Scanner extends DurableObject {
 
       for (const d of deals) {
         const sid = `${rule.id}:${d.product.id}:${d.cents}`; // per regola: due alert sulla stessa carta non si oscurano
-        if (seen[sid]) continue;
+        const due = alertDue(seen, sid);
+        if (!due) continue;
+        if (due === 'reminder') {
+          // Promemoria solo se non l'hai già comprato (avviso segnato "comprato").
+          reminderAlerts ||= await this.get('alerts', []);
+          if (reminderAlerts.some((x) => x.id === sid && x.mark === 'bought')) { seen[sid] = Date.now(); continue; }
+        } else {
+          seen[`${sid}#first`] = Date.now();
+        }
         seen[sid] = Date.now();
         if (firstRun) continue; // alla prima scansione registriamo solo ciò che c'è già
         const p = d.product;
@@ -2822,6 +2831,7 @@ export class Scanner extends DurableObject {
           cmCents,
           id: sid,
           ts: Date.now(),
+          ...(due === 'reminder' ? { reminder: true } : {}),
           ruleId: rule.id,
           name: p.name_en || rule.cardName,
           expansion: (p.expansion && p.expansion.name_en) || rule.expansionName,

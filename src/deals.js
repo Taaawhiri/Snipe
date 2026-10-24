@@ -215,3 +215,19 @@ export function replaceAlerts(old, fresh) {
   const keys = new Set((fresh || []).map((f) => `${f.ruleId}:${f.bp}`));
   return (old || []).filter((a) => a.mark === 'bought' || !keys.has(`${a.ruleId}:${a.bp}`));
 }
+
+export const REMIND_AFTER_MS = 24 * 3600_000; // se l'annuncio è ancora lì dopo un giorno, un promemoria
+export const REMIND_FOR_MS = 3 * 86400_000; // al massimo per tre giorni dal primo avviso (tre promemoria)
+
+/**
+ * Cosa fare di un annuncio che rispetta l'alert: 'new' (mai segnalato), 'reminder' (segnalato da più di un giorno
+ * e ancora in vendita) oppure null (già segnalato da poco, o i promemoria sono finiti).
+ * seen: { idAvviso: ora dell'ultimo avviso, "idAvviso#first": ora del primo }.
+ */
+export function alertDue(seen, sid, now = Date.now()) {
+  const last = seen[sid];
+  if (!last) return 'new';
+  const first = seen[`${sid}#first`] || last;
+  if (now - last >= REMIND_AFTER_MS && now - first <= REMIND_FOR_MS + 3600_000) return 'reminder';
+  return null;
+}

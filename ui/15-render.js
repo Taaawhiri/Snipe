@@ -121,6 +121,7 @@
               el('div', { class: 'al-head' },
                 el('div', { class: 'al-name', text: a.name || '' }),
                 badge,
+                ...(a.reminder ? [chip('Promemoria', 'warn')] : []),
               ),
               el('div', { class: 'al-exp', text: [a.expansion, ago(a.ts)].filter(Boolean).join(' · ') }),
               a.test ? null : el('div', { class: 'al-price' },

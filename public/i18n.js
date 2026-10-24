@@ -418,6 +418,7 @@
     "Ora il più basso": "Lowest now",
     "sotto la soglia ✓": "below the threshold ✓",
     "Nessun annuncio in vendita": "No listings for sale",
+    "Promemoria": "Reminder",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",

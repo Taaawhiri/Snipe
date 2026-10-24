@@ -152,3 +152,18 @@ test('il nuovo avviso sostituisce quelli precedenti della stessa carta, tranne i
   const kept = replaceAlerts(old, [{ ruleId: 'r1', bp: 10, cents: 300 }]);
   assert.deepEqual(kept.map((a) => a.id), ['b', 'c', 'd']);
 });
+
+import { alertDue, REMIND_AFTER_MS } from '../src/deals.js';
+test('promemoria dopo 24 ore, per al massimo tre giorni', () => {
+  const t0 = 1_000_000_000_000;
+  assert.equal(alertDue({}, 'a', t0), 'new');
+  const seen = { a: t0, 'a#first': t0 };
+  assert.equal(alertDue(seen, 'a', t0 + 3600_000), null); // segnalato da poco
+  assert.equal(alertDue(seen, 'a', t0 + REMIND_AFTER_MS), 'reminder'); // un giorno dopo
+  const s2 = { a: t0 + REMIND_AFTER_MS, 'a#first': t0 };
+  assert.equal(alertDue(s2, 'a', t0 + REMIND_AFTER_MS + 3600_000), null); // appena ricordato
+  assert.equal(alertDue(s2, 'a', t0 + 2 * REMIND_AFTER_MS), 'reminder'); // secondo promemoria
+  const s3 = { a: t0 + 3 * REMIND_AFTER_MS, 'a#first': t0 };
+  assert.equal(alertDue(s3, 'a', t0 + 4 * REMIND_AFTER_MS + 7200_000), null); // dopo tre giorni dal primo: basta
+  assert.equal(alertDue({ a: t0 }, 'a', t0 + REMIND_AFTER_MS), 'reminder'); // vecchi avvisi senza "#first"
+});
