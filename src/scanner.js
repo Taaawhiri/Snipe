@@ -33,6 +33,7 @@ function buildNumber(b) {
 }
 
 const MARKET_PER_SCAN = 2;
+const MARKET_MAX_SCAN = 6; // letture normali al massimo per giro, quando i gettoni avanzano
 const FAST_SHARE = 0.6; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
@@ -48,7 +49,7 @@ function withoutSellers(data, blocked, risky = false) {
 }
 const CATALOG = 'main';
 const STUCK_MS = 15 * 60_000;
-const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
+const MKT_BUCKET = 12; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
 const MKT_RESERVE = 2; // gettoni che lo scan lascia sempre all'utente
 const MKT_GAP_START = 3000; // un gettone ogni 3 s = 20 letture al minuto
 const MKT_GAP_MIN = 2000;
@@ -2258,18 +2259,21 @@ export class Scanner extends DurableObject {
     // centinaia di carte in collezione non rallenta gli alert.
     const all = [...sources.values()];
     const now = Date.now();
-    const ruleDue = pickDue(all.filter((x) => x.prio >= 2), age, now, MARKET_PER_SCAN);
-    const otherDue = pickDue(all.filter((x) => x.prio < 2), age, now, MARKET_PER_SCAN);
     const fresh = (src) => src && now - age(src) < 3 * 60_000;
-    // Corsia veloce: gli alert con la stella si rileggono a ogni giro, prima di tutto il resto e senza il tetto
-    // delle letture normali. I gettoni del marketplace restano il limite vero: se finiscono, si riprende al giro dopo.
-    // Gettoni disponibili in un giro = secondi del giro / pausa tra due richieste. Alla corsia veloce ne va una quota:
-    // con molti alert prioritari si leggono a rotazione (i più vecchi per primi), e gli altri alert non restano a secco.
-    const everyMs = Math.max((await this.settings()).scanEverySec, (await this.plan()).scanSec) * 1000;
-    const fastCap = Math.max(2, Math.round((everyMs / this.mktGap) * FAST_SHARE));
+    // Letture possibili in questo giro: i gettoni disponibili oltre quelli che lo scan lascia sempre all'utente.
+    // La corsia veloce (alert con la stella, a rotazione, i più vecchi per primi) ne prende una parte e il resto
+    // va agli altri alert: se la corsia veloce li prendesse tutti, gli alert senza stella non verrebbero mai riletti.
+    this.refill();
+    const avail = Math.max(0, Math.floor(this.tokens) - MKT_RESERVE);
+    // Con pochi gettoni (limite stretto di CardTrader) si alterna: un giro tocca a una carta con la stella, il giro dopo agli altri.
+    const fastCap = avail > MARKET_PER_SCAN ? Math.max(1, Math.min(Math.round(avail * FAST_SHARE), avail - MARKET_PER_SCAN)) : (this.fastTurn = !this.fastTurn) ? 1 : 0;
     const fast = all.filter((x) => x.prio >= 6 && now - age(x) > FAST_MIN_AGE_MS).sort((a, b) => age(a) - age(b)).slice(0, fastCap);
     const isFast = new Set(fast);
-    const normal = [...ruleDue.filter((x) => !fresh(x)), ...otherDue, ...ruleDue.filter(fresh)].filter((x) => !isFast.has(x)).slice(0, MARKET_PER_SCAN);
+    // Agli altri tutto ciò che resta, almeno MARKET_PER_SCAN e al massimo MARKET_MAX_SCAN letture.
+    const normalN = Math.max(MARKET_PER_SCAN, Math.min(MARKET_MAX_SCAN, avail - fast.length));
+    const ruleDue = pickDue(all.filter((x) => x.prio >= 2 && !isFast.has(x)), age, now, normalN);
+    const otherDue = pickDue(all.filter((x) => x.prio < 2), age, now, normalN);
+    const normal = [...ruleDue.filter((x) => !fresh(x)), ...otherDue, ...ruleDue.filter(fresh)].slice(0, normalN);
     const due = [...fast, ...normal];
     let n = 0;
     let error = null;
