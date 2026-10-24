@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settin
 import { generateVapidKeys, sendPush } from './push.js';
 import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
 import { vintageEra } from './vintage.js';
-import { nextOrderStates, orderChanges } from './orders.js';
+import { expansionNameOf, nextOrderStates, orderChanges, trackingCodeOf, trackingUrlOf } from './orders.js';
 import { addSamples, isReverse, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
 import { RELEASED } from './expdates.js';
 import { expScore, mapRows, parseCsv } from './importcsv.js';
@@ -326,7 +326,7 @@ export class Scanner extends DurableObject {
         const lang = normLang(pr.pokemon_language) || '';
         const row = {
           iid, oid: o.id, code: o.code || null, date: o.paid_at || null, state: o.state || null,
-          bp: Number(it.blueprint_id), name: it.name || 'Carta', expansion: it.expansion || null, qty: it.quantity || 1,
+          bp: Number(it.blueprint_id), name: it.name || it.name_en || 'Carta', expansion: expansionNameOf(it), qty: it.quantity || 1,
           cents: it.buyer_price ? it.buyer_price.cents : null, condition: CONDITIONS.includes(pr.condition) ? pr.condition : '', lang,
           first: pr.first_edition === true, reverse: pr.pokemon_reverse === true, cmId: it.mkm_id || null,
           done: imported.has(iid), dup: owned.has(`${Number(it.blueprint_id)}|${lang}`),
@@ -1244,14 +1244,14 @@ export class Scanner extends DurableObject {
             return {
               id: o.id, code: o.code || null, state: o.state || null, zero: !!o.via_cardtrader_zero,
               paidAt: o.paid_at || null, sentAt: o.sent_at || null, seller: (o.seller && o.seller.username) || null,
-              tracking: (ship && ship.tracking_code) || null,
+              tracking: trackingCodeOf(o), trackingUrl: trackingUrlOf(o),
               shipping: ship ? { name: ship.name || null, cents: ship.buyer_price ? ship.buyer_price.cents : null, days: ship.max_estimate_shipping_days || null } : null,
               totalCents: o.buyer_total ? o.buyer_total.cents : null, currency: (o.buyer_total && o.buyer_total.currency) || 'EUR',
               size: o.size || items.length,
               items: items.slice(0, 40).map((it) => {
                 const pr = it.properties || {};
                 return {
-                  name: it.name || 'Carta', expansion: it.expansion || null, qty: it.quantity || 1, cents: it.buyer_price ? it.buyer_price.cents : null,
+                  name: it.name || it.name_en || 'Carta', expansion: expansionNameOf(it), qty: it.quantity || 1, cents: it.buyer_price ? it.buyer_price.cents : null,
                   condition: pr.condition || null, lang: pr.pokemon_language || null, reverse: pr.pokemon_reverse === true, first: pr.first_edition === true, graded: !!it.graded,
                 };
               }),
@@ -2053,7 +2053,7 @@ export class Scanner extends DurableObject {
     if (!changed.length) return;
     const lines = changed.slice(0, 3).map((o) => {
       const st = LABEL[o.state] || o.state || 'aggiornato';
-      const track = o.state === 'sent' && o.order_shipping_method && o.order_shipping_method.tracking_code ? ` (tracciamento ${o.order_shipping_method.tracking_code})` : '';
+      const track = o.state === 'sent' && trackingCodeOf(o) ? ` (tracciamento ${trackingCodeOf(o)})` : '';
       const n = Array.isArray(o.order_items) ? o.order_items.reduce((t, it) => t + (it.quantity || 1), 0) : 0;
       return `Ordine ${o.code || o.id}${n ? ` · ${n} ${n === 1 ? 'carta' : 'carte'}` : ''}: ${prev[o.id] === undefined ? 'nuovo, ' : ''}${st}${track}`;
     });

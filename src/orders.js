@@ -14,3 +14,33 @@ export function nextOrderStates(prev, list, max = 300) {
   if (ids.length > max) for (const k of ids.sort((a, b) => Number(a) - Number(b)).slice(0, ids.length - max)) delete cur[k];
   return cur;
 }
+
+/** Codice di tracciamento: i punti dove CardTrader può metterlo, in ordine. */
+export function trackingCodeOf(o) {
+  const m = o && o.order_shipping_method;
+  return (o && (o.tracking_code || o.shipping_tracking_code)) || (m && (m.tracking_code || m.tracking_number)) || null;
+}
+
+/** Link per seguire il pacco: quello di CardTrader se c'è ({code} è il segnaposto), altrimenti quello del corriere noto dal nome. */
+export function trackingUrlOf(o) {
+  const code = trackingCodeOf(o);
+  if (!code) return null;
+  const m = o.order_shipping_method || {};
+  if (m.tracking_link) return String(m.tracking_link).replace('{code}', encodeURIComponent(code));
+  const name = String(m.name || '');
+  const c = encodeURIComponent(code);
+  if (/fedex/i.test(name)) return `https://www.fedex.com/fedextrack/?trknbr=${c}`;
+  if (/dhl/i.test(name)) return `https://www.dhl.com/it-it/home/tracking.html?tracking-id=${c}`;
+  if (/ups/i.test(name)) return `https://www.ups.com/track?tracknum=${c}`;
+  return null;
+}
+
+/** Il nome dell'espansione di una riga d'ordine: a volte è un testo, a volte un oggetto. */
+export function expansionNameOf(it) {
+  const e = it && it.expansion;
+  if (!e) return null;
+  return typeof e === 'string' ? e : e.name_en || e.name || null;
+}
+
+/** Stati dopo i quali l'ordine è chiuso. Tutto il resto, anche uno stato mai visto, resta "in corso". */
+export const CLOSED_STATES = ['done', 'canceled', 'cancelled', 'lost', 'refunded', 'expired'];

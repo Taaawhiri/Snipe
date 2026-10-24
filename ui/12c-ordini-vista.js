@@ -1,9 +1,9 @@
   // ---------- scheda "Ordini": i tuoi acquisti su CardTrader, in corso e conclusi (sola lettura) ----------
   const ORDER_STATES = {
     pending: ['In attesa', 'wait'], hub_pending: ['In attesa del magazzino CardTrader', 'wait'], paid: ['Pagato, da spedire', 'wait'], sent: ['Spedito', 'go'],
-    arrived: ['Arrivato', 'ok'], done: ['Concluso', 'ok'], request_for_cancel: ['Annullamento richiesto', 'bad'], canceled: ['Annullato', 'bad'], lost: ['Smarrito', 'bad'],
+    arrived: ['Arrivato', 'ok'], done: ['Concluso', 'ok'], request_for_cancel: ['Annullamento richiesto', 'bad'], canceled: ['Annullato', 'bad'], cancelled: ['Annullato', 'bad'], refunded: ['Rimborsato', 'bad'], expired: ['Scaduto', 'bad'], lost: ['Smarrito', 'bad'],
   };
-  const ORDER_CLOSED = ['done', 'canceled', 'lost'];
+  const ORDER_CLOSED = ['done', 'canceled', 'cancelled', 'lost', 'refunded', 'expired']; // tutto il resto, anche uno stato mai visto, è "in corso"
 
   function orderItemLine(it) {
     const tags = [it.condition && condShort(it.condition), it.lang && (ORD_LANG[it.lang] || it.lang.toUpperCase()), it.reverse && 'Reverse', it.first && '1ª ed.', it.graded && 'gradata'].filter(Boolean).join(' · ');
@@ -23,7 +23,7 @@
       ...shown.map(orderItemLine),
       ...((o.items || []).length > shown.length || (o.size || 0) > (o.items || []).length ? [el('div', { class: 'small muted', text: `e altre ${Math.max((o.items || []).length, o.size || 0) - shown.length} carte` })] : []),
       ...(o.shipping && o.shipping.name ? [el('div', { class: 'small', text: `Spedizione: ${o.shipping.name}${o.shipping.cents != null ? ` (${money(o.shipping.cents)})` : ''}${o.shipping.days && !ORDER_CLOSED.includes(o.state) && o.state !== 'arrived' ? ` · consegna stimata entro ${o.shipping.days} giorni` : ''}` })] : []),
-      ...(o.tracking ? [el('div', { class: 'small', text: `Tracciamento: ${o.tracking}` })] : []),
+      ...(o.tracking ? [o.trackingUrl ? el('a', { class: 'small', href: o.trackingUrl, target: '_blank', rel: 'noopener noreferrer', text: `Segui il pacco: ${o.tracking} ↗` }) : el('div', { class: 'small', text: `Tracciamento: ${o.tracking}` })] : []),
     );
   }
 
