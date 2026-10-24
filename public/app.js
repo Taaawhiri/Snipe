@@ -1743,6 +1743,7 @@
       ordersPage = page;
       if (page === 1 && !r.orders.length) { box.replaceChildren(el('p', { class: 'muted', text: 'Nessun ordine trovato su CardTrader.' })); return; }
       renderOrders(!!r.more);
+      if (r.debug) box.append(el('p', { class: 'small muted', text: `Richieste (solo proprietario): ${r.debug.join(' · ')}` }));
       if (r.sample) box.append(el('details', { class: 'small muted' }, el('summary', { text: 'Dati grezzi del primo ordine (solo proprietario)' }), el('pre', { class: 'diag-pre', text: JSON.stringify(r.sample, null, 2).slice(0, 4000) })));
     } catch (e) {
       box.replaceChildren(el('p', { class: 'error', text: e.message }));

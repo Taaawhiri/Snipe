@@ -1188,15 +1188,32 @@ export class Scanner extends DurableObject {
     if (path === '/api/orders' && method === 'GET') {
       // I tuoi acquisti su CardTrader (sola lettura, niente viene salvato): elenco con stato, venditore e carte.
       const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
-      const q = new URLSearchParams({ order_as: 'buyer', limit: '20', page: String(page), sort: 'date.desc' });
-      const state = url.searchParams.get('state');
-      if (state && /^[a-z_]+$/.test(state)) q.set('state', state);
+      const owner = (await this.plan()).id === 'owner';
+      const asList = (raw) => (Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || []);
+      const debug = [];
       try {
-        const raw = await this.ct(`/orders?${q}`);
-        const list = Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || [];
-        const owner = (await this.plan()).id === 'owner';
+        // Ultimi ordini in generale, e (alla prima pagina) quelli in corso stato per stato: l'elenco generale potrebbe non includerli.
+        const got = new Map();
+        const run = async (label, extra) => {
+          const q = new URLSearchParams({ order_as: 'buyer', limit: '20', sort: 'date.desc', ...extra });
+          try {
+            const list = asList(await this.ct(`/orders?${q}`));
+            debug.push(`${label}: ${list.length}`);
+            for (const o of list) if (o && o.id != null && !got.has(o.id)) got.set(o.id, o);
+            return list;
+          } catch (e) {
+            debug.push(`${label}: errore ${String(e.message || e).slice(0, 60)}`);
+            if (e.rateLimited) throw e;
+            return [];
+          }
+        };
+        const main = await run('tutti', { page: String(page) });
+        if (page === 1) for (const st of ['hub_pending', 'paid', 'sent', 'arrived', 'request_for_cancel']) await run(st, { state: st });
+        if (!main.length && !got.size && debug.every((d) => /errore/.test(d))) return json({ error: 'Il tuo accesso a CardTrader non permette di leggere gli ordini.' }, 403);
         const pick = (o, ...keys) => { for (const k of keys) { const v = k.split('.').reduce((a, x) => (a == null ? a : a[x]), o); if (v != null && v !== '') return v; } return null; };
-        const orders = list.slice(0, 20).map((o) => {
+        const when = (o) => Date.parse(pick(o, 'paid_at', 'created_at', 'ordered_at', 'date') || '') || 0;
+        const list = [...got.values()].sort((x, y) => when(y) - when(x));
+        const orders = list.map((o) => {
           const items = pick(o, 'order_items', 'items', 'products') || [];
           return {
             id: o.id,
@@ -1215,11 +1232,9 @@ export class Scanner extends DurableObject {
             })) : [],
           };
         });
-        return json({ orders, page, more: list.length >= 20, ...(owner && list[0] ? { sample: list[0] } : {}) });
+        return json({ orders, page, more: main.length >= 20, ...(owner ? { debug, sample: list[0] || null } : {}) });
       } catch (e) {
-        const m = String(e.message || e);
-        if (/40[13]/.test(m) || /unauthor|forbidden/i.test(m)) return json({ error: 'Il tuo accesso a CardTrader non permette di leggere gli ordini.' }, 403);
-        return json({ error: m }, e.rateLimited ? 429 : 502);
+        return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
       }
     }
 
