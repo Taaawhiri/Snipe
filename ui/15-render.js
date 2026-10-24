@@ -147,7 +147,7 @@
       hviewChosen = true;
       let saved = null;
       try { saved = localStorage.getItem('snipe.hview'); } catch {}
-      setHview(saved === 'alerts' || saved === 'coll' ? saved : unseen ? 'alerts' : 'coll');
+      setHview(saved === 'alerts' || saved === 'coll' || saved === 'orders' ? saved : unseen ? 'alerts' : 'coll');
     }
 
     renderWish();

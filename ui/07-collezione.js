@@ -514,7 +514,9 @@
     document.querySelector(`input[name="hview"][value="${v}"]`).checked = true;
     $('collView').hidden = v !== 'coll';
     $('alertsView').hidden = v !== 'alerts';
+    $('ordersView').hidden = v !== 'orders';
     if (v === 'coll') loadCollection();
+    if (v === 'orders') loadOrdersView();
   }
   document.querySelectorAll('input[name="hview"]').forEach((r) => r.addEventListener('change', () => { hviewChosen = true; try { localStorage.setItem('snipe.hview', r.value); } catch {} setHview(r.value); }));
   document.querySelectorAll('input[name="csort"]').forEach((r) => r.addEventListener('change', renderCollection));

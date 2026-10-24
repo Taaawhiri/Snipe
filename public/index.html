@@ -86,6 +86,7 @@
       <div class="seg seg-sm view-switch" role="radiogroup" aria-label="Vista">
         <label><input type="radio" name="hview" value="coll" checked> Collezione</label>
         <label><input type="radio" name="hview" value="alerts"> <span id="alertsLabel">Avvisi</span></label>
+        <label><input type="radio" name="hview" value="orders"> Ordini</label>
       </div>
       <div id="collView">
         <div id="collHero" class="cv-hero"></div>
@@ -132,6 +133,11 @@
           <button class="btn act" type="button" id="ordersImportOpen">🧾 Dagli ordini CardTrader</button>
           <button class="btn act" type="button" data-go="cards">＋ Cerca carta</button>
         </div>
+      </div>
+      <div id="ordersView" hidden>
+        <p class="muted small">I tuoi acquisti su CardTrader. Si leggono al momento, non vengono salvati.</p>
+        <div id="ordersList" class="orders"></div>
+        <button class="btn mini" id="ordersReload" type="button">Aggiorna</button>
       </div>
       <div id="alertsView" hidden>
       <div class="ticker">

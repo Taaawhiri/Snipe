@@ -1227,6 +1227,42 @@ export class Scanner extends DurableObject {
       return json({ rows, sources: this.bpCache.size + this.productCache.size });
     }
 
+    if (path === '/api/orders' && method === 'GET') {
+      // I tuoi ordini CardTrader come compratore (sola lettura, non si salva niente): fino a 100, i più recenti per primi.
+      try {
+        const orders = [];
+        for (let page = 1; page <= 5; page++) {
+          const raw = await this.ct(`/orders?${new URLSearchParams({ order_as: 'buyer', limit: '20', page: String(page), sort: 'date.desc' })}`);
+          const list = Array.isArray(raw) ? raw : (raw && (raw.array || raw.orders || raw.data)) || [];
+          orders.push(...list.filter(Boolean));
+          if (list.length < 20) break;
+        }
+        return json({
+          orders: orders.map((o) => {
+            const items = Array.isArray(o.order_items) ? o.order_items : [];
+            const ship = o.order_shipping_method || null;
+            return {
+              id: o.id, code: o.code || null, state: o.state || null, zero: !!o.via_cardtrader_zero,
+              paidAt: o.paid_at || null, sentAt: o.sent_at || null, seller: (o.seller && o.seller.username) || null,
+              tracking: (ship && ship.tracking_code) || null,
+              shipping: ship ? { name: ship.name || null, cents: ship.buyer_price ? ship.buyer_price.cents : null, days: ship.max_estimate_shipping_days || null } : null,
+              totalCents: o.buyer_total ? o.buyer_total.cents : null, currency: (o.buyer_total && o.buyer_total.currency) || 'EUR',
+              size: o.size || items.length,
+              items: items.slice(0, 40).map((it) => {
+                const pr = it.properties || {};
+                return {
+                  name: it.name || 'Carta', expansion: it.expansion || null, qty: it.quantity || 1, cents: it.buyer_price ? it.buyer_price.cents : null,
+                  condition: pr.condition || null, lang: pr.pokemon_language || null, reverse: pr.pokemon_reverse === true, first: pr.first_edition === true, graded: !!it.graded,
+                };
+              }),
+            };
+          }),
+        });
+      } catch (e) {
+        return json({ error: String(e.message || e) }, e.rateLimited ? 429 : 502);
+      }
+    }
+
     if (path === '/api/orders/importable' && method === 'GET') {
       // Carte dei tuoi ordini CardTrader (sola lettura) che si possono aggiungere alla collezione.
       try {
