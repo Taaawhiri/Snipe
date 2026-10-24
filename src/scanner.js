@@ -1194,11 +1194,16 @@ export class Scanner extends DurableObject {
       try {
         // Ultimi ordini in generale, e (alla prima pagina) quelli in corso stato per stato: l'elenco generale potrebbe non includerli.
         const got = new Map();
-        const run = async (label, extra) => {
-          const q = new URLSearchParams({ order_as: 'buyer', limit: '20', sort: 'date.desc', ...extra });
+        const run = async (label, extra, noRole = false) => {
+          const q = new URLSearchParams({ ...(noRole ? {} : { order_as: 'buyer' }), limit: '20', sort: 'date.desc', ...extra });
           try {
             const list = asList(await this.ct(`/orders?${q}`));
-            debug.push(`${label}: ${list.length}`);
+            // Nel controllo: quanti, in che stati, e da quando a quando.
+            const states = {};
+            for (const o of list) states[o && o.state] = (states[o && o.state] || 0) + 1;
+            const times = list.map((o) => Date.parse((o && (o.paid_at || o.created_at)) || '')).filter(Boolean).sort((x, y) => x - y);
+            const span = times.length ? ` dal ${new Date(times[0]).toISOString().slice(0, 10)} al ${new Date(times[times.length - 1]).toISOString().slice(0, 10)}` : '';
+            debug.push(`${label}: ${list.length}${list.length ? ` (${Object.entries(states).map(([k, v]) => `${k}×${v}`).join(', ')}${span})` : ''}`);
             for (const o of list) if (o && o.id != null && !got.has(o.id)) got.set(o.id, o);
             return list;
           } catch (e) {
@@ -1208,7 +1213,10 @@ export class Scanner extends DurableObject {
           }
         };
         const main = await run('tutti', { page: String(page) });
-        if (page === 1) for (const st of ['hub_pending', 'paid', 'sent', 'arrived', 'request_for_cancel']) await run(st, { state: st });
+        if (page === 1) {
+          for (const st of ['hub_pending', 'paid', 'sent', 'arrived', 'request_for_cancel']) await run(st, { state: st });
+          await run('senza ruolo', {}, true); // se il ruolo escludesse qualcosa
+        }
         if (!main.length && !got.size && debug.every((d) => /errore/.test(d))) return json({ error: 'Il tuo accesso a CardTrader non permette di leggere gli ordini.' }, 403);
         const when = (o) => Date.parse(o.paid_at || o.created_at || '') || 0;
         const list = [...got.values()].sort((x, y) => when(y) - when(x));
