@@ -717,6 +717,10 @@ header.top.ball-err .status { background: rgba(255, 90, 110, 0.22); color: #ffd3
 .meter > i { display: block; height: 100%; border-radius: 999px; background: var(--green); transition: width 0.4s; }
 .meter.high > i { background: var(--yellow); }
 .meter.full > i { background: #ff5a6e; }
+.meter.prog > i { background: var(--green); }
+.kv .v.warn { color: var(--yellow); }
+.kv.tiles > .kv-item.warn { border-color: rgba(255, 200, 60, 0.45); background: rgba(255, 200, 60, 0.07); }
+.kv.tiles .v.warn { color: #ffe08a; }
 #collList.loading { opacity: 0.45; pointer-events: none; transition: opacity 0.2s; }
 .admin-errors { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .admin-errors h3 { margin: 0; font: 600 16px var(--display); }

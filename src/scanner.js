@@ -37,7 +37,8 @@ const MARKET_MAX_SCAN = 6; // letture normali al massimo per giro, quando i gett
 const FAST_SHARE = 0.6; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
-const DEALS_POPULAR = 10; // più le più ricercate del momento dagli utenti di Snipe
+const DEALS_EVERY_MS = 3 * 60_000; // una espansione ogni 3 minuti
+const DEALS_MAX_AGE_MS = 12 * 3600_000; // un affare più vecchio di così non si mostra più
 
 
 
@@ -1779,36 +1780,51 @@ export class Scanner extends DurableObject {
   async dealsDue() {
     if (!(await this.isCatalog())) return false;
     const st = await this.get('ddState', { i: 0, ts: 0 });
-    return Date.now() - st.ts > 10 * 60_000;
+    return Date.now() - st.ts > DEALS_EVERY_MS;
   }
 
-  async recentExpansions() {
+  /** Espansioni con carte singole. */
+  async usableExpansions() {
     const meta = await this.get('ixmeta', null);
     const have = new Set(meta ? meta.have : []);
-    const exps = await this.pokemonExpansions();
-    const usable = exps.filter((e) => !have.size || have.has(e.id));
-    const recent = [...usable].sort((a, b) => b.id - a.id).slice(0, DEALS_SETS);
-    // Più le più ricercate del momento dagli utenti di Snipe, escluse quelle già tra le recenti.
-    const pop = (await this.get('pop', { s: {} })).s;
+    return (await this.pokemonExpansions()).filter((e) => !have.size || have.has(e.id));
+  }
+
+  /** Le espansioni più recenti: sempre nel giro, perché i prezzi appena usciti si muovono in fretta. */
+  async recentExpansions() {
+    return (await this.usableExpansions()).sort((a, b) => b.id - a.id).slice(0, DEALS_SETS);
+  }
+
+  /** Giro su tutte le altre: prima quelle mai lette (le più nuove per prime), poi quelle lette da più tempo. */
+  async nextRotationSet(recent) {
     const taken = new Set(recent.map((e) => e.id));
-    const popular = usable
-      .filter((e) => !taken.has(e.id) && pop[e.id] > 0)
-      .sort((a, b) => pop[b.id] - pop[a.id])
-      .slice(0, DEALS_POPULAR)
-      .map((e) => ({ ...e, popular: true }));
-    return [...recent, ...popular];
+    const rest = (await this.usableExpansions()).filter((e) => !taken.has(e.id));
+    if (!rest.length) return null;
+    const got = await this.ctx.storage.list({ prefix: 'dd:' });
+    const ts = new Map();
+    for (const [k, v] of got) ts.set(Number(k.slice(3)), v.ts || 0);
+    const unread = rest.filter((e) => !ts.has(e.id)).sort((a, b) => b.id - a.id);
+    if (unread.length) return unread[0];
+    return rest.sort((a, b) => ts.get(a.id) - ts.get(b.id))[0];
   }
 
   async dealsStep() {
     if (!(await this.dealsDue())) return;
     const st = await this.get('ddState', { i: 0, ts: 0 });
     await this.ctx.storage.put('ddState', { i: st.i + 1, ts: Date.now() });
-    const exps = await this.recentExpansions();
-    if (!exps.length) return;
-    const exp = exps[st.i % exps.length];
+    const recent = await this.recentExpansions();
+    if (!recent.length) return;
+    // Un giro sì e uno no: una espansione recente, oppure la prossima della rotazione su tutte le altre.
+    const exp = st.i % 2 === 0 ? recent[(st.i >> 1) % recent.length] : (await this.nextRotationSet(recent)) || recent[(st.i >> 1) % recent.length];
     const { cards } = await this.cardsFor(exp.id);
     const products = await this.productsFor(exp.id);
     await this.ctx.storage.put(`dd:${exp.id}`, { ts: Date.now(), exp: { id: exp.id, name: exp.name }, items: dealsFromProducts(cards, products), itemsZero: zeroDealsFromProducts(cards, products) });
+    // Ogni tanto si buttano le letture più vecchie di tre giorni.
+    if (st.i % 40 === 0) {
+      const old = [];
+      for (const [k, v] of await this.ctx.storage.list({ prefix: 'dd:' })) if (Date.now() - (v.ts || 0) > 3 * 86400_000) old.push(k);
+      if (old.length) await this.ctx.storage.delete(old);
+    }
   }
 
   /**
@@ -1895,19 +1911,21 @@ export class Scanner extends DurableObject {
   }
 
   async dealsList() {
-    const exps = await this.recentExpansions();
-    const got = await this.ctx.storage.get(exps.map((e) => `dd:${e.id}`));
+    const got = await this.ctx.storage.list({ prefix: 'dd:' });
     const items = [];
     const itemsZero = [];
+    const sets = [];
     let ts = 0;
     for (const v of got.values()) {
+      if (Date.now() - (v.ts || 0) > DEALS_MAX_AGE_MS) continue; // lettura troppo vecchia: gli affari potrebbero essere già venduti
+      sets.push(v.exp.name);
       ts = Math.max(ts, v.ts);
       for (const it of v.items) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
       for (const it of v.itemsZero || []) itemsZero.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
     }
     items.sort((a, b) => b.discount - a.discount);
     itemsZero.sort((a, b) => b.discount - a.discount);
-    return { items: items.slice(0, 80), itemsZero: itemsZero.slice(0, 80), ts, sets: exps.map((e) => e.name), popular: exps.filter((e) => e.popular).map((e) => e.name) };
+    return { items: items.slice(0, 80), itemsZero: itemsZero.slice(0, 80), ts, sets, popular: [] };
   }
 
   // ---------- Prezzi Cardmarket (listino pubblico giornaliero) ----------
@@ -2151,7 +2169,7 @@ export class Scanner extends DurableObject {
     if (scanning || busy || hasColl || (await this.isCatalog())) {
       // La frequenza scelta in Impostazioni, ma mai più veloce di quella del piano.
       // Il catalogo senza altro da fare si sveglia solo per gli affari del giorno (ogni 10 minuti).
-      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : hasColl ? 5 * 60_000 : 10 * 60_000;
+      const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : hasColl ? 5 * 60_000 : (await this.isCatalog()) ? DEALS_EVERY_MS : 10 * 60_000;
       await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
     }
   }

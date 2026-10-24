@@ -2263,18 +2263,18 @@
   const hhmmss = (ts) => new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
   /** Riga chiave/valore; con meter (0–1) mostra anche una barra di utilizzo. */
-  function kvRow(k, v, cls = '', meter = null) {
+  function kvRow(k, v, cls = '', meter = null, progress = false) {
     return el('div', { class: ('kv-item ' + cls).trim() },
       el('span', { class: 'k', text: k }),
       el('span', { class: ('v ' + cls).trim(), text: v }),
-      meter == null ? null : el('div', { class: 'meter' + (meter >= 0.9 ? ' full' : meter >= 0.7 ? ' high' : '') }, el('i', { style: `width:${Math.round(Math.min(1, meter) * 100)}%` })),
+      meter == null ? null : el('div', { class: 'meter' + (progress ? ' prog' : meter >= 0.9 ? ' full' : meter >= 0.7 ? ' high' : '') }, el('i', { style: `width:${Math.round(Math.min(1, meter) * 100)}%` })),
     );
   }
 
   /** Avanzamento del riconoscimento delle regioni: trovate in verde, senza annunci in giallo, errori in rosso. */
   function regionsRow(r, error) {
     const left = r.total - r.done;
-    const row = kvRow('Regioni delle espansioni', left > 0 ? `${r.done} su ${r.total} · ne mancano ${left}` : `tutte fatte (${r.total})`, '', r.total ? r.done / r.total : null);
+    const row = kvRow('Regioni delle espansioni', left > 0 ? `${r.done} su ${r.total} · ne mancano ${left}` : `tutte fatte (${r.total})`, '', r.total ? r.done / r.total : null, true); // avanzamento: pieno = finito, sempre verde
     row.append(el('div', { class: 'reg-stats' },
       el('span', { class: 'rs ok', text: `+${r.ok || 0} trovate` }),
       r.none ? el('span', { class: 'rs none', text: `${r.none} senza annunci` }) : null,
@@ -2326,7 +2326,7 @@
       kvRow('Account', state.account ? `${state.account.name || '—'} · piano ${state.account.plan.label}` : '—'),
       kvRow('Scansione', s.paused ? 'In pausa' : active ? (st.lastScan ? `ultimo controllo ${ago(st.lastScan)}` : 'in avvio…') : 'nessun alert attivo'),
       kvRow('Alert attivi', `${active} su ${state.rules.length}`),
-      ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'bad' : '')] : []),
+      ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'warn' : '')] : []),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? friendlyError(st.lastError) : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
       kvRow('Indice delle carte', !idx ? 'non ancora creato' : idx.complete ? `pronto (${idx.withCards} espansioni)` : `in preparazione ${idx.done}/${idx.total || '?'}`),
