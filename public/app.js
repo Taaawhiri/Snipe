@@ -1879,7 +1879,7 @@
       box.replaceChildren(
         ...(open.length ? [el('h3', { class: 'oc-h', text: `In corso (${open.length})` }), ...open.map((o) => orderCard(o, true))] : [el('p', { class: 'muted', text: 'Nessun ordine in corso visibile.' })]),
         el('p', { class: 'small muted', text: 'Gli ordini CardTrader Zero ancora in arrivo al magazzino (prima del pagamento finale) non vengono restituiti da CardTrader a questa app: compaiono qui quando passano a “Pagato”. Fino ad allora li vedi sul sito.' }),
-        ...(closed.length ? [el('h3', { class: 'oc-h', text: `Conclusi (${closed.length})` }), ...closed.map((o, i) => orderCard(o, i === 0))] : []));
+        ...(closed.length ? [el('h3', { class: 'oc-h', text: `Conclusi (${closed.length})` }), ...closed.map((o, i) => orderCard(o, i < 2))] : []));
     } catch (e) {
       box.replaceChildren(el('p', { class: 'error', text: e.message }));
     }
