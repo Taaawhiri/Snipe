@@ -2740,6 +2740,14 @@ export class Scanner extends DurableObject {
     const baselined = new Set(await this.get('baselined', []));
     const seen = await this.get('seen', {});
     const seenBefore = Object.keys(seen).length;
+    let seenDirty = false; // cambiato anche solo un'ora (promemoria): va salvato, altrimenti al giro dopo lo stesso avviso riparte
+    // Una volta sola, dopo la correzione del salvataggio dei promemoria: gli avvisi che li ricevevano a ogni giro ripartono
+    // da adesso (altrimenti ne arriverebbe ancora uno ciascuno).
+    if (!(await this.get('remindFix', false))) {
+      const nowT = Date.now();
+      for (const k of Object.keys(seen)) if (!k.includes('#') && nowT - seen[k] >= 24 * 3600_000) { seen[k] = nowT; seenDirty = true; }
+      await this.ctx.storage.put('remindFix', true);
+    }
     let reminderAlerts = null;
     const remindersOff = (await this.settings()).reminders === false;
     const baselinedBefore = baselined.size;
@@ -2821,11 +2829,12 @@ export class Scanner extends DurableObject {
           // Solo se l'avviso è ancora lì e non l'hai toccato: se l'hai nascosto (eliminato), segnato come visto o comprato, niente promemoria.
           reminderAlerts ||= await this.get('alerts', []);
           const before = reminderAlerts.find((x) => x.id === sid);
-          if (remindersOff || !before || before.mark) { seen[sid] = Date.now(); continue; }
+          if (remindersOff || !before || before.mark) { seen[sid] = Date.now(); seenDirty = true; continue; }
         } else {
           seen[`${sid}#first`] = Date.now();
         }
         seen[sid] = Date.now();
+        seenDirty = true;
         if (firstRun) continue; // alla prima scansione registriamo solo ciò che c'è già
         const p = d.product;
         let cmCents = cmRef ? Math.round(cmRef * 100) : null;
@@ -2866,7 +2875,7 @@ export class Scanner extends DurableObject {
     if (entries.length > MAX_SEEN) entries = entries.sort((a, b) => b[1] - a[1]).slice(0, MAX_SEEN);
 
     // Si salva solo se è cambiato qualcosa: la maggior parte dei giri non trova annunci nuovi.
-    if (Object.keys(seen).length !== seenBefore || entries.length !== seenBefore || baselined.size !== baselinedBefore) {
+    if (seenDirty || Object.keys(seen).length !== seenBefore || entries.length !== seenBefore || baselined.size !== baselinedBefore) {
       await this.ctx.storage.put({ seen: Object.fromEntries(entries), baselined: [...baselined] });
     }
 
