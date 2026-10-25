@@ -38,7 +38,7 @@ const MARKET_MAX_SCAN = 6; // letture normali al massimo per giro, quando i gett
 const FAST_SHARE = 0.6; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
-const DEALS_EVERY_MS = 3 * 60_000; // una espansione ogni 3 minuti
+const DEALS_EVERY_MS = 60_000; // una espansione ogni minuto
 const DEALS_MAX_AGE_MS = 12 * 3600_000; // un affare più vecchio di così non si mostra più
 
 
@@ -2070,7 +2070,7 @@ export class Scanner extends DurableObject {
         if (!e.rateLimited && !e.budget) await this.setSetValue(probe.id, 0);
       });
     }
-    // Una sola lettura ogni 3 minuti: aspetta il suo gettone come una richiesta dell'utente (al massimo qualche secondo).
+    // Una sola lettura ogni minuto: aspetta il suo gettone come una richiesta dell'utente (al massimo qualche secondo).
     // In "background" restava quasi sempre a secco, perché gli alert usano tutti i gettoni liberi. Se CardTrader chiede
     // di rallentare si salta questo turno senza segnalare un errore.
     try {
