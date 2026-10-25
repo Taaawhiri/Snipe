@@ -509,7 +509,16 @@
   function addFromRule(r) {
     const l0 = String(r.language || '').split(',')[0].trim().toLowerCase();
     const lang = l0 === 'ja' ? 'jp' : l0.startsWith('zh') ? 'zh' : l0 === 'kr' ? 'ko' : l0 || 'en';
-    openOwnAdd({ id: r.blueprintId, name: r.cardName, image: r.cardImage, expansionId: r.expansionId, expName: r.expansionName, cmId: r.cmId }, lang, null);
+    openOwnAdd({ id: r.blueprintId, name: r.cardName, image: r.cardImage, expansionId: r.expansionId, expName: r.expansionName, cmId: r.cmId }, lang, async () => {
+      // Comprata e messa in collezione: si chiede se l'alert serve ancora.
+      const gone = await askConfirm('Se non ti serve più, lo tolgo dalle regole (si cancellano anche i suoi avvisi).', { title: 'Togliere questo alert?', ok: 'Togli l\'alert', cancel: 'Tienilo' });
+      if (!gone) return;
+      try {
+        await api(`/api/rules/${r.id}`, { method: 'DELETE' });
+        await refresh();
+        toast('✓ Alert tolto dalle regole');
+      } catch (e) { alert(e.message); }
+    });
     if (CONDITIONS_OWN.includes(r.minCondition)) own.cond = r.minCondition;
     const best = ((state.checks || {})[r.id] || {}).bestCents;
     if (best != null) $('ownPaid').value = (best / 100).toFixed(2);
