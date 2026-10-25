@@ -37,3 +37,17 @@ test('affari solo Zero: annuncio Zero molto sotto gli altri annunci', () => {
   assert.equal(out[0].cents, 1000);
   assert.equal(out[0].zero, true);
 });
+
+import { wantedDealLang, DEAL_LANGS } from '../src/daydeals.js';
+test('affari: solo giapponese, coreano, cinese semplificato, inglese e italiano', () => {
+  const P = (lang) => ({ properties_hash: { pokemon_language: lang } });
+  for (const l of ['jp', 'ja', 'ko', 'en', 'it', 'zh-cn', 'zh']) assert.equal(wantedDealLang(P(l)), true, l);
+  for (const l of ['de', 'es', 'fr', 'pt', 'ru', 'th', 'zh-tw']) assert.equal(wantedDealLang(P(l)), false, l);
+  assert.ok(DEAL_LANGS.has('zh') && !DEAL_LANGS.has('de'));
+});
+
+test('affari del giorno: nessun affare tedesco', () => {
+  const cards = [{ id: 1, single: true, name: 'X', cm: null }];
+  const products = { 1: [L(1, 900, 'de'), L(2, 1900, 'de'), L(3, 2000, 'de'), L(4, 2100, 'de'), L(5, 2200, 'de')] };
+  assert.equal(dealsFromProducts(cards, products).length, 0);
+});

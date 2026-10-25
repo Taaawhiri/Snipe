@@ -7,11 +7,22 @@ import { condRank, findDeals, isListable, isZero, listingLang, median, normLang 
 // Il confronto è con CardTrader stesso: rispetto a Cardmarket CardTrader è di solito più caro.
 export const DAY_RULE = { minDiscount: 25, minPriceCents: 500, minCondition: 'Near Mint', zero: '' };
 
+// Lingue degli affari: asiatiche (giapponese, coreano, cinese semplificato) più inglese e italiano.
+export const DEAL_LANGS = new Set(['jp', 'ko', 'zh', 'en', 'it']);
+
+/** Annuncio in una delle lingue degli affari (il cinese tradizionale non c'è). */
+export function wantedDealLang(p) {
+  const raw = String(listingLang(p) || '');
+  const n = normLang(raw);
+  if (!DEAL_LANGS.has(n)) return false;
+  return !(n === 'zh' && /tw|trad|hk/i.test(raw));
+}
+
 /** cards: le carte dell'espansione (per nome, immagine e Cardmarket); products: annunci per blueprint. */
 export function dealsFromProducts(cards, products) {
   const byId = new Map(cards.filter((c) => c.single).map((c) => [String(c.id), c]));
   const singles = {};
-  for (const [bp, list] of Object.entries(products || {})) if (byId.has(String(bp))) singles[bp] = list;
+  for (const [bp, list] of Object.entries(products || {})) if (byId.has(String(bp))) singles[bp] = (list || []).filter(wantedDealLang);
   const best = new Map();
   const langs = new Set();
   for (const list of Object.values(singles)) for (const p of list || []) langs.add(normLang(listingLang(p)));
@@ -50,7 +61,7 @@ export function zeroDealsFromProducts(cards, products) {
   for (const [bp, list] of Object.entries(products || {})) {
     const c = byId.get(String(bp));
     if (!c || !Array.isArray(list)) continue;
-    const ok = list.filter((p) => isListable(p) && condRank(p.properties_hash && p.properties_hash.condition) >= minRank);
+    const ok = list.filter((p) => isListable(p) && wantedDealLang(p) && condRank(p.properties_hash && p.properties_hash.condition) >= minRank);
     const byLang = new Map();
     for (const p of ok) {
       const l = normLang(listingLang(p)) || '?';

@@ -5,7 +5,7 @@ import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
-import { dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
+import { DEAL_LANGS, dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
 import { checkAgainstHistory, cmCappable, collKey, gradedFromBase, pickPrice, priceFor, summarize, useCmPrice } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
@@ -2224,8 +2224,9 @@ export class Scanner extends DurableObject {
       if (Date.now() - (v.ts || 0) > DEALS_MAX_AGE_MS) continue; // lettura troppo vecchia: gli affari potrebbero essere già venduti
       sets.push(v.exp.name);
       ts = Math.max(ts, v.ts);
-      for (const it of v.items) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
-      for (const it of v.itemsZero || []) itemsZero.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
+      // Anche le letture già salvate: solo le lingue degli affari (le altre non interessano).
+      for (const it of v.items) if (!it.language || DEAL_LANGS.has(it.language)) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
+      for (const it of v.itemsZero || []) if (!it.language || DEAL_LANGS.has(it.language)) itemsZero.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
     }
     items.sort((a, b) => b.discount - a.discount);
     itemsZero.sort((a, b) => b.discount - a.discount);
