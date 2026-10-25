@@ -38,7 +38,7 @@ const MARKET_MAX_SCAN = 6; // letture normali al massimo per giro, quando i gett
 const FAST_SHARE = 0.6; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
-const DEALS_EVERY_MS = 5 * 60_000; // una espansione ogni 5 minuti
+const DEALS_EVERY_MS = 3 * 60_000; // una espansione ogni 3 minuti
 const DEALS_MAX_AGE_MS = 12 * 3600_000; // un affare più vecchio di così non si mostra più
 
 
@@ -2060,7 +2060,8 @@ export class Scanner extends DurableObject {
     const recent = await this.recentExpansions();
     if (!recent.length) return;
     // Un giro sì e uno no: una espansione recente, oppure la prossima della rotazione su tutte le altre.
-    const exp = st.i % 2 === 0 ? recent[(st.i >> 1) % recent.length] : (await this.nextRotationSet(recent)) || recent[(st.i >> 1) % recent.length];
+    // Tre giri su quattro vanno alla rotazione su tutte le espansioni (per valore), uno a una delle più recenti.
+    const exp = st.i % 4 === 0 ? recent[(st.i >> 2) % recent.length] : (await this.nextRotationSet(recent)) || recent[(st.i >> 2) % recent.length];
     // Intanto si calcola il valore di un'espansione che non ce l'ha ancora: serve a scegliere cosa leggere per prima.
     const probe = await this.nextUnprobed(recent).catch(() => null);
     if (probe) {
@@ -2069,10 +2070,11 @@ export class Scanner extends DurableObject {
         if (!e.rateLimited && !e.budget) await this.setSetValue(probe.id, 0);
       });
     }
-    // La lettura degli annunci passa dopo gli alert: usa solo i gettoni che avanzano. Se non ce ne sono (o CardTrader
-    // chiede di rallentare) si salta questo turno senza segnalare un errore.
+    // Una sola lettura ogni 3 minuti: aspetta il suo gettone come una richiesta dell'utente (al massimo qualche secondo).
+    // In "background" restava quasi sempre a secco, perché gli alert usano tutti i gettoni liberi. Se CardTrader chiede
+    // di rallentare si salta questo turno senza segnalare un errore.
     try {
-      await this.productsFor(exp.id, 0, true);
+      await this.productsFor(exp.id, 0, false);
     } catch (e) {
       if (e.budget || e.rateLimited) return;
       throw e;
