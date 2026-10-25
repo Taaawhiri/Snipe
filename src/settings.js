@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS = {
   tz: 'Europe/Rome',
   scanEverySec: 10,
   summary: true, // riepilogo giornaliero alle 9
+  reminders: true, // promemoria dopo 24 ore se un annuncio segnalato è ancora in vendita
   orderAlerts: true, // avviso quando cambia lo stato di un ordine CardTrader
   collZero: true, // valore della collezione con i soli prezzi CardTrader Zero
   collTypical: true, // valore con il prezzo tipico (mediana dei 5 più economici) invece del più basso
@@ -65,6 +66,7 @@ export function cleanSettings(input, old = DEFAULT_SETTINGS) {
     tz: typeof b.tz === 'string' && validTz(b.tz) ? b.tz : old.tz,
     scanEverySec: SCAN_CHOICES.includes(scan) ? scan : old.scanEverySec,
     summary: b.summary === undefined ? old.summary !== false : !!b.summary,
+    reminders: b.reminders === undefined ? old.reminders !== false : !!b.reminders,
     orderAlerts: b.orderAlerts === undefined ? old.orderAlerts !== false : !!b.orderAlerts,
     collZero: b.collZero === undefined ? !!old.collZero : !!b.collZero,
     collTypical: b.collTypical === undefined ? !!old.collTypical : !!b.collTypical,

@@ -426,6 +426,7 @@
     "Togli l'alert": "Remove the alert",
     "Tienilo": "Keep it",
     "✓ Alert tolto dalle regole": "✓ Alert removed from your rules",
+    "Promemoria dopo 24 ore se l'annuncio è ancora in vendita": "Reminder after 24 hours if the listing is still for sale",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",

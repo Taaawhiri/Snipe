@@ -2741,6 +2741,7 @@ export class Scanner extends DurableObject {
     const seen = await this.get('seen', {});
     const seenBefore = Object.keys(seen).length;
     let reminderAlerts = null;
+    const remindersOff = (await this.settings()).reminders === false;
     const baselinedBefore = baselined.size;
     const fresh = [];
     const requests = await this.refreshSources(rules, status);
@@ -2817,8 +2818,10 @@ export class Scanner extends DurableObject {
         if (!due) continue;
         if (due === 'reminder') {
           // Promemoria solo se non l'hai già comprato (avviso segnato "comprato").
+          // Solo se l'avviso è ancora lì e non l'hai toccato: se l'hai nascosto (eliminato), segnato come visto o comprato, niente promemoria.
           reminderAlerts ||= await this.get('alerts', []);
-          if (reminderAlerts.some((x) => x.id === sid && x.mark === 'bought')) { seen[sid] = Date.now(); continue; }
+          const before = reminderAlerts.find((x) => x.id === sid);
+          if (remindersOff || !before || before.mark) { seen[sid] = Date.now(); continue; }
         } else {
           seen[`${sid}#first`] = Date.now();
         }
