@@ -253,6 +253,12 @@
             !(state.account && state.account.plan.priority) ? null : el('button', { class: 'icon-tog star' + (r.priority ? ' on' : ''), type: 'button', title: r.priority ? 'Priorità: controllato più spesso' : 'Dai priorità (controlla più spesso)', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', 'aria-pressed': String(!!r.priority),
               onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, priority: !r.priority }) }, ico(r.priority ? 'starFill' : 'star')),
             r.blueprintId ? (() => {
+              // "L'ho comprata": apre "Ce l'ho" già pronto (lingua e condizione dell'alert, prezzo = il più basso adesso).
+              const n = ownedQty(r.blueprintId);
+              return el('button', { class: 'icon-tog own' + (n ? ' on' : ''), type: 'button', title: n ? `Ce l'hai già (${n}): aggiungi un'altra copia` : "L'ho comprata: aggiungi alla collezione", 'aria-label': "Aggiungi alla collezione",
+                onclick: () => addFromRule(r) }, ico('plus'));
+            })() : null,
+            r.blueprintId ? (() => {
               const inWish = (state.wish || []).some((w) => w.id === r.blueprintId);
               return el('button', { class: 'icon-tog heart' + (inWish ? ' on' : ''), type: 'button', title: inWish ? 'Nella lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-label': inWish ? 'Togli dalla lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-pressed': String(inWish),
                 onclick: () => toggleWish(wishFromRule(r), inWish) }, ico(inWish ? 'heartFill' : 'heart'));

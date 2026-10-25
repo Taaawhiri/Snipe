@@ -188,6 +188,7 @@
     pause: 'M8 5v14M16 5v14',
     play: 'M7 5l12 7-12 7V5z',
     trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+    plus: 'M12 5v14M5 12h14',
   };
   function ico(name) {
     const ns = 'http://www.w3.org/2000/svg';

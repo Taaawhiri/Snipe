@@ -16,6 +16,18 @@
   }
   let hviewChosen = false;
 
+  /** Dall'alert: la carta comprata si aggiunge alla collezione, con la lingua e la condizione dell'alert e il prezzo più basso di adesso. */
+  function addFromRule(r) {
+    const l0 = String(r.language || '').split(',')[0].trim().toLowerCase();
+    const lang = l0 === 'ja' ? 'jp' : l0.startsWith('zh') ? 'zh' : l0 === 'kr' ? 'ko' : l0 || 'en';
+    openOwnAdd({ id: r.blueprintId, name: r.cardName, image: r.cardImage, expansionId: r.expansionId, expName: r.expansionName, cmId: r.cmId }, lang, null);
+    if (CONDITIONS_OWN.includes(r.minCondition)) own.cond = r.minCondition;
+    const best = ((state.checks || {})[r.id] || {}).bestCents;
+    if (best != null) $('ownPaid').value = (best / 100).toFixed(2);
+    renderOwnSheet();
+  }
+  const CONDITIONS_OWN = ['Mint', 'Near Mint', 'Slightly Played', 'Moderately Played', 'Played', 'Heavily Played', 'Poor'];
+
   /** "Cosa è cambiato": le copie il cui valore è cambiato nelle ultime 24 ore, dalle variazioni più grandi. */
   function recentChanges(items) {
     const ch = items.filter((it) => it.delta && it.delta.cents).map((it) => ({ it, d: it.delta.cents * it.qty }))

@@ -505,6 +505,18 @@
   }
   let hviewChosen = false;
 
+  /** Dall'alert: la carta comprata si aggiunge alla collezione, con la lingua e la condizione dell'alert e il prezzo più basso di adesso. */
+  function addFromRule(r) {
+    const l0 = String(r.language || '').split(',')[0].trim().toLowerCase();
+    const lang = l0 === 'ja' ? 'jp' : l0.startsWith('zh') ? 'zh' : l0 === 'kr' ? 'ko' : l0 || 'en';
+    openOwnAdd({ id: r.blueprintId, name: r.cardName, image: r.cardImage, expansionId: r.expansionId, expName: r.expansionName, cmId: r.cmId }, lang, null);
+    if (CONDITIONS_OWN.includes(r.minCondition)) own.cond = r.minCondition;
+    const best = ((state.checks || {})[r.id] || {}).bestCents;
+    if (best != null) $('ownPaid').value = (best / 100).toFixed(2);
+    renderOwnSheet();
+  }
+  const CONDITIONS_OWN = ['Mint', 'Near Mint', 'Slightly Played', 'Moderately Played', 'Played', 'Heavily Played', 'Poor'];
+
   /** "Cosa è cambiato": le copie il cui valore è cambiato nelle ultime 24 ore, dalle variazioni più grandi. */
   function recentChanges(items) {
     const ch = items.filter((it) => it.delta && it.delta.cents).map((it) => ({ it, d: it.delta.cents * it.qty }))
@@ -2075,6 +2087,7 @@
     pause: 'M8 5v14M16 5v14',
     play: 'M7 5l12 7-12 7V5z',
     trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+    plus: 'M12 5v14M5 12h14',
   };
   function ico(name) {
     const ns = 'http://www.w3.org/2000/svg';
@@ -2437,6 +2450,12 @@
           el('div', { class: 'rule-side' },
             !(state.account && state.account.plan.priority) ? null : el('button', { class: 'icon-tog star' + (r.priority ? ' on' : ''), type: 'button', title: r.priority ? 'Priorità: controllato più spesso' : 'Dai priorità (controlla più spesso)', 'aria-label': r.priority ? 'Togli priorità' : 'Dai priorità', 'aria-pressed': String(!!r.priority),
               onclick: () => saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: r.maxPriceCents ? r.maxPriceCents / 100 : null, priority: !r.priority }) }, ico(r.priority ? 'starFill' : 'star')),
+            r.blueprintId ? (() => {
+              // "L'ho comprata": apre "Ce l'ho" già pronto (lingua e condizione dell'alert, prezzo = il più basso adesso).
+              const n = ownedQty(r.blueprintId);
+              return el('button', { class: 'icon-tog own' + (n ? ' on' : ''), type: 'button', title: n ? `Ce l'hai già (${n}): aggiungi un'altra copia` : "L'ho comprata: aggiungi alla collezione", 'aria-label': "Aggiungi alla collezione",
+                onclick: () => addFromRule(r) }, ico('plus'));
+            })() : null,
             r.blueprintId ? (() => {
               const inWish = (state.wish || []).some((w) => w.id === r.blueprintId);
               return el('button', { class: 'icon-tog heart' + (inWish ? ' on' : ''), type: 'button', title: inWish ? 'Nella lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-label': inWish ? 'Togli dalla lista dei desideri' : 'Aggiungi alla lista dei desideri', 'aria-pressed': String(inWish),
