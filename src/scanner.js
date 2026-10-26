@@ -35,7 +35,7 @@ function buildNumber(b) {
 
 const MARKET_PER_SCAN = 2;
 const MARKET_MAX_SCAN = 6; // letture normali al massimo per giro, quando i gettoni avanzano
-const FAST_SHARE = 0.6; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
+const FAST_SHARE = 0.5; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
 const DEALS_SETS = 10; // espansioni più recenti controllate per gli affari del giorno
 const DEALS_EVERY_MS = 60_000; // una espansione ogni minuto
@@ -51,7 +51,7 @@ function withoutSellers(data, blocked, risky = false) {
 }
 const CATALOG = 'main';
 const STUCK_MS = 15 * 60_000;
-const MKT_BUCKET = 6; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
+const MKT_BUCKET = 9; // gettoni massimi: permette brevi raffiche (aprire qualche espansione di fila)
 const MKT_RESERVE = 2; // gettoni che lo scan lascia sempre all'utente
 const MKT_GAP_START = 3000; // un gettone ogni 3 s = 20 letture al minuto
 const MKT_GAP_MIN = 2000;
