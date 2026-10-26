@@ -2613,7 +2613,12 @@ export class Scanner extends DurableObject {
     const normalN = Math.max(MARKET_PER_SCAN, Math.min(MARKET_MAX_SCAN, avail - fast.length));
     const ruleDue = pickDue(all.filter((x) => x.prio >= 2 && !isFast.has(x)), age, now, normalN);
     const otherDue = pickDue(all.filter((x) => x.prio < 2), age, now, normalN);
-    const normal = [...ruleDue.filter((x) => !fresh(x)), ...otherDue, ...ruleDue.filter(fresh)].slice(0, normalN);
+    // Agli alert vanno quasi tutte le letture, ma una per giro resta a collezione e desideri: con tanti alert
+    // sempre "da rileggere" non toccavano mai posto, i prezzi della collezione restavano fermi e non si vedevano più le variazioni.
+    const staleRules = ruleDue.filter((x) => !fresh(x));
+    const toRules = staleRules.slice(0, normalN - (otherDue.length && normalN >= 2 ? 1 : 0));
+    const toOthers = otherDue.slice(0, normalN - toRules.length);
+    const normal = [...toRules, ...toOthers, ...ruleDue.filter(fresh)].slice(0, normalN);
     const due = [...fast, ...normal];
     let n = 0;
     let error = null;
