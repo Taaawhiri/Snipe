@@ -2431,6 +2431,7 @@ export class Scanner extends DurableObject {
 
   async alarmWork() {
     if (await this.get('suspended', false)) return; // account sospeso dalla pagina admin
+    const t0 = Date.now(); // il prossimo giro si conta dall'inizio di questo: gli altri lavori (affari, regioni…) non lo allungano
     const status = await this.status();
     const day = new Date().toISOString().slice(0, 10);
     if (status.day !== day) Object.assign(status, { day, dayAlarms: 0, dayWrites: 0 });
@@ -2490,7 +2491,7 @@ export class Scanner extends DurableObject {
       // La frequenza scelta in Impostazioni, ma mai più veloce di quella del piano.
       // Il catalogo senza altro da fare si sveglia solo per gli affari del giorno (ogni 10 minuti).
       const every = scanning ? Math.max(settings.scanEverySec, (await this.plan()).scanSec) * 1000 : busy ? SCAN_EVERY_MS : hasColl ? 5 * 60_000 : (await this.isCatalog()) ? DEALS_EVERY_MS : 10 * 60_000;
-      await this.ctx.storage.setAlarm(Math.max(Date.now() + every, this.blockedUntil));
+      await this.ctx.storage.setAlarm(Math.max(scanning ? Math.max(t0 + every, Date.now() + 2000) : Date.now() + every, this.blockedUntil));
     }
   }
 
