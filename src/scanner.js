@@ -663,6 +663,11 @@ export class Scanner extends DurableObject {
       ...cat,
       limitUntil: this.blockedUntil > Date.now() ? this.blockedUntil : null,
       market: { gapMs: this.mktGap, tokens: Math.floor(this.tokens), recent429: this.recent429 },
+      // Per capire se il giro degli alert è lento: letture fatte nell'ultima ora e come è andato l'ultimo giro.
+      reads: {
+        hour: [...((this.readLog && this.readLog.values()) || [])].reduce((t, l) => t + l.filter((x) => Date.now() - x < 3600_000).length, 0),
+        last: (status && status.lastRefresh) || null,
+      },
     };
   }
 

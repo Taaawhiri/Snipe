@@ -2570,6 +2570,13 @@
       kvRow('Account', state.account ? `${state.account.name || '—'} · piano ${state.account.plan.label}` : '—'),
       kvRow('Scansione', s.paused ? 'In pausa' : active ? (st.lastScan ? `ultimo controllo ${ago(st.lastScan)}` : 'in avvio…') : 'nessun alert attivo'),
       kvRow('Alert attivi', `${active} su ${state.rules.length}`),
+      ...(sys.reads && active ? [(() => {
+        const r = sys.reads;
+        const last = r.last ? `ultimo giro: ${r.last.read} letture su ${r.last.want}${r.last.error ? ` (${friendlyError(r.last.error)})` : ''}` : 'nessun giro ancora';
+        const row = kvRow('Letture degli alert', `${r.hour} nell'ultima ora (circa ${Math.round(r.hour / 6) / 10} al minuto)`);
+        row.append(el('span', { class: 'small muted', text: last }));
+        return row;
+      })()] : []),
       ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'warn' : '')] : []),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? friendlyError(st.lastError) : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
