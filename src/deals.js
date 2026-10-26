@@ -155,6 +155,7 @@ export function findDeals(products, rule, opts = {}) {
       const ref = median(refs);
       const discount = 1 - p.price.cents / ref;
       if (discount < minDiscount) continue;
+      if (rule.maxDiscount && discount > rule.maxDiscount / 100) continue; // sconto implausibile: il confronto è falsato (es. prezzi "parcheggiati" a 10.000 €)
       if (p.price.cents < minPrice) continue;
       if (ref - p.price.cents < minSavingCents) continue;
       out.push({ product: p, cents: p.price.cents, refCents: Math.round(ref), discount });

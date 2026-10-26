@@ -5,7 +5,7 @@ import { planOf, rulesInPlan } from './plans.js';
 import { cheapestShipping } from './shipping.js';
 import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
-import { DEAL_LANGS, dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
+import { DEAL_LANGS, DAY_RULE, bogusRef, dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
 import { checkAgainstHistory, cmCappable, collKey, gradedFromBase, pickPrice, priceFor, summarize, useCmPrice } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
@@ -2217,6 +2217,8 @@ export class Scanner extends DurableObject {
   }
 
   async dealsList() {
+    // Anche le letture già salvate: lingue degli affari, niente sconti implausibili né confronti con prezzi assurdi.
+    const okDeal = (it) => (!it.language || DEAL_LANGS.has(it.language)) && !(it.discount > DAY_RULE.maxDiscount / 100) && !bogusRef(it.refCents, it.trendCents);
     const got = await this.ctx.storage.list({ prefix: 'dd:' });
     const items = [];
     const itemsZero = [];
@@ -2227,8 +2229,8 @@ export class Scanner extends DurableObject {
       sets.push(v.exp.name);
       ts = Math.max(ts, v.ts);
       // Anche le letture già salvate: solo le lingue degli affari (le altre non interessano).
-      for (const it of v.items) if (!it.language || DEAL_LANGS.has(it.language)) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
-      for (const it of v.itemsZero || []) if (!it.language || DEAL_LANGS.has(it.language)) itemsZero.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
+      for (const it of v.items) if (okDeal(it)) items.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
+      for (const it of v.itemsZero || []) if (okDeal(it)) itemsZero.push({ ...it, expansionId: v.exp.id, expName: v.exp.name, ts: v.ts });
     }
     items.sort((a, b) => b.discount - a.discount);
     itemsZero.sort((a, b) => b.discount - a.discount);

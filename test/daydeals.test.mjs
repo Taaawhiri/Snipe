@@ -51,3 +51,16 @@ test('affari del giorno: nessun affare tedesco', () => {
   const products = { 1: [L(1, 900, 'de'), L(2, 1900, 'de'), L(3, 2000, 'de'), L(4, 2100, 'de'), L(5, 2200, 'de')] };
   assert.equal(dealsFromProducts(cards, products).length, 0);
 });
+
+import { bogusRef } from '../src/daydeals.js';
+test('affari: niente confronto con prezzi assurdi (10.000 € parcheggiati)', () => {
+  assert.equal(bogusRef(1000064, 214), true);
+  assert.equal(bogusRef(2000, 1500), false);
+  assert.equal(bogusRef(1000064, null), false);
+  const cards = [{ id: 1, single: true, name: 'X', cm: { trend: 2.14 } }];
+  const products = { 1: [L(1, 507), L(2, 1000064), L(3, 1000064), L(4, 1000064), L(5, 1000064), L(6, 1000064)] };
+  assert.equal(dealsFromProducts(cards, products).length, 0);
+  // senza tendenza Cardmarket, uno sconto del 99% è comunque scartato
+  const noCm = [{ id: 1, single: true, name: 'X', cm: null }];
+  assert.equal(dealsFromProducts(noCm, products).length, 0);
+});

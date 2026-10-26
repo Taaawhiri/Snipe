@@ -5,7 +5,10 @@ import { condRank, findDeals, isListable, isZero, listingLang, median, normLang 
 // (la mediana dei 5 annunci successivi, con almeno 3 annunci di confronto), da 5 € in su.
 // Ogni lingua si confronta solo con sé stessa: una giapponese non è un affare solo perché costa meno di un'inglese.
 // Il confronto è con CardTrader stesso: rispetto a Cardmarket CardTrader è di solito più caro.
-export const DAY_RULE = { minDiscount: 25, minPriceCents: 500, minCondition: 'Near Mint', zero: '' };
+export const DAY_RULE = { minDiscount: 25, maxDiscount: 90, minPriceCents: 500, minCondition: 'Near Mint', zero: '' };
+
+/** Il prezzo di confronto è assurdo rispetto alla tendenza Cardmarket (più di 4 volte): venditori che parcheggiano il prezzo a 10.000 €. */
+export const bogusRef = (refCents, trendCents) => !!(trendCents && refCents > 4 * trendCents);
 
 // Lingue degli affari: asiatiche (giapponese, coreano, cinese semplificato) più inglese e italiano.
 export const DEAL_LANGS = new Set(['jp', 'ko', 'zh', 'en', 'it']);
@@ -29,6 +32,8 @@ export function dealsFromProducts(cards, products) {
   const deals = [...langs].filter(Boolean).flatMap((language) => findDeals(singles, { ...DAY_RULE, language }));
   for (const d of deals) {
     const bp = String(d.product.blueprint_id);
+    const cm = byId.get(bp).cm;
+    if (bogusRef(d.refCents, cm && cm.trend ? Math.round(cm.trend * 100) : null)) continue;
     if (!best.has(bp) || d.discount > best.get(bp).discount) best.set(bp, d);
   }
   const out = [];
@@ -78,7 +83,8 @@ export function zeroDealsFromProducts(cards, products) {
       if (refs.length < 3 || z.price.cents < DAY_RULE.minPriceCents) continue;
       const ref = median(refs);
       const discount = 1 - z.price.cents / ref;
-      if (discount < DAY_RULE.minDiscount / 100) continue;
+      if (discount < DAY_RULE.minDiscount / 100 || discount > DAY_RULE.maxDiscount / 100) continue;
+      if (bogusRef(ref, c.cm && c.cm.trend ? Math.round(c.cm.trend * 100) : null)) continue;
       if (!best || discount > best.discount) best = { z, ref, discount, lang };
     }
     if (!best) continue;
