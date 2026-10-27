@@ -120,14 +120,26 @@ export async function askAppraiserWeb(env, card, f, verdict) {
   const messages = [{ role: 'user', content: appraisalPrompt(card, f, verdict) }];
   const sources = new Map();
   let text = '';
+  // Versioni dello strumento di ricerca: se il modello non accetta la prima si prova la successiva (APPRAISAL_WEB_TOOL la forza).
+  const versions = env.APPRAISAL_WEB_TOOL ? [env.APPRAISAL_WEB_TOOL] : ['web_search_20250305', 'web_search_20260209'];
+  let vi = 0;
   for (let turn = 0; turn < 3; turn++) {
-    const res = await client.messages.create({
-      model: env.APPRAISAL_MODEL || 'claude-haiku-5-5',
-      max_tokens: 700,
-      system: APPRAISER_SYSTEM + WEB_SYSTEM_ADD,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
-      messages,
-    });
+    let res;
+    for (;;) {
+      try {
+        res = await client.messages.create({
+          model: env.APPRAISAL_MODEL || 'claude-haiku-5-5',
+          max_tokens: 700,
+          system: APPRAISER_SYSTEM + WEB_SYSTEM_ADD,
+          tools: [{ type: versions[vi], name: 'web_search', max_uses: 3 }],
+          messages,
+        });
+        break;
+      } catch (e) {
+        if (e && e.status === 400 && vi < versions.length - 1) { vi++; continue; }
+        throw e;
+      }
+    }
     if (res.stop_reason === 'refusal') return null;
     for (const b of res.content) {
       if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) for (const r of b.content) if (r && r.url && !sources.has(r.url)) sources.set(r.url, String(r.title || r.url).slice(0, 90));

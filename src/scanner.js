@@ -1181,8 +1181,9 @@ export class Scanner extends DurableObject {
           if (q.day !== day) { q.day = day; q.n = 0; }
           if (q.n >= APPRAISER_WEB_PER_DAY) { out.note = `Hai usato i ${APPRAISER_WEB_PER_DAY} pareri con ricerca web di oggi: riprova domani.`; return json(out); }
           let w = null;
-          try { w = await askAppraiserWeb(this.env, { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, f, verdict); } catch { w = null; }
-          if (!w) { out.note = 'La ricerca sul web non è disponibile al momento.'; return json(out); }
+          let why = '';
+          try { w = await askAppraiserWeb(this.env, { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, f, verdict); } catch (e) { w = null; why = String((e && e.message) || e).replace(/sk-[A-Za-z0-9_-]+/g, '…').slice(0, 220); await this.reportError('Parere web', e).catch(() => null); }
+          if (!w) { out.note = `La ricerca sul web non è riuscita${why ? `: ${why}` : ''}`; return json(out); }
           q.n++;
           await this.ctx.storage.put('aprWebDay', q);
           await this.ctx.storage.put(`aprw:${rule.id}`, { ts: Date.now(), low: f.lowCents, ...w });
