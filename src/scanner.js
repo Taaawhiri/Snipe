@@ -1172,9 +1172,9 @@ export class Scanner extends DurableObject {
         const out = { verdict, label: VERDICTS[verdict], facts: f, comment: null, readAt: bpHit ? bpHit.ts : Date.now() };
         const cached = await this.get(`apr:${rule.id}`, null);
         // Il commento si riusa per 6 ore finché il prezzo più basso non si sposta di oltre il 5%.
-        if (cached && cached.comment && Date.now() - cached.ts < 6 * 3600_000 && f.lowCents && Math.abs(cached.low / f.lowCents - 1) < 0.05) { out.comment = cached.comment; out.commentTs = cached.ts; }
+        if (cached && cached.v === 2 && cached.comment && Date.now() - cached.ts < 6 * 3600_000 && f.lowCents && Math.abs(cached.low / f.lowCents - 1) < 0.05) { out.comment = cached.comment; out.commentTs = cached.ts; }
         const cw = await this.get(`aprw:${rule.id}`, null);
-        if (cw && Date.now() - cw.ts < 6 * 3600_000 && f.lowCents && Math.abs(cw.low / f.lowCents - 1) < 0.05) out.web = { text: cw.text, sources: cw.sources, ts: cw.ts };
+        if (cw && cw.v === 2 && Date.now() - cw.ts < 6 * 3600_000 && f.lowCents && Math.abs(cw.low / f.lowCents - 1) < 0.05) out.web = { text: cw.text, sources: cw.sources, ts: cw.ts };
         if (url.searchParams.get('web') && !out.web && f.listings) {
           const day = new Date().toISOString().slice(0, 10);
           const q = await this.get('aprWebDay', { day, n: 0 });
@@ -1187,7 +1187,7 @@ export class Scanner extends DurableObject {
           if (!w) { out.note = `La ricerca sul web non è riuscita${whyW ? `: ${whyW}` : ''}`; return json(out); }
           q.n++;
           await this.ctx.storage.put('aprWebDay', q);
-          await this.ctx.storage.put(`aprw:${rule.id}`, { ts: Date.now(), low: f.lowCents, ...w });
+          await this.ctx.storage.put(`aprw:${rule.id}`, { v: 2, ts: Date.now(), low: f.lowCents, ...w });
           out.web = { ...w, ts: Date.now() };
         }
         if (url.searchParams.get('comment') && !out.comment && f.listings) {
@@ -1202,7 +1202,7 @@ export class Scanner extends DurableObject {
           if (!comment) { out.note = `Il parere dell’esperto non è riuscito${why ? `: ${why}` : ''}`; return json(out); }
           q.n++;
           await this.ctx.storage.put('aprDay', q);
-          await this.ctx.storage.put(`apr:${rule.id}`, { ts: Date.now(), low: f.lowCents, comment });
+          await this.ctx.storage.put(`apr:${rule.id}`, { v: 2, ts: Date.now(), low: f.lowCents, comment });
           out.comment = comment;
           out.commentTs = Date.now();
         }
