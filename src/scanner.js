@@ -1172,9 +1172,10 @@ export class Scanner extends DurableObject {
         const out = { verdict, label: VERDICTS[verdict], facts: f, comment: null, readAt: bpHit ? bpHit.ts : Date.now() };
         const cached = await this.get(`apr:${rule.id}`, null);
         // Il commento si riusa per 6 ore finché il prezzo più basso non si sposta di oltre il 5%.
-        if (cached && cached.v === 2 && cached.comment && Date.now() - cached.ts < 6 * 3600_000 && f.lowCents && Math.abs(cached.low / f.lowCents - 1) < 0.05) { out.comment = cached.comment; out.commentTs = cached.ts; }
+        const again = !!url.searchParams.get('refresh'); // "Rigenera": ignora il parere salvato
+        if (!again && cached && cached.v === 2 && cached.comment && Date.now() - cached.ts < 6 * 3600_000 && f.lowCents && Math.abs(cached.low / f.lowCents - 1) < 0.05) { out.comment = cached.comment; out.commentTs = cached.ts; }
         const cw = await this.get(`aprw:${rule.id}`, null);
-        if (cw && cw.v === 2 && Date.now() - cw.ts < 6 * 3600_000 && f.lowCents && Math.abs(cw.low / f.lowCents - 1) < 0.05) out.web = { text: cw.text, sources: cw.sources, ts: cw.ts };
+        if (!again && cw && cw.v === 2 && Date.now() - cw.ts < 6 * 3600_000 && f.lowCents && Math.abs(cw.low / f.lowCents - 1) < 0.05) out.web = { text: cw.text, sources: cw.sources, ts: cw.ts };
         if (url.searchParams.get('web') && !out.web && f.listings) {
           const day = new Date().toISOString().slice(0, 10);
           const q = await this.get('aprWebDay', { day, n: 0 });

@@ -449,6 +449,7 @@
     "Cerca vendite eBay, Reddit e notizie. Costa di più: al massimo 10 al giorno.": "Searches eBay sales, Reddit and news. Costs more: 10 a day at most.",
     "Cerca su eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.": "Searches eBay, Reddit and news: results may be incomplete or refer to another edition, check the sources.",
     "La ricerca sul web non è disponibile al momento.": "Web search is not available right now.",
+    "↻ Rigenera il parere": "↻ Regenerate the opinion", "↻ Rigenera la ricerca": "↻ Regenerate the search", "Sto rigenerando…": "Regenerating…",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",

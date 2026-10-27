@@ -3073,6 +3073,15 @@
     $('apBody').replaceChildren(el('p', { class: 'muted small', text: 'Valuto il prezzo…' }));
     openSheet(d);
     const pct = (v) => (v == null ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v * 100))}%`);
+    // Un parere già dato si riusa per 6 ore; "Rigenera" ne chiede uno nuovo (conta nel limite giornaliero).
+    const regen = (kind, label) => {
+      const b = el('button', { class: 'btn mini ap-regen', type: 'button', text: `↻ ${label}` });
+      b.addEventListener('click', async () => {
+        b.disabled = true; b.textContent = 'Sto rigenerando…';
+        try { draw(await api(`/api/appraisal?rule_id=${r.id}&${kind}=1&refresh=1`)); } catch (e) { b.disabled = false; b.textContent = `↻ ${label}`; }
+      });
+      return b;
+    };
     const draw = (a) => {
       const f = a.facts || {};
       const cur = 'EUR';
@@ -3096,7 +3105,8 @@
       const parere = el('div', { class: 'ap-expert' });
       if (a.comment) {
         parere.append(el('div', { class: 'ap-k', text: 'Parere dell’esperto' }), el('p', { text: a.comment }),
-          el('small', { class: 'muted', text: 'Generato da un’IA sui dati qui sopra: non è un consiglio finanziario e non conosce notizie fuori dall’app.' }));
+          el('small', { class: 'muted', text: 'Generato da un’IA sui dati qui sopra: non è un consiglio finanziario e non conosce notizie fuori dall’app.' }),
+          regen('comment', 'Rigenera il parere'));
       } else if (f.listings) {
         const b = el('button', { class: 'btn primary', type: 'button', text: 'Chiedi il parere dell’esperto' });
         b.addEventListener('click', async () => {
@@ -3112,7 +3122,8 @@
         if (a.web) {
           web.append(el('div', { class: 'ap-k', text: 'Parere con ricerca sul web' }), el('p', { text: a.web.text }),
             ...(a.web.sources && a.web.sources.length ? [el('div', { class: 'ap-src' }, ...a.web.sources.map((s) => el('a', { href: s.url, target: '_blank', rel: 'noopener', text: s.title })))] : []),
-            el('small', { class: 'muted', text: 'Cerca su eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.' }));
+            el('small', { class: 'muted', text: 'Cerca su eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.' }),
+            regen('web', 'Rigenera la ricerca'));
         } else {
           const w = el('button', { class: 'btn', type: 'button', text: 'Parere approfondito (cerca sul web)' });
           w.addEventListener('click', async () => {
