@@ -161,6 +161,19 @@ details.more[open] > summary { margin-bottom: 10px; }
 .now-line .nl-rel.ok { color: var(--green); }
 .now-line .nl-rel.over { color: var(--yellow); }
 .now-line .nl-age { color: var(--muted); font-size: 11.5px; }
+.now-line .nl-appraise { margin-left: auto; font-size: 12px; padding: 4px 10px; }
+.ap-verdict { border-radius: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); }
+.ap-verdict b { display: block; font-size: 20px; }
+.ap-verdict small { color: var(--muted); font-size: 12.5px; }
+.ap-verdict.v-deal { border-color: #2f8f5f; } .ap-verdict.v-deal b, .ap-verdict.v-good b { color: var(--green); }
+.ap-verdict.v-high { border-color: #a0394d; } .ap-verdict.v-high b { color: #ff9aac; }
+.ap-warn { color: var(--yellow); }
+.ap-rows { margin: 10px 0; }
+.ap-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.ap-rows span { color: var(--muted); }
+.ap-expert { margin-top: 12px; }
+.ap-expert .ap-k { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.ap-expert p { margin: 6px 0; line-height: 1.45; }
 .now-line.none { color: var(--muted); font-size: 12.5px; }
 .oc-h { margin: 8px 0 0; font-size: 14px; }
 .sellercheck { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }

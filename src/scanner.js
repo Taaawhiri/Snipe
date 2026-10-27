@@ -12,6 +12,7 @@ import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShard
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
+import { APPRAISER_LIMIT_PER_DAY, VERDICTS, appraisalFacts, askAppraiser, verdictOf } from './appraisal.js';
 import { vintageEra } from './vintage.js';
 import { expansionNameOf, nextOrderStates, orderChanges, trackingCodeOf, trackingUrlOf } from './orders.js';
 import { addSamples, isReverse, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
@@ -1145,6 +1146,47 @@ export class Scanner extends DurableObject {
           });
         const status = await this.status();
         return json({ rows, total: all.length, cmTrend, fromScan: !!useScan, readAt: useScan ? recent.ts : Date.now(), diag: { scanTs, seenCount, enabled: !!rule.enabled, lastScan: status.lastScan || null, lastError: status.lastError || null } });
+      } catch (e) {
+        return json({ error: String(e.message || e) }, 502);
+      }
+    }
+
+    if (path === '/api/appraisal' && method === 'GET') {
+      // Valutazione del prezzo di un alert su una carta: voto e dati sempre, commento dell'esperto (Claude) solo se richiesto.
+      const rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));
+      if (!rule) return json({ error: 'Questo alert non esiste più: ricarica l’app.' }, 404);
+      if (!rule.blueprintId) return json({ error: 'La valutazione c’è per gli alert su una singola carta.' }, 400);
+      try {
+        const bpHit = this.bpCache.get(rule.blueprintId);
+        const data = bpHit ? bpHit.data : await this.productsForCard(rule.blueprintId, 60_000);
+        const products = data[rule.blueprintId] || data[String(rule.blueprintId)] || [];
+        let cmCents = null;
+        let limitCents = rule.maxPriceCents || null;
+        if (rule.cmId) {
+          const e = (await this.cmLookup([rule.cmId])).get(rule.cmId);
+          if (e && e.trend) { cmCents = Math.round(e.trend * 100); if (rule.cmDiscount) limitCents = maxCentsBelow(e.trend, rule.cmDiscount); }
+        }
+        const reliable = (await this.settings()).collReliable !== false;
+        const f = appraisalFacts({ products, hist: await this.get(`h:${rule.blueprintId}`, []), rule, cmCents, limitCents, reliable });
+        const verdict = verdictOf(f);
+        const out = { verdict, label: VERDICTS[verdict], facts: f, comment: null, readAt: bpHit ? bpHit.ts : Date.now() };
+        const cached = await this.get(`apr:${rule.id}`, null);
+        // Il commento si riusa per 6 ore finché il prezzo più basso non si sposta di oltre il 5%.
+        if (cached && cached.comment && Date.now() - cached.ts < 6 * 3600_000 && f.lowCents && Math.abs(cached.low / f.lowCents - 1) < 0.05) { out.comment = cached.comment; out.commentTs = cached.ts; }
+        if (url.searchParams.get('comment') && !out.comment && f.listings) {
+          const day = new Date().toISOString().slice(0, 10);
+          const q = await this.get('aprDay', { day, n: 0 });
+          if (q.day !== day) { q.day = day; q.n = 0; }
+          if (q.n >= APPRAISER_LIMIT_PER_DAY) { out.note = `Hai usato i ${APPRAISER_LIMIT_PER_DAY} pareri di oggi: riprova domani.`; return json(out); }
+          const comment = await askAppraiser(this.env, { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, f, verdict);
+          if (!comment) { out.note = 'Il parere dell’esperto non è disponibile al momento.'; return json(out); }
+          q.n++;
+          await this.ctx.storage.put('aprDay', q);
+          await this.ctx.storage.put(`apr:${rule.id}`, { ts: Date.now(), low: f.lowCents, comment });
+          out.comment = comment;
+          out.commentTs = Date.now();
+        }
+        return json(out);
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }

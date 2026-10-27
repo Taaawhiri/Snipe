@@ -193,3 +193,19 @@ test('banner notifiche push: compare solo senza dispositivi iscritti e con alert
   await ok.page.waitForTimeout(500);
   assert.ok(!(await ok.page.isVisible('#pushBanner')));
 });
+
+test('regole: valutazione del prezzo con voto e parere a richiesta', async () => {
+  const rule = { id: 'r1', cardName: 'Pikachu', enabled: true, blueprintId: 1, maxPriceCents: 1000, minPriceCents: 5, language: '', minCondition: 'Near Mint' };
+  const st = baseState({ rules: [rule], checks: { r1: { ts: Date.now() - 5000, reads: [], listings: 4, valid: 1, bestCents: 900, currency: 'EUR', infoTs: Date.now() - 5000 } } });
+  const ap = { verdict: 'deal', label: 'Occasione', facts: { listings: 4, lowCents: 900, typicalCents: 1200, histDays: 10, pct90: 0.1 }, comment: null };
+  const { page, errors, calls } = await openApp(browser, srv.url, { 'GET /api/state': st, 'GET /api/appraisal': (req) => (req.url().includes('comment=1') ? { ...ap, comment: 'Prezzo vicino ai minimi.' } : ap) });
+  await page.click('[data-tab="rules"]');
+  await page.click('.nl-appraise >> visible=true');
+  await page.waitForTimeout(400);
+  assert.ok((await page.textContent('#apBody')).includes('Occasione'));
+  await page.click('#apBody .btn.primary');
+  await page.waitForTimeout(400);
+  assert.ok((await page.textContent('#apBody')).includes('Prezzo vicino ai minimi.'));
+  assert.ok(calls.some((c) => c.key === 'GET /api/appraisal'));
+  assert.deepEqual(errors, []);
+});

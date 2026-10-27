@@ -18,7 +18,7 @@
     const c = (state.checks || {})[r.id];
     if (!c || !c.ts || c.listings == null || !r.enabled) return null;
     if (c.bestCents == null) {
-      return el('div', { class: 'now-line none', text: c.listings ? `Nessun annuncio con i tuoi criteri (${c.listings} in tutto)` : 'Nessun annuncio in vendita' });
+      return el('div', { class: 'now-line none' }, c.listings ? `Nessun annuncio con i tuoi criteri (${c.listings} in tutto)` : 'Nessun annuncio in vendita', ...(r.blueprintId && c.listings ? [el('button', { class: 'chip-btn nl-appraise', type: 'button', text: 'Valuta il prezzo', onclick: () => appraiseRule(r) })] : []));
     }
     const cur = c.currency || 'EUR';
     const max = r.blueprintId || r.maxPriceCents ? r.maxPriceCents : 0;
@@ -28,7 +28,8 @@
       rel = gap <= 0 ? el('span', { class: 'nl-rel ok', text: 'sotto la soglia ✓' }) : el('span', { class: 'nl-rel over', text: `${money(gap, cur)} sopra la soglia` });
     }
     const old = c.infoTs && Date.now() - c.infoTs > 10 * 60_000 ? el('span', { class: 'nl-age', text: `letto ${ago(c.infoTs)}` }) : null;
-    return el('div', { class: 'now-line' }, el('span', { class: 'nl-k', text: 'Ora il più basso' }), el('b', { text: money(c.bestCents, cur) }), ...(rel ? [rel] : []), ...(old ? [old] : []));
+    return el('div', { class: 'now-line' }, el('span', { class: 'nl-k', text: 'Ora il più basso' }), el('b', { text: money(c.bestCents, cur) }), ...(rel ? [rel] : []), ...(old ? [old] : []),
+      ...(r.blueprintId ? [el('button', { class: 'chip-btn nl-appraise', type: 'button', text: 'Valuta il prezzo', onclick: () => appraiseRule(r) })] : []));
   }
 
   const openChecks = new Set();
