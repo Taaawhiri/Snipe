@@ -456,6 +456,7 @@
     "circa il 15% sotto la tendenza Cardmarket (storico ancora breve)": "about 15% below the Cardmarket trend (short history)",
     "circa il 10% sotto il prezzo tipico (storico ancora breve)": "about 10% below the typical price (short history)",
     "Già impostato": "Already set", "Salvo…": "Saving…",
+    "Usa": "Use",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",
@@ -541,6 +542,9 @@
   };
 
   const R = [
+    [/^Consigliato: (.+)$/, 'Suggested: $1'],
+    [/^Puoi comprare adesso \((.+)\)$/, 'You can buy now ($1)'],
+    [/^(.+) · ora: (.+)$/, (m, a, b) => `${a} · now: ${b}`],
     [/^il prezzo che negli ultimi (\d+) giorni è stato battuto solo 1 giorno su 5$/, 'the price that was only beaten 1 day in 5 over the last $1 days'],
     [/^Imposta l’alert a (.+)$/, 'Set the alert to $1'],
     [/^Il prezzo è al (\d+)° percentile degli ultimi 90 giorni \(0 = il più basso\)\.$/, 'The price is at the $1th percentile of the last 90 days (0 = the lowest).'],

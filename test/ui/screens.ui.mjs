@@ -212,3 +212,15 @@ test('regole: valutazione del prezzo con voto e parere a richiesta', async () =>
   assert.ok(await page.$eval('#sheetBackdrop', (e) => e.hidden), 'chiudendo la valutazione il fondo scuro sparisce');
   assert.deepEqual(errors, []);
 });
+
+test('scheda carta: prezzo consigliato per l\'alert con pulsante Usa', async () => {
+  const sg = { suggest: { cents: 16500, why: 'circa il 10% sotto la tendenza Cardmarket', now: false }, verdict: 'Nella media', lowCents: 17059, histDays: 12 };
+  const { page, errors, calls } = await openApp(browser, srv.url, { 'GET /api/suggest': sg, 'GET /api/listings': [] });
+  await page.click("#collList .ci .t >> nth=0");
+  await page.waitForTimeout(700);
+  assert.ok(calls.some((c) => c.key === 'GET /api/suggest'));
+  assert.ok(await page.isVisible('#alertSuggest'));
+  await page.click('#alertSuggest .btn');
+  assert.equal(await page.inputValue('#alertMax'), '165.00');
+  assert.deepEqual(errors, []);
+});

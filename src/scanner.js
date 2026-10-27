@@ -1151,6 +1151,24 @@ export class Scanner extends DurableObject {
       }
     }
 
+    if (path === '/api/suggest' && method === 'GET') {
+      // Prezzo consigliato per un alert nuovo (dalla scheda carta): stessi dati della valutazione, con lingua e condizione scelte.
+      const bp = parseInt(url.searchParams.get('blueprint_id'), 10);
+      if (!Number.isInteger(bp) || bp <= 0) return json({ error: 'Carta mancante' }, 400);
+      try {
+        const hit = this.bpCache.get(bp);
+        const data = hit ? hit.data : await this.productsForCard(bp, 5 * 60_000);
+        const products = data[bp] || data[String(bp)] || [];
+        const cmId = parseInt(url.searchParams.get('cm_id'), 10);
+        const e = cmId > 0 ? (await this.cmLookup([cmId])).get(cmId) : null;
+        const cond = CONDITIONS.includes(url.searchParams.get('cond')) ? url.searchParams.get('cond') : '';
+        const f = appraisalFacts({ products, hist: await this.get(`h:${bp}`, []), rule: { language: String(url.searchParams.get('lang') || '').slice(0, 14), minCondition: cond }, cmCents: e && e.trend ? Math.round(e.trend * 100) : null, reliable: (await this.settings()).collReliable !== false });
+        return json({ suggest: f.suggest || null, verdict: VERDICTS[verdictOf(f)] || null, lowCents: f.lowCents || null, histDays: f.histDays || 0 });
+      } catch (err) {
+        return json({ error: String(err.message || err) }, 502);
+      }
+    }
+
     if (path === '/api/appraisal' && method === 'GET') {
       // Valutazione del prezzo di un alert su una carta: voto e dati sempre, commento dell'esperto (Claude) solo se richiesto.
       const rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));

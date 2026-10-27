@@ -414,6 +414,24 @@
     if (c && c.cm) $('alertCmHint').textContent = `Scatta sotto ${money(Math.floor(c.cm.trend * 100 * (1 - Number($('alertCmPct').value) / 100)), c.currency)} (tendenza ${money(Math.round(c.cm.trend * 100), c.currency)}, tutte le lingue e condizioni insieme). Se segui una lingua o una condizione precisa, "Sconto in %" confronta solo annunci con gli stessi filtri.`;
   }
 
+  // Prezzo consigliato per l'alert (dalla valutazione dei dati): si aggiorna con lingua e condizione scelte.
+  let suggestSeq = 0;
+  async function loadSuggest(c) {
+    const box = $('alertSuggest');
+    const seq = ++suggestSeq;
+    box.hidden = true;
+    try {
+      const q = new URLSearchParams({ blueprint_id: c.id, lang: $('alertLang').value, cond: $('alertCond').value });
+      if (c.cmId) q.set('cm_id', c.cmId);
+      const s = await api(`/api/suggest?${q}`);
+      if (seq !== suggestSeq || current !== c || !s.suggest) return;
+      const use = el('button', { class: 'btn mini', type: 'button', text: 'Usa', onclick: () => { $('alertMax').value = (s.suggest.cents / 100).toFixed(2); } });
+      box.replaceChildren(el('span', null, el('b', { text: s.suggest.now ? `Puoi comprare adesso (${money(s.suggest.cents, c.currency)})` : `Consigliato: ${money(s.suggest.cents, c.currency)}` }), el('small', { text: `${s.suggest.why}${s.verdict ? ` · ora: ${s.verdict}` : ''}` })), ...(s.suggest.now ? [] : [use]));
+      box.hidden = false;
+    } catch { box.hidden = true; }
+  }
+  for (const id of ['alertLang', 'alertCond']) $(id).addEventListener('change', () => { if (current && $('cardDialog').open) loadSuggest(current); });
+
   let listView = ''; // '' = normali, 'graded', 'reverse'
   async function openCard(c) {
     if (current !== c) listView = '';
@@ -462,6 +480,7 @@
     const low = v.lowest;
     const base = low == null ? '' : (Math.floor((low * 0.8) / 50) * 0.5).toFixed(2);
     $('alertMax').value = base && Number(base) > 0 ? base : low == null ? '' : (low / 100).toFixed(2);
+    loadSuggest(c);
     $('dlgGradeTabs').replaceChildren(...[['', 'Normali'], ['graded', 'Gradate'], ['reverse', 'Reverse']].map(([g, t]) =>
       el('button', { class: 'chip chip-pick' + (listView === g ? ' cond' : ''), type: 'button', text: t, onclick: () => { if (listView !== g) { listView = g; openCard(c); } } })));
     $('dlgListings').replaceChildren(el('p', { class: 'muted', text: 'Carico gli annunci…' }));
