@@ -699,6 +699,8 @@ export class Scanner extends DurableObject {
         hour: [...((this.readLog && this.readLog.values()) || [])].reduce((t, l) => t + l.filter((x) => Date.now() - x < 3600_000).length, 0),
         last: (status && status.lastRefresh) || null,
       },
+      // Perché una notifica push non arriva: dispositivi iscritti ed esito dell'ultimo invio.
+      push: { subs: (await this.get('subs', [])).length, last: await this.get('pushLast', null) },
     };
   }
 
@@ -2943,22 +2945,26 @@ export class Scanner extends DurableObject {
   }
 
   async notify(force = false) {
-    if (!force && isQuiet(await this.settings())) return 0; // orari silenziosi: l'avviso resta nell'elenco
+    if (!force && isQuiet(await this.settings())) { await this.ctx.storage.put('pushLast', { ts: Date.now(), why: 'quiet' }); return 0; } // orari silenziosi: l'avviso resta nell'elenco
     const subs = await this.get('subs', []);
-    if (!subs.length) return 0;
+    if (!subs.length) { await this.ctx.storage.put('pushLast', { ts: Date.now(), why: 'nosubs' }); return 0; }
     const keys = await this.vapid();
     const alive = [];
     let sent = 0;
+    const codes = [];
     for (const endpoint of subs) {
       try {
         const status = await sendPush(keys, endpoint);
+        codes.push(status);
         if (status === 404 || status === 410) continue; // iscrizione scaduta
         alive.push(endpoint);
         if (status >= 200 && status < 300) sent++;
       } catch {
+        codes.push(0);
         alive.push(endpoint);
       }
     }
+    await this.ctx.storage.put('pushLast', { ts: Date.now(), sent, codes: codes.slice(0, 5) });
     if (alive.length !== subs.length) await this.ctx.storage.put('subs', alive);
     return sent;
   }

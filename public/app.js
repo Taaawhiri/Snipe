@@ -2584,6 +2584,16 @@
         row.append(el('span', { class: 'small muted', text: last }));
         return row;
       })()] : []),
+      ...(sys.push ? [(() => {
+        const p = sys.push;
+        const l = p.last;
+        const txt = !p.subs ? 'nessun dispositivo iscritto: premi «Attiva notifiche» qui sotto'
+          : !l ? `${p.subs} ${p.subs === 1 ? 'dispositivo' : 'dispositivi'}, nessun invio ancora`
+          : l.why === 'quiet' ? `ultimo avviso non inviato: orari silenziosi (${ago(l.ts)})`
+          : l.why === 'nosubs' ? 'nessun dispositivo iscritto'
+          : `${p.subs} ${p.subs === 1 ? 'dispositivo' : 'dispositivi'} · ultimo invio ${ago(l.ts)}: ${l.sent} consegnat${l.sent === 1 ? 'o' : 'i'} (codici ${l.codes.join(', ')})`;
+        return kvRow('Notifiche push', txt, !p.subs || (l && l.codes && l.sent === 0 && l.codes.length) ? 'bad' : '');
+      })()] : []),
       ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'warn' : '')] : []),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? friendlyError(st.lastError) : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
