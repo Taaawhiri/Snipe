@@ -428,6 +428,8 @@
     "✓ Alert tolto dalle regole": "✓ Alert removed from your rules",
     "Promemoria dopo 24 ore se l'annuncio è ancora in vendita": "Reminder after 24 hours if the listing is still for sale",
     "Letture degli alert": "Alert reads",
+    "Notifiche push spente": "Push notifications off",
+    "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",
     "Non tenere carte che valgono meno di (€)": "Don't keep cards worth less than (€)",
     "Spento": "Off",

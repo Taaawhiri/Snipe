@@ -182,3 +182,14 @@ test('regole: controllo su ogni alert e filtri nel pannello', async () => {
   assert.deepEqual(errors, []);
   await page.close();
 });
+
+test('banner notifiche push: compare solo senza dispositivi iscritti e con alert attivi', async () => {
+  const rule = { id: 'r1', name: 'Pikachu', enabled: true, blueprintId: 1, maxCents: 100, mode: 'price', language: '', condition: '' };
+  const on = await openApp(browser, srv.url, { 'GET /api/state': baseState({ rules: [rule], pushDevices: 0 }) });
+  await on.page.waitForTimeout(500);
+  assert.ok(await on.page.isVisible('#pushBanner'));
+  assert.deepEqual(on.errors, []);
+  const ok = await openApp(browser, srv.url, { 'GET /api/state': baseState({ rules: [rule], pushDevices: 1 }) });
+  await ok.page.waitForTimeout(500);
+  assert.ok(!(await ok.page.isVisible('#pushBanner')));
+});

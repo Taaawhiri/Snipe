@@ -34,6 +34,7 @@ function buildNumber(b) {
 }
 
 const MARKET_PER_SCAN = 2;
+const ROUND_WAIT_MAX_MS = 40_000; // con intervalli lunghi lo scan aspetta i gettoni che si ricaricano, per questo tempo al massimo
 const MARKET_MAX_SCAN = 6; // letture normali al massimo per giro, quando i gettoni avanzano
 const FAST_SHARE = 0.5; // corsia veloce: quota dei gettoni di un giro riservata agli alert con la stella (il resto va agli altri)
 const FAST_MIN_AGE_MS = 8_000; // una carta appena letta (anche dall'utente) non si rilegge subito
@@ -2641,13 +2642,19 @@ export class Scanner extends DurableObject {
     // va agli altri alert: se la corsia veloce li prendesse tutti, gli alert senza stella non verrebbero mai riletti.
     this.refill();
     // Un gettone resta libero per la lettura degli affari del giorno (che passa dopo gli alert).
-    const avail = Math.max(0, Math.floor(this.tokens) - MKT_RESERVE - 1);
+    // Con un intervallo lungo (30 s, 1 min…) il serbatoio da solo darebbe al massimo 6 letture per giro anche se nel frattempo
+    // ne arrivano altre: lo scan può aspettare i gettoni che si ricaricano, entro una parte dell'intervallo.
+    const everyMs = Math.max((await this.settings()).scanEverySec, (await this.plan()).scanSec) * 1000;
+    const waitMs = Math.min(ROUND_WAIT_MAX_MS, Math.max(0, everyMs * 0.6 - 10_000));
+    const extra = Math.floor(waitMs / Math.max(1, this.mktGap));
+    const deadline = Date.now() + waitMs;
+    const avail = Math.max(0, Math.floor(this.tokens) - MKT_RESERVE - 1) + extra;
     // Con pochi gettoni (limite stretto di CardTrader) si alterna: un giro tocca a una carta con la stella, il giro dopo agli altri.
     const fastCap = avail > MARKET_PER_SCAN ? Math.max(1, Math.min(Math.round(avail * FAST_SHARE), avail - MARKET_PER_SCAN)) : (this.fastTurn = !this.fastTurn) ? 1 : 0;
     const fast = all.filter((x) => x.prio >= 6 && now - age(x) > FAST_MIN_AGE_MS).sort((a, b) => age(a) - age(b)).slice(0, fastCap);
     const isFast = new Set(fast);
     // Agli altri tutto ciò che resta, almeno MARKET_PER_SCAN e al massimo MARKET_MAX_SCAN letture.
-    const normalN = Math.max(MARKET_PER_SCAN, Math.min(MARKET_MAX_SCAN, avail - fast.length));
+    const normalN = Math.max(MARKET_PER_SCAN, Math.min(MARKET_MAX_SCAN + extra, avail - fast.length));
     const ruleDue = pickDue(all.filter((x) => x.prio >= 2 && !isFast.has(x)), age, now, normalN);
     const otherDue = pickDue(all.filter((x) => x.prio < 2), age, now, normalN);
     // Agli alert vanno quasi tutte le letture, ma una per giro resta a collezione e desideri: con tanti alert
@@ -2661,6 +2668,13 @@ export class Scanner extends DurableObject {
     let error = null;
     for (const src of due) {
       try {
+        // Gettone mancante: si aspetta che si ricarichi (entro il tempo concesso al giro) invece di rimandare la carta al giro dopo.
+        for (;;) {
+          this.refill();
+          const need = (MKT_RESERVE + 1 - this.tokens) * this.mktGap;
+          if (need <= 0 || Date.now() + need + 20 > deadline) break;
+          await sleep(Math.ceil(need) + 20);
+        }
         if (src.kind === 'b') await this.productsForCard(src.id, 0, true);
         else await this.productsFor(src.id, 0, true);
         this.noteRead(`${src.kind}:${src.id}`);

@@ -936,6 +936,10 @@ select.cs-native{position:absolute!important;opacity:0;pointer-events:none;width
 .rule-health{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px;margin-top:6px}
 .rule-health .rh-ico{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:17px;background:#1d3d2e;color:#7fe0a6}
 .rule-health.slow .rh-ico{background:#4a3c12;color:#ffd66b}.rule-health.stop .rh-ico{background:#4a1d27;color:#ff9aac}
+.push-banner{display:flex;align-items:center;gap:12px;width:calc(100% - 32px);max-width:640px;margin:10px auto 0;text-align:left;font:inherit;color:inherit;background:#4a3c12;border:1px solid #8a6d1d;border-radius:16px;padding:12px;cursor:pointer}
+.push-banner[hidden]{display:none}
+.push-banner .rh-ico{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:17px;background:#6b551a;color:#ffd66b}
+.push-banner b{display:block;font-size:14px}.push-banner small{font-size:12px;color:#e8d9a8;font-weight:600}
 .rule-health b{display:block;font-size:14px}.rule-health small{font-size:12px;color:var(--muted);font-weight:600}
 .chk-wrap{margin-top:2px}
 .chk{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--surface-2);border:0;border-radius:12px;padding:8px 10px;cursor:pointer}

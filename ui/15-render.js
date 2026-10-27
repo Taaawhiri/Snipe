@@ -226,6 +226,8 @@
     $('ruleCount').hidden = !filtering;
     $('ruleCount').textContent = shownRules.length ? `${shownRules.length} alert su ${state.rules.length}` : rq ? `Nessun alert per “${$('ruleSearch').value.trim()}”` : 'Nessun alert con questi filtri';
     renderRuleHealth();
+    // Nessun dispositivo iscritto: gli alert non arrivano come notifica (l'iscrizione può scadere da sola).
+    $('pushBanner').hidden = !(state.pushDevices === 0 && state.rules.some((r) => r.enabled));
     rl.replaceChildren(
       ...shownRules.map((r) => {
         const title = r.cardName || r.expansionName || `Espansione ${r.expansionId}`;

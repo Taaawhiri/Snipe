@@ -143,6 +143,7 @@
       $('sysMsg').textContent = `Impostazione non salvata: ${e.message}`;
     }
   }
+  $('pushBanner').addEventListener('click', () => { goTab('settings'); setTimeout(() => { const b = $('pushEnable'); if (b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 150); });
   $('setPaused').addEventListener('change', () => saveSettings({ paused: $('setPaused').checked }));
   $('setScan').addEventListener('change', () => saveSettings({ scanEverySec: Number($('setScan').value) }));
   $('setQuiet').addEventListener('change', () => saveSettings({ quietEnabled: $('setQuiet').checked }));
