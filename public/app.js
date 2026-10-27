@@ -493,6 +493,7 @@
   let collEra = 'all'; // filtro epoca: moderne o vintage (WOTC ed EX, come nel selettore delle espansioni)
   let collType = 'all'; // filtro per tipo: Pokémon, allenatori, energie
   let collRev = 'all'; // filtro variante: tutte, reverse holo, non reverse
+  let collShowHidden = false; // mostra anche le carte sotto il valore minimo
   let collKind = 'all'; // filtro rapido: tutte, non gradate, gradate
   /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
   function ownedQty(bp) {
@@ -833,7 +834,8 @@
     $('collZero').checked = !!coll.zeroOnly;
     $('collTypical').checked = !!coll.typical;
     $('collReliable').checked = coll.reliable !== false;
-    const { items, summary: sm, history } = coll;
+    const { summary: sm, history } = coll;
+    const items = collShowHidden ? coll.items : (coll.items || []).filter((it) => !it.belowMin);
     const hist = history || [];
     const days = Math.min(collRange, hist.length - 1);
     const old = hist.length > 1 ? hist[Math.max(0, hist.length - 1 - collRange)] : null;
@@ -860,6 +862,8 @@
       sm.missing && !coll.refreshing ? el('p', { class: 'small muted', text: coll.zeroOnly
         ? `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} senza un prezzo Zero: nessun venditore Zero la offre ora, oppure il prezzo arriva entro un'ora.`
         : `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} ancora senza prezzo: arriva entro un'ora.` }) : null,
+      coll.hidden ? el('p', { class: 'small muted' }, `${coll.hidden} ${coll.hidden === 1 ? 'carta nascosta' : 'carte nascoste'} (sotto ${money(coll.minCents)}, non contano nel valore) · `,
+        el('button', { class: 'chip-btn', type: 'button', text: collShowHidden ? 'Nascondi' : 'Mostra', onclick: () => { collShowHidden = !collShowHidden; renderCollection(); } })) : null,
       coll.limit < coll.unlimited ? el('p', { class: 'small muted', text: `${items.length} su ${coll.limit} carte diverse incluse nel tuo piano.` }) : null,
     ].filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
     const sort = (document.querySelector('input[name="csort"]:checked') || {}).value || 'value';
@@ -1015,7 +1019,9 @@
   const condShort = (c) => ({ Mint: 'M', 'Near Mint': 'NM', 'Slightly Played': 'SP', 'Moderately Played': 'MP', Played: 'PL', 'Heavily Played': 'HP', Poor: 'PO' })[c] || c;
 
   async function saveOwn(b) {
-    coll = await api('/api/collection', { method: 'POST', body: JSON.stringify(b) });
+    const res = await api('/api/collection', { method: 'POST', body: JSON.stringify(b) });
+    if (res.skipped) return res;
+    coll = res;
     renderCollection();
     renderOwnBox();
   }
@@ -1467,7 +1473,8 @@
       const c = row.candidates[row.pick];
       const paid = Number(row.paid);
       try {
-        await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: row.lang, cond: row.cond, qty: row.qty, add: true, paidCents: String(row.paid ?? '').trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null });
+        const r = await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: row.lang, cond: row.cond, qty: row.qty, add: true, paidCents: String(row.paid ?? '').trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null, checkMin: true });
+        if (r && r.skipped) { row.error = `Sotto il valore minimo (${money(r.cents)} < ${money(r.min)}): non aggiunta`; row.include = false; renderBatch(); continue; }
         row.added = true;
       } catch (e) {
         row.error = e.message;
@@ -1763,7 +1770,7 @@
       try {
         const r = await api('/api/orders/import', { method: 'POST', body: JSON.stringify({ iids: [...sel] }) });
         ov.remove();
-        toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}${r.merged ? `, ${r.merged} unite a quelle che avevi` : ''}${r.limited ? `, ${r.limited} non entrano nel piano` : ''}`);
+        toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}${r.merged ? `, ${r.merged} unite a quelle che avevi` : ''}${r.limited ? `, ${r.limited} non entrano nel piano` : ''}${r.skipped ? `, ${r.skipped} sotto ${money(r.min)} non aggiunte` : ''}`);
         loadCollection();
       } catch (e) {
         paint();
@@ -1860,7 +1867,7 @@
             try {
               const r = await api('/api/orders/import', { method: 'POST', body: JSON.stringify({ iids: fresh.map((it) => it.iid) }) });
               fresh.forEach((it) => { it.imported = true; });
-              toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}`);
+              toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}${r.skipped ? `, ${r.skipped} sotto ${money(r.min)} non aggiunte` : ''}`);
               draw();
               loadCollection();
             } catch (err) { e.currentTarget.disabled = false; alert(err.message); }
@@ -2612,6 +2619,7 @@
     if (free('setSummary')) $('setSummary').checked = s.summary !== false;
     if (free('setOrderAlerts')) $('setOrderAlerts').checked = s.orderAlerts !== false;
     if (free('setReminders')) $('setReminders').checked = s.reminders !== false;
+    if (free('setCollMin')) $('setCollMin').value = s.collMinCents ? String(s.collMinCents / 100).replace('.', ',') : '';
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
@@ -2633,6 +2641,10 @@
   $('setSummary').addEventListener('change', () => saveSettings({ summary: $('setSummary').checked }));
   $('setReminders').addEventListener('change', () => saveSettings({ reminders: $('setReminders').checked }));
   $('setOrderAlerts').addEventListener('change', () => saveSettings({ orderAlerts: $('setOrderAlerts').checked }));
+  $('setCollMin').addEventListener('change', () => {
+    const v = parseFloat($('setCollMin').value.replace(',', '.'));
+    saveSettings({ collMinCents: Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0 }).then(() => { coll = null; });
+  });
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
   $('setSound').addEventListener('change', () => {
@@ -2802,7 +2814,7 @@
       try {
         const res = await api('/api/collection/import', { method: 'POST', body: JSON.stringify({ items }) });
         close();
-        await alert(`${res.added} carte aggiunte${res.merged ? `, ${res.merged} già presenti (copie sommate)` : ''}.${res.limited ? ` ${res.limited} non aggiunte: il tuo piano include ${res.limit} carte diverse.` : ''} I prezzi arrivano nei prossimi minuti.`);
+        await alert(`${res.added} carte aggiunte${res.merged ? `, ${res.merged} già presenti (copie sommate)` : ''}.${res.limited ? ` ${res.limited} non aggiunte: il tuo piano include ${res.limit} carte diverse.` : ''} ${res.skipped ? ` ${res.skipped} non aggiunte: valore sotto ${money(res.min)}.` : ''} I prezzi arrivano nei prossimi minuti.`);
         coll = null;
         loadCollection();
       } catch (e) {

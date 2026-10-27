@@ -338,6 +338,19 @@ export class Scanner extends DurableObject {
     return { items, orders: orders.length };
   }
 
+  /**
+   * Prezzo (centesimi) con cui una carta nuova entrerebbe in collezione, dagli annunci già letti; null se ancora non si sa.
+   * Serve per la soglia "valore minimo in collezione": senza prezzo noto la carta entra (la nasconde poi la vista).
+   */
+  async knownCents(bp, lang, cond, first, reverse) {
+    const hit = this.bpCache.get(bp);
+    if (!hit || (hit.slim && (first || reverse || parseGradeLabel(cond)))) return null;
+    const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
+    const reliable = (await this.settings()).collReliable !== false;
+    const pr = priceFor(hit.data[bp] || hit.data[String(bp)], lang, cond, { blocked, first, reverse, reliable });
+    return pr && pr.cents != null ? pr.cents : null;
+  }
+
   /** Aggiunge molte carte in una volta (importazione): una sola scrittura, prezzi letti dal giro in background. */
   async collectionImport(list) {
     const coll = await this.get('coll', []);
@@ -345,6 +358,9 @@ export class Scanner extends DurableObject {
     let added = 0;
     let merged = 0;
     let limited = 0;
+    let skipped = 0;
+    const min = Number((await this.settings()).collMinCents) || 0;
+    const skippedNames = [];
     for (const b of list.slice(0, 2000)) {
       const bp = parseInt(b.bp, 10);
       if (!Number.isInteger(bp) || bp <= 0) continue;
@@ -365,6 +381,10 @@ export class Scanner extends DurableObject {
         continue;
       }
       if (coll.length >= plan.maxColl) { limited++; continue; }
+      if (min > 0 && !parseGradeLabel(cond)) {
+        const cents = await this.knownCents(bp, lang, cond, first, reverse);
+        if (cents != null && cents < min) { if (skippedNames.length < 5) skippedNames.push(String(b.name || '').slice(0, 60)); skipped++; continue; }
+      }
       coll.unshift({
         key, bp, lang, cond, qty, paidCents: paid ?? 0, // senza prezzo = trovata (0 €)
         ...(first ? { first: true } : {}), ...(reverse ? { reverse: true } : {}),
@@ -378,7 +398,7 @@ export class Scanner extends DurableObject {
       added++;
     }
     await this.ctx.storage.put('coll', coll);
-    return { added, merged, limited, limit: plan.maxColl };
+    return { added, merged, limited, limit: plan.maxColl, skipped, skippedNames, min };
   }
 
   // ---------- Collezione ----------
@@ -399,6 +419,11 @@ export class Scanner extends DurableObject {
     if (!qty) {
       if (i >= 0) coll.splice(i, 1);
     } else {
+      if (!prev && b.checkMin) {
+        const min = Number((await this.settings()).collMinCents) || 0;
+        const cents = min > 0 && !parseGradeLabel(cond) ? await this.knownCents(bp, lang, cond, first, reverse) : null;
+        if (cents != null && cents < min) return { skipped: true, min, cents };
+      }
       if (!prev) {
         const plan = await this.plan();
         if (coll.length >= plan.maxColl) return { error: `Il piano ${plan.label} include ${plan.maxColl} carte diverse nella collezione.`, upgrade: true, status: 403 };
@@ -518,9 +543,11 @@ export class Scanner extends DurableObject {
       if (c.cmPrice && cmCappable(c)) price = useCmPrice(price, cmC);
       return { ...c, price, cmCents: cmC };
     });
+    const minCents = Number((await this.settings()).collMinCents) || 0;
+    const live = (arr) => (minCents > 0 ? arr.filter((it) => !(it.price && it.price.cents != null && it.price.cents < minCents)) : arr);
     const items = base(false);
-    const sum = summarize(items);
-    const sumZero = summarize(base(true));
+    const sum = summarize(live(items));
+    const sumZero = summarize(live(base(true)));
     const hist = await this.get('collHist', []);
     const d = new Date().toISOString().slice(0, 10);
     const point = { d, value: sum.value, valueZero: sumZero.value, cm: sum.cm, qty: sum.qty };
@@ -587,9 +614,13 @@ export class Scanner extends DurableObject {
       it.change7 = old && last && old.min ? last.min / old.min - 1 : null;
       it.spark30 = h.slice(-30).map((x) => x.min || null);
     }
+    // Soglia "valore minimo in collezione": le copie sotto soglia restano ma si nascondono e non contano nel valore.
+    const minCents = Number((await this.settings()).collMinCents) || 0;
+    if (minCents > 0) for (const it of items) if (it.price && it.price.cents != null && it.price.cents < minCents) it.belowMin = true;
+    const visible = items.filter((it) => !it.belowMin);
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
     const reliable = (await this.settings()).collReliable !== false;
-    return { items, summary: summarize(items), history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, reliable, refreshing };
+    return { items, summary: summarize(visible), hidden: items.length - visible.length, minCents, history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, reliable, refreshing };
   }
 
   async reportError(where, err) {
@@ -1454,6 +1485,7 @@ export class Scanner extends DurableObject {
       const b = await req.json();
       const res = await this.collectionUpsert(b);
       if (res.error) return json({ error: res.error, upgrade: res.upgrade }, res.status || 400);
+      if (res.skipped) return json({ skipped: true, min: res.min, cents: res.cents });
       return json(await this.collectionView());
     }
 

@@ -55,7 +55,7 @@
       try {
         const res = await api('/api/collection/import', { method: 'POST', body: JSON.stringify({ items }) });
         close();
-        await alert(`${res.added} carte aggiunte${res.merged ? `, ${res.merged} già presenti (copie sommate)` : ''}.${res.limited ? ` ${res.limited} non aggiunte: il tuo piano include ${res.limit} carte diverse.` : ''} I prezzi arrivano nei prossimi minuti.`);
+        await alert(`${res.added} carte aggiunte${res.merged ? `, ${res.merged} già presenti (copie sommate)` : ''}.${res.limited ? ` ${res.limited} non aggiunte: il tuo piano include ${res.limit} carte diverse.` : ''} ${res.skipped ? ` ${res.skipped} non aggiunte: valore sotto ${money(res.min)}.` : ''} I prezzi arrivano nei prossimi minuti.`);
         coll = null;
         loadCollection();
       } catch (e) {

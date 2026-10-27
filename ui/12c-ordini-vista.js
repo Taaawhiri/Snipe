@@ -67,7 +67,7 @@
             try {
               const r = await api('/api/orders/import', { method: 'POST', body: JSON.stringify({ iids: fresh.map((it) => it.iid) }) });
               fresh.forEach((it) => { it.imported = true; });
-              toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}`);
+              toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}${r.skipped ? `, ${r.skipped} sotto ${money(r.min)} non aggiunte` : ''}`);
               draw();
               loadCollection();
             } catch (err) { e.currentTarget.disabled = false; alert(err.message); }

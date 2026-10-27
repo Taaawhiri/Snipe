@@ -117,7 +117,8 @@
       const c = row.candidates[row.pick];
       const paid = Number(row.paid);
       try {
-        await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: row.lang, cond: row.cond, qty: row.qty, add: true, paidCents: String(row.paid ?? '').trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null });
+        const r = await saveOwn({ bp: c.id, name: c.name + (c.version ? ` (${c.version})` : ''), image: c.image, expansionId: c.expansionId, expName: c.expName, lang: row.lang, cond: row.cond, qty: row.qty, add: true, paidCents: String(row.paid ?? '').trim() !== '' && paid >= 0 ? Math.round(paid * 100) : null, checkMin: true });
+        if (r && r.skipped) { row.error = `Sotto il valore minimo (${money(r.cents)} < ${money(r.min)}): non aggiunta`; row.include = false; renderBatch(); continue; }
         row.added = true;
       } catch (e) {
         row.error = e.message;

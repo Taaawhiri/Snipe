@@ -117,6 +117,7 @@
     if (free('setSummary')) $('setSummary').checked = s.summary !== false;
     if (free('setOrderAlerts')) $('setOrderAlerts').checked = s.orderAlerts !== false;
     if (free('setReminders')) $('setReminders').checked = s.reminders !== false;
+    if (free('setCollMin')) $('setCollMin').value = s.collMinCents ? String(s.collMinCents / 100).replace('.', ',') : '';
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
     if (free('setSound')) $('setSound').checked = soundOn();
@@ -138,6 +139,10 @@
   $('setSummary').addEventListener('change', () => saveSettings({ summary: $('setSummary').checked }));
   $('setReminders').addEventListener('change', () => saveSettings({ reminders: $('setReminders').checked }));
   $('setOrderAlerts').addEventListener('change', () => saveSettings({ orderAlerts: $('setOrderAlerts').checked }));
+  $('setCollMin').addEventListener('change', () => {
+    const v = parseFloat($('setCollMin').value.replace(',', '.'));
+    saveSettings({ collMinCents: Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0 }).then(() => { coll = null; });
+  });
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
   $('setSound').addEventListener('change', () => {

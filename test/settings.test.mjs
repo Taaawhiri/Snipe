@@ -35,3 +35,11 @@ test('cleanSettings ripulisce i valori', () => {
   assert.equal(c.quietEnabled, true);
   assert.equal(cleanSettings({ scanEverySec: 30 }).scanEverySec, 30);
 });
+
+test('valore minimo in collezione: spento di default, solo numeri validi', () => {
+  assert.equal(cleanSettings({}).collMinCents, 0);
+  assert.equal(cleanSettings({ collMinCents: 150 }).collMinCents, 150);
+  assert.equal(cleanSettings({ collMinCents: -5 }).collMinCents, 0);
+  assert.equal(cleanSettings({ collMinCents: 'abc' }).collMinCents, 0);
+  assert.equal(cleanSettings({}, { collMinCents: 200 }).collMinCents, 200);
+});

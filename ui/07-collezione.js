@@ -4,6 +4,7 @@
   let collEra = 'all'; // filtro epoca: moderne o vintage (WOTC ed EX, come nel selettore delle espansioni)
   let collType = 'all'; // filtro per tipo: Pokémon, allenatori, energie
   let collRev = 'all'; // filtro variante: tutte, reverse holo, non reverse
+  let collShowHidden = false; // mostra anche le carte sotto il valore minimo
   let collKind = 'all'; // filtro rapido: tutte, non gradate, gradate
   /** Copie possedute di una carta (tutte le lingue e condizioni), per il badge "Ce l'ho" negli elenchi. */
   function ownedQty(bp) {
@@ -344,7 +345,8 @@
     $('collZero').checked = !!coll.zeroOnly;
     $('collTypical').checked = !!coll.typical;
     $('collReliable').checked = coll.reliable !== false;
-    const { items, summary: sm, history } = coll;
+    const { summary: sm, history } = coll;
+    const items = collShowHidden ? coll.items : (coll.items || []).filter((it) => !it.belowMin);
     const hist = history || [];
     const days = Math.min(collRange, hist.length - 1);
     const old = hist.length > 1 ? hist[Math.max(0, hist.length - 1 - collRange)] : null;
@@ -371,6 +373,8 @@
       sm.missing && !coll.refreshing ? el('p', { class: 'small muted', text: coll.zeroOnly
         ? `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} senza un prezzo Zero: nessun venditore Zero la offre ora, oppure il prezzo arriva entro un'ora.`
         : `${sm.missing} ${sm.missing === 1 ? 'copia' : 'copie'} ancora senza prezzo: arriva entro un'ora.` }) : null,
+      coll.hidden ? el('p', { class: 'small muted' }, `${coll.hidden} ${coll.hidden === 1 ? 'carta nascosta' : 'carte nascoste'} (sotto ${money(coll.minCents)}, non contano nel valore) · `,
+        el('button', { class: 'chip-btn', type: 'button', text: collShowHidden ? 'Nascondi' : 'Mostra', onclick: () => { collShowHidden = !collShowHidden; renderCollection(); } })) : null,
       coll.limit < coll.unlimited ? el('p', { class: 'small muted', text: `${items.length} su ${coll.limit} carte diverse incluse nel tuo piano.` }) : null,
     ].filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
     const sort = (document.querySelector('input[name="csort"]:checked') || {}).value || 'value';
@@ -526,7 +530,9 @@
   const condShort = (c) => ({ Mint: 'M', 'Near Mint': 'NM', 'Slightly Played': 'SP', 'Moderately Played': 'MP', Played: 'PL', 'Heavily Played': 'HP', Poor: 'PO' })[c] || c;
 
   async function saveOwn(b) {
-    coll = await api('/api/collection', { method: 'POST', body: JSON.stringify(b) });
+    const res = await api('/api/collection', { method: 'POST', body: JSON.stringify(b) });
+    if (res.skipped) return res;
+    coll = res;
     renderCollection();
     renderOwnBox();
   }

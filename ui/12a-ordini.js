@@ -39,7 +39,7 @@
       try {
         const r = await api('/api/orders/import', { method: 'POST', body: JSON.stringify({ iids: [...sel] }) });
         ov.remove();
-        toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}${r.merged ? `, ${r.merged} unite a quelle che avevi` : ''}${r.limited ? `, ${r.limited} non entrano nel piano` : ''}`);
+        toast(`✓ ${r.added} ${r.added === 1 ? 'carta aggiunta' : 'carte aggiunte'}${r.merged ? `, ${r.merged} unite a quelle che avevi` : ''}${r.limited ? `, ${r.limited} non entrano nel piano` : ''}${r.skipped ? `, ${r.skipped} sotto ${money(r.min)} non aggiunte` : ''}`);
         loadCollection();
       } catch (e) {
         paint();

@@ -428,6 +428,12 @@
     "✓ Alert tolto dalle regole": "✓ Alert removed from your rules",
     "Promemoria dopo 24 ore se l'annuncio è ancora in vendita": "Reminder after 24 hours if the listing is still for sale",
     "Letture degli alert": "Alert reads",
+    "Valore minimo in collezione": "Minimum value in collection",
+    "Non tenere carte che valgono meno di (€)": "Don't keep cards worth less than (€)",
+    "Spento": "Off",
+    "Le carte nuove (scansione, importazione, ordini) sotto questo valore non vengono aggiunte. Quelle già in collezione restano, ma si nascondono e non contano nel valore: le rivedi con «Mostra». Vuoto = spento.": "New cards (scan, import, orders) below this value are not added. Cards already in your collection stay, but are hidden and don't count toward the value: see them with “Show”. Empty = off.",
+    "Mostra": "Show",
+    "Nascondi": "Hide",
     "Normali": "Regular",
     "Gradate": "Graded",
     "Nessuna copia gradata in vendita.": "No graded copies for sale.",
@@ -505,6 +511,8 @@
   };
 
   const R = [
+    [/^(\d+) carte? nascoste? \(sotto (.+), non contano nel valore\) · $/, '$1 hidden (below $2, not counted in the value) · '],
+    [/^(\d+) carte? non aggiunte: valore sotto (.+)\.$/, '$1 not added: value below $2.'],
     // Regole specifiche prima di quelle generiche (es. "… Cardmarket", "… carta").
     [/^(\d+) annunci in vendita, i (\d+) più economici qui sotto\.(.*)$/, (m, a, b, r) => `${a} listings on sale, the ${b} cheapest below.${r.replace(' I prezzi arrivano nei prossimi minuti.', ' Prices arrive in the next few minutes.').replace(' Nessuno rispetta i filtri.', ' None matches the filters.').replace(' 1 rispetta i filtri e fa scattare l’alert.', ' 1 matches the filters and triggers the alert.').replace(/ (\d+) rispettano i filtri e fanno scattare l’alert\./, ' $1 match the filters and trigger the alert.')}`],
     [/^(.*)Attenzione: il prezzo Cardmarket è uno solo per carta e NON dipende dalla condizione né dalla lingua della tua copia\.(.*)$/, (m, a, r) => `${a}Note: the Cardmarket price is a single one per card and does NOT depend on the condition or language of your copy.${r.replace(' È solo un riferimento indicativo.', ' It is only an indicative reference.')}`],

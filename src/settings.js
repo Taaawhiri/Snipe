@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS = {
   orderAlerts: true, // avviso quando cambia lo stato di un ordine CardTrader
   collZero: true, // valore della collezione con i soli prezzi CardTrader Zero
   collTypical: true, // valore con il prezzo tipico (mediana dei 5 più economici) invece del più basso
+  collMinCents: 0, // 0 = spento: sotto questo valore (centesimi) le carte non entrano in collezione e quelle presenti si nascondono
   collReliable: true, // valore della collezione senza i venditori segnalati da CardTrader (annullamenti, venditori nuovi)
 };
 
@@ -70,6 +71,7 @@ export function cleanSettings(input, old = DEFAULT_SETTINGS) {
     orderAlerts: b.orderAlerts === undefined ? old.orderAlerts !== false : !!b.orderAlerts,
     collZero: b.collZero === undefined ? !!old.collZero : !!b.collZero,
     collTypical: b.collTypical === undefined ? !!old.collTypical : !!b.collTypical,
+    collMinCents: b.collMinCents === undefined ? Number(old.collMinCents) || 0 : Math.max(0, Math.min(10_000_000, Math.round(Number(b.collMinCents)) || 0)),
     collReliable: b.collReliable === undefined ? old.collReliable !== false : !!b.collReliable,
   };
 }
