@@ -902,7 +902,7 @@ export class Scanner extends DurableObject {
       // L'ultima cosa da notificare: un avviso, un problema dello scan o il riepilogo del mattino.
       const batch = await this.get('lastBatch', null);
       const group = batch && Date.now() - batch.ts < 120_000 && alerts[0] && alerts[0].ts <= batch.ts ? { kind: 'group', id: `group-${batch.ts}`, ts: batch.ts + 1, n: batch.n, top: batch.top } : null;
-      const items = [group || alerts[0], await this.get('notice', null), await this.get('summaryNotice', null), await this.get('orderNotice', null), await this.get('ownerNotice', null)].filter(Boolean);
+      const items = [group || alerts[0], await this.get('notice', null), await this.get('summaryNotice', null), await this.get('orderNotice', null), await this.get('ownerNotice', null), await this.get('testAlert', null)].filter(Boolean);
       return json(items.sort((x, y) => y.ts - x.ts)[0] || null);
     }
 
@@ -934,12 +934,13 @@ export class Scanner extends DurableObject {
     }
 
     if (path === '/api/state' && method === 'GET') {
-      const [rules, alerts, status, subs] = await Promise.all([
+      const [rules, alertsAll, status, subs] = await Promise.all([
         this.get('rules', []),
         this.get('alerts', []),
         this.status(),
         this.get('subs', []),
       ]);
+      const alerts = alertsAll.filter((a) => !a.test); // le notifiche di prova non si mostrano
       const rulesAll = await this.get('rules', []);
       return json({
         rules,
@@ -1663,8 +1664,10 @@ export class Scanner extends DurableObject {
         url: '/',
         test: true,
       };
-      const alerts = await this.get('alerts', []);
-      await this.ctx.storage.put('alerts', [alert, ...alerts].slice(0, MAX_ALERTS));
+      // Non entra nell'elenco degli avvisi: serve solo al service worker per mostrare la notifica.
+      await this.ctx.storage.put('testAlert', alert);
+      const old = await this.get('alerts', []);
+      if (old.some((a) => a.test)) await this.ctx.storage.put('alerts', old.filter((a) => !a.test));
       return json({ sent: await this.notify(true) });
     }
 
