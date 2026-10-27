@@ -450,6 +450,12 @@
     "Cerca su eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.": "Searches eBay, Reddit and news: results may be incomplete or refer to another edition, check the sources.",
     "La ricerca sul web non è disponibile al momento.": "Web search is not available right now.",
     "↻ Rigenera il parere": "↻ Regenerate the opinion", "↻ Rigenera la ricerca": "↻ Regenerate the search", "Sto rigenerando…": "Regenerating…",
+    "Puoi comprare adesso": "You can buy now", "Prezzo consigliato per l’alert": "Suggested alert price",
+    "è già vicino al tuo obiettivo: puoi comprare adesso": "it's already close to your target: you can buy now",
+    "circa il 10% sotto la tendenza Cardmarket": "about 10% below the Cardmarket trend",
+    "circa il 15% sotto la tendenza Cardmarket (storico ancora breve)": "about 15% below the Cardmarket trend (short history)",
+    "circa il 10% sotto il prezzo tipico (storico ancora breve)": "about 10% below the typical price (short history)",
+    "Già impostato": "Already set", "Salvo…": "Saving…",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",
@@ -535,6 +541,8 @@
   };
 
   const R = [
+    [/^il prezzo che negli ultimi (\d+) giorni è stato battuto solo 1 giorno su 5$/, 'the price that was only beaten 1 day in 5 over the last $1 days'],
+    [/^Imposta l’alert a (.+)$/, 'Set the alert to $1'],
     [/^Il prezzo è al (\d+)° percentile degli ultimi 90 giorni \(0 = il più basso\)\.$/, 'The price is at the $1th percentile of the last 90 days (0 = the lowest).'],
     [/^Hai usato i (\d+) pareri di oggi: riprova domani\.$/, 'You have used today\'s $1 opinions: try again tomorrow.'],
     [/^(\d+) carte? nascoste? \(sotto (.+), non contano nel valore\) · $/, '$1 hidden (below $2, not counted in the value) · '],

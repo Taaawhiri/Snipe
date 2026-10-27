@@ -167,6 +167,10 @@ details.more[open] > summary { margin-bottom: 10px; }
 .ap-verdict small { color: var(--muted); font-size: 12.5px; }
 .ap-verdict.v-deal { border-color: #2f8f5f; } .ap-verdict.v-deal b, .ap-verdict.v-good b { color: var(--green); }
 .ap-verdict.v-high { border-color: #a0394d; } .ap-verdict.v-high b { color: #ff9aac; }
+.ap-suggest { margin: 12px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--blue-soft); border: 1px solid var(--blue); }
+.ap-suggest .ap-k { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.ap-suggest b { display: block; font-size: 22px; margin: 2px 0; }
+.ap-suggest small { display: block; color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
 .ap-warn { color: var(--yellow); }
 .ap-rows { margin: 10px 0; }
 .ap-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }

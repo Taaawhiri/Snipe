@@ -3100,6 +3100,24 @@
         el('div', { class: `ap-verdict v-${a.verdict}` }, el('b', { text: a.label }),
           f.listings && f.pct90 != null ? el('small', { text: `Il prezzo è al ${Math.round(f.pct90 * 100)}° percentile degli ultimi 90 giorni (0 = il più basso).` }) : null),
         f.outlierLow ? el('p', { class: 'small ap-warn', text: 'Attenzione: l’annuncio più basso è molto sotto gli altri. Controlla condizione, lingua e venditore.' }) : null,
+        f.suggest ? el('div', { class: 'ap-suggest' },
+          el('div', { class: 'ap-k', text: f.suggest.now ? 'Puoi comprare adesso' : 'Prezzo consigliato per l’alert' }),
+          el('b', { text: m(f.suggest.cents) }),
+          el('small', { text: f.suggest.why }),
+          (() => {
+            // Il prezzo si può impostare solo sugli alert "sotto un prezzo": quelli con sconto Cardmarket, calo o ritorno disponibile hanno un'altra logica.
+            const plain = !r.cmDiscount && !r.dropPct && !r.stock;
+            if (!plain || f.suggest.now) return null;
+            const same = r.maxPriceCents === f.suggest.cents;
+            const b = el('button', { class: 'btn mini', type: 'button', text: same ? 'Già impostato' : `Imposta l’alert a ${m(f.suggest.cents)}` });
+            b.disabled = same;
+            b.addEventListener('click', async () => {
+              b.disabled = true; b.textContent = 'Salvo…';
+              const ok = await saveRule({ ...r, minPrice: r.minPriceCents / 100, maxPrice: f.suggest.cents / 100 });
+              if (ok) closeSheets(); else { b.disabled = false; b.textContent = `Imposta l’alert a ${m(f.suggest.cents)}`; }
+            });
+            return b;
+          })()) : null,
         el('div', { class: 'ap-rows' }, ...rows.map(([k, v]) => el('div', null, el('span', { text: k }), el('b', { text: v })))),
       ];
       const parere = el('div', { class: 'ap-expert' });

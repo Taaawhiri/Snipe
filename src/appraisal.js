@@ -15,6 +15,28 @@ export function percentileIn(hist, cents, days) {
 }
 
 /**
+ * Prezzo consigliato per l'alert: abbastanza basso da essere un buon affare, abbastanza alto da scattare davvero.
+ * Con almeno 5 giorni di storico è il 20° percentile dei prezzi più bassi (limitato dalla tendenza Cardmarket −10%);
+ * senza storico si parte da Cardmarket −15% o dal prezzo tipico −10%. Mai sopra il prezzo di adesso né sotto il minimo storico −3%.
+ */
+export function suggestPrice({ hist = [], lowCents, typicalCents, cmCents }) {
+  const mins = (hist || []).slice(-90).map((p) => p.min).filter((v) => v > 0).sort((a, b) => a - b);
+  let c = null;
+  let why = '';
+  if (mins.length >= 5) {
+    c = mins[Math.floor(mins.length * 0.2)];
+    why = `il prezzo che negli ultimi ${mins.length} giorni è stato battuto solo 1 giorno su 5`;
+    if (cmCents && c > cmCents * 0.9) { c = Math.round(cmCents * 0.9); why = 'circa il 10% sotto la tendenza Cardmarket'; }
+    c = Math.max(c, Math.round(mins[0] * 0.97));
+  } else if (cmCents) { c = Math.round(cmCents * 0.85); why = 'circa il 15% sotto la tendenza Cardmarket (storico ancora breve)'; }
+  else if (typicalCents) { c = Math.round(typicalCents * 0.9); why = 'circa il 10% sotto il prezzo tipico (storico ancora breve)'; }
+  if (!(c > 0)) return null;
+  if (lowCents && c >= lowCents) return { cents: lowCents, why: 'è già vicino al tuo obiettivo: puoi comprare adesso', now: true };
+  const step = c >= 1000 ? 50 : 10; // arrotonda a 0,50 € sopra i 10 €, a 0,10 € sotto
+  return { cents: Math.max(step, Math.round(c / step) * step), why, now: false };
+}
+
+/**
  * Fatti sul prezzo: annunci ancora acquistabili che rispettano lingua e condizione dell'alert, storico giornaliero
  * (hist: [{d, min, n}]), tendenza Cardmarket (cmCents) e soglia dell'alert (limitCents).
  */
@@ -53,6 +75,7 @@ export function appraisalFacts({ products, hist = [], rule = {}, cmCents = null,
     vsCm: cmCents ? low / cmCents - 1 : null,
     limitCents: limitCents || null,
     vsLimit: limitCents ? low / limitCents - 1 : null,
+    suggest: suggestPrice({ hist: h, lowCents: low, typicalCents: typ, cmCents }),
   };
 }
 
@@ -77,7 +100,7 @@ export function verdictOf(f) {
 
 export const APPRAISER_SYSTEM = `Sei un amico collezionista di carte Pokémon con vent'anni di esperienza: segui ogni giorno i mercati (CardTrader, Cardmarket, eBay, aste), conosci rarità, ristampe, condizioni, lingue e come si muovono i prezzi. Un amico ti chiede: "Secondo te, a questo prezzo la prendo?".
 Ricevi dei dati già calcolati (prezzi in centesimi di euro). Usa SOLO quelli: non inventare prezzi, date, notizie, tornei o ristampe. Se un dato manca o lo storico è breve, dillo con naturalezza ("ho pochi giorni di storico").
-Come scrivere: italiano parlato, caldo e diretto, dai del tu, come a voce. Massimo 3-4 frasi corte, niente elenchi, titoli o gergo ("scheda", "percentile", "scostamento"). Parti dal punto: la prenderesti o no, e perché. Usa al massimo 2-3 numeri, i più importanti, in euro (es. "170 €"). Poi dì una cosa che solo un esperto noterebbe (pochi annunci, uno troppo basso rispetto agli altri, lingua o condizione, trend, rischio di stare ad aspettare) e chiudi con un consiglio chiaro e pratico. Non ripetere il voto dell'app, lo mostra già lei.`;
+Come scrivere: italiano parlato, caldo e diretto, dai del tu, come a voce. Massimo 3-4 frasi corte, niente elenchi, titoli o gergo ("scheda", "percentile", "scostamento"). Parti dal punto: la prenderesti o no, e perché. Usa al massimo 2-3 numeri, i più importanti, in euro (es. "170 €"). Poi dì una cosa che solo un esperto noterebbe (pochi annunci, uno troppo basso rispetto agli altri, lingua o condizione, trend, rischio di stare ad aspettare) e chiudi con un consiglio chiaro e pratico. Non ripetere il voto dell'app, lo mostra già lei. Se nei dati c'è un prezzo alert consigliato, nel consiglio finale puoi dire a che prezzo conviene aspettare o impostare l'alert.`;
 
 export function appraisalPrompt(card, f, verdict) {
   const eur = (c) => (c == null ? null : Math.round(c) / 100);
@@ -92,6 +115,7 @@ Scheda: ${JSON.stringify({
     annunciMediUltimi7g: f.supplyNow, annunciMediPrima: f.supplyBefore,
     tendenzaCardmarketEur: eur(f.cmCents), scostamentoDaCardmarketPercento: pc(f.vsCm),
     sogliaDellAlertEur: eur(f.limitCents), scostamentoDallaSogliaPercento: pc(f.vsLimit),
+    prezzoAlertConsigliatoEur: f.suggest ? eur(f.suggest.cents) : null,
   })}`;
 }
 

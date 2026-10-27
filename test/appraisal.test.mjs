@@ -34,3 +34,14 @@ test('prompt: contiene i numeri e non i centesimi grezzi', () => {
   const t = appraisalPrompt({ name: 'Pikachu', expansion: 'Base', language: 'en' }, f, 'few');
   assert.match(t, /"prezzoPiuBassoEur":12.34/);
 });
+
+import { suggestPrice } from '../src/appraisal.js';
+test('prezzo consigliato: dallo storico, mai sopra il prezzo di adesso', () => {
+  const h = [1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900].map((min, i) => ({ d: `d${i}`, min }));
+  const s = suggestPrice({ hist: h, lowCents: 1800, typicalCents: 1900 });
+  assert.equal(s.now, false);
+  assert.ok(s.cents <= 1800 && s.cents >= 970);
+  assert.equal(suggestPrice({ hist: h, lowCents: 1000, typicalCents: 1000 }).now, true);
+  assert.equal(suggestPrice({ hist: [], lowCents: 2000, typicalCents: 2000, cmCents: 2000 }).cents, 1700);
+  assert.equal(suggestPrice({ hist: [], lowCents: 0 }), null);
+});
