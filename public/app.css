@@ -173,6 +173,10 @@ details.more[open] > summary { margin-bottom: 10px; }
 .ap-rows span { color: var(--muted); }
 .ap-expert { margin-top: 12px; }
 .ap-expert .ap-k { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.ap-web { padding-top: 12px; border-top: 1px solid var(--line); }
+.ap-web .btn { display: block; margin-bottom: 6px; }
+.ap-src { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; font-size: 13px; }
+.ap-src a { color: var(--blue); overflow-wrap: anywhere; }
 .ap-expert p { margin: 6px 0; line-height: 1.45; }
 .now-line.none { color: var(--muted); font-size: 12.5px; }
 .oc-h { margin: 8px 0 0; font-size: 14px; }

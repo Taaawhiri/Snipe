@@ -12,7 +12,7 @@ import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShard
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
-import { APPRAISER_LIMIT_PER_DAY, VERDICTS, appraisalFacts, askAppraiser, verdictOf } from './appraisal.js';
+import { APPRAISER_LIMIT_PER_DAY, APPRAISER_WEB_PER_DAY, VERDICTS, appraisalFacts, askAppraiser, askAppraiserWeb, verdictOf } from './appraisal.js';
 import { vintageEra } from './vintage.js';
 import { expansionNameOf, nextOrderStates, orderChanges, trackingCodeOf, trackingUrlOf } from './orders.js';
 import { addSamples, isReverse, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
@@ -1173,6 +1173,21 @@ export class Scanner extends DurableObject {
         const cached = await this.get(`apr:${rule.id}`, null);
         // Il commento si riusa per 6 ore finché il prezzo più basso non si sposta di oltre il 5%.
         if (cached && cached.comment && Date.now() - cached.ts < 6 * 3600_000 && f.lowCents && Math.abs(cached.low / f.lowCents - 1) < 0.05) { out.comment = cached.comment; out.commentTs = cached.ts; }
+        const cw = await this.get(`aprw:${rule.id}`, null);
+        if (cw && Date.now() - cw.ts < 6 * 3600_000 && f.lowCents && Math.abs(cw.low / f.lowCents - 1) < 0.05) out.web = { text: cw.text, sources: cw.sources, ts: cw.ts };
+        if (url.searchParams.get('web') && !out.web && f.listings) {
+          const day = new Date().toISOString().slice(0, 10);
+          const q = await this.get('aprWebDay', { day, n: 0 });
+          if (q.day !== day) { q.day = day; q.n = 0; }
+          if (q.n >= APPRAISER_WEB_PER_DAY) { out.note = `Hai usato i ${APPRAISER_WEB_PER_DAY} pareri con ricerca web di oggi: riprova domani.`; return json(out); }
+          let w = null;
+          try { w = await askAppraiserWeb(this.env, { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, f, verdict); } catch { w = null; }
+          if (!w) { out.note = 'La ricerca sul web non è disponibile al momento.'; return json(out); }
+          q.n++;
+          await this.ctx.storage.put('aprWebDay', q);
+          await this.ctx.storage.put(`aprw:${rule.id}`, { ts: Date.now(), low: f.lowCents, ...w });
+          out.web = { ...w, ts: Date.now() };
+        }
         if (url.searchParams.get('comment') && !out.comment && f.listings) {
           const day = new Date().toISOString().slice(0, 10);
           const q = await this.get('aprDay', { day, n: 0 });
