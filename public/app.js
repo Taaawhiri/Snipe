@@ -94,7 +94,7 @@
     return parts.find((p) => /rare|art\b|-art|holo|promo|common|uncommon|ace spec|radiant|amazing|shiny|reverse/i.test(p) && !/^\S*\d+\s*\/\s*\S*\d+$/.test(p)) || '';
   }
   // ---------- pannelli a comparsa ----------
-  const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'sellerDialog', 'ownDialog', 'scanDialog', 'batchDialog'].map((id) => $(id));
+  const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'appraisalDialog', 'sellerDialog', 'ownDialog', 'scanDialog', 'batchDialog'].map((id) => $(id));
   // Il tasto/gesto indietro del telefono chiude il pannello aperto invece di uscire dall'app.
   let sheetEntry = false;
   let skipPop = false;

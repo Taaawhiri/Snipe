@@ -1,5 +1,5 @@
   // ---------- pannelli a comparsa ----------
-  const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'sellerDialog', 'ownDialog', 'scanDialog', 'batchDialog'].map((id) => $(id));
+  const sheets = ['cardDialog', 'editDialog', 'explainDialog', 'appraisalDialog', 'sellerDialog', 'ownDialog', 'scanDialog', 'batchDialog'].map((id) => $(id));
   // Il tasto/gesto indietro del telefono chiude il pannello aperto invece di uscire dall'app.
   let sheetEntry = false;
   let skipPop = false;

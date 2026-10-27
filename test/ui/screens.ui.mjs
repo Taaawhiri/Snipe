@@ -207,5 +207,8 @@ test('regole: valutazione del prezzo con voto e parere a richiesta', async () =>
   await page.waitForTimeout(400);
   assert.ok((await page.textContent('#apBody')).includes('Prezzo vicino ai minimi.'));
   assert.ok(calls.some((c) => c.key === 'GET /api/appraisal'));
+  await page.click('#appraisalDialog .sheet-head .btn');
+  await page.waitForTimeout(300);
+  assert.ok(await page.$eval('#sheetBackdrop', (e) => e.hidden), 'chiudendo la valutazione il fondo scuro sparisce');
   assert.deepEqual(errors, []);
 });
