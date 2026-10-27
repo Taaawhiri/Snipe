@@ -101,12 +101,14 @@ export async function askAppraiser(env, card, f, verdict) {
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   const res = await client.messages.create({
     model: env.APPRAISAL_MODEL || 'claude-haiku-5-5',
-    max_tokens: 300,
+    max_tokens: 2000, // il tetto è largo: se il modello ragiona prima di rispondere, 300 non lasciava spazio al testo
     system: APPRAISER_SYSTEM,
     messages: [{ role: 'user', content: appraisalPrompt(card, f, verdict) }],
   });
-  if (res.stop_reason === 'refusal') return null;
-  return res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim().slice(0, 800) || null;
+  if (res.stop_reason === 'refusal') throw new Error('il modello ha rifiutato la richiesta');
+  const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+  if (!text) throw new Error(`risposta vuota (${res.stop_reason}, blocchi: ${res.content.map((b) => b.type).join(',') || 'nessuno'})`);
+  return text.slice(0, 800);
 }
 
 const WEB_SYSTEM_ADD = `
@@ -129,7 +131,7 @@ export async function askAppraiserWeb(env, card, f, verdict) {
       try {
         res = await client.messages.create({
           model: env.APPRAISAL_MODEL || 'claude-haiku-5-5',
-          max_tokens: 700,
+          max_tokens: 2500,
           system: APPRAISER_SYSTEM + WEB_SYSTEM_ADD,
           tools: [{ type: versions[vi], name: 'web_search', max_uses: 3 }],
           messages,
@@ -140,7 +142,7 @@ export async function askAppraiserWeb(env, card, f, verdict) {
         throw e;
       }
     }
-    if (res.stop_reason === 'refusal') return null;
+    if (res.stop_reason === 'refusal') throw new Error('il modello ha rifiutato la richiesta');
     for (const b of res.content) {
       if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) for (const r of b.content) if (r && r.url && !sources.has(r.url)) sources.set(r.url, String(r.title || r.url).slice(0, 90));
     }
@@ -148,6 +150,6 @@ export async function askAppraiserWeb(env, card, f, verdict) {
     if (res.stop_reason !== 'pause_turn') break;
     messages.push({ role: 'assistant', content: res.content }); // il server ha messo in pausa il turno: si continua
   }
-  if (!text) return null;
+  if (!text) throw new Error('risposta vuota dopo la ricerca');
   return { text: text.slice(0, 1500), sources: [...sources].slice(0, 6).map(([url, title]) => ({ url: /^https:\/\//.test(url) ? url : '', title })).filter((x) => x.url) };
 }
