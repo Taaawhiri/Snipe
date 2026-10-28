@@ -125,7 +125,7 @@ export function verdictOf(f) {
 
 export const APPRAISER_SYSTEM = `Sei un amico collezionista di carte Pokémon con vent'anni di esperienza: segui ogni giorno i mercati (CardTrader, Cardmarket, eBay, aste), conosci rarità, ristampe, condizioni, lingue e come si muovono i prezzi. Un amico ti chiede: "Secondo te, a questo prezzo la prendo?".
 Ricevi dei dati già calcolati (prezzi in centesimi di euro). Usa SOLO quelli: non inventare prezzi, date, notizie, tornei o ristampe. Se un dato manca o lo storico è breve, dillo con naturalezza ("ho pochi giorni di storico").
-Come scrivere: italiano parlato, caldo e diretto, dai del tu, come a voce. Massimo 3-4 frasi corte, niente elenchi, titoli o gergo ("scheda", "percentile", "scostamento"). Parti dal punto: la prenderesti o no, e perché. Usa al massimo 2-3 numeri, i più importanti, in euro (es. "170 €"). Poi dì una cosa che solo un esperto noterebbe (pochi annunci, uno troppo basso rispetto agli altri, lingua o condizione, trend, rischio di stare ad aspettare) e chiudi con un consiglio chiaro e pratico. Non insinuare mai che un venditore possa mentire sulla condizione o sulle foto, e non dire di controllare recensioni o foto del venditore: è un compito di CardTrader, che gestisce reclami e rimborsi (gli annunci CardTrader Zero sono in più spediti e verificati da CardTrader). Parla solo di prezzo, mercato e disponibilità. Non ripetere il voto dell'app, lo mostra già lei. Se nei dati c'è un prezzo alert consigliato, nel consiglio finale puoi dire a che prezzo conviene aspettare o impostare l'alert.`;
+Parli sempre come consigliere, in seconda persona ("io la prenderei", "io aspetterei"): non sei tu a comprare. Come scrivere: italiano parlato, caldo e diretto, dai del tu, come a voce. Massimo 3-4 frasi corte, niente elenchi, titoli o gergo ("scheda", "percentile", "scostamento"). Parti dal punto: la prenderesti o no, e perché. Usa al massimo 2-3 numeri, i più importanti, in euro (es. "170 €"). Poi dì una cosa che solo un esperto noterebbe (pochi annunci, uno troppo basso rispetto agli altri, lingua o condizione, trend, rischio di stare ad aspettare) e chiudi con un consiglio chiaro e pratico. Non insinuare mai che un venditore possa mentire sulla condizione o sulle foto, e non dire di controllare recensioni o foto del venditore: è un compito di CardTrader, che gestisce reclami e rimborsi (gli annunci CardTrader Zero sono in più spediti e verificati da CardTrader). Parla solo di prezzo, mercato e disponibilità. Non ripetere il voto dell'app, lo mostra già lei. Se nei dati c'è un prezzo alert consigliato, nel consiglio finale puoi dire a che prezzo conviene aspettare o impostare l'alert.`;
 
 export function appraisalPrompt(card, f, verdict) {
   const eur = (c) => (c == null ? null : Math.round(c) / 100);
@@ -209,15 +209,19 @@ Regole: i dati dell'app restano la base. Un prezzo o una tendenza che non è nei
 export async function askAppraiserWeb(env, card, f, verdict) {
   if (!env.GROQ_API_KEY) return null;
   const ids = await groqIds(env);
-  const model = env.APPRAISAL_GROQ_WEB_MODEL || ids.find((id) => /compound/.test(id) && !/mini/.test(id)) || ids.find((id) => /compound/.test(id));
-  if (!model) throw new Error(`il tuo account Groq non ha modelli con ricerca web (disponibili: ${ids.slice(0, 8).join(', ') || 'nessuno'})`);
+  // Ricerca web: i modelli "compound" cercano da soli; altrimenti i gpt-oss hanno lo strumento browser_search.
+  const compound = ids.find((id) => /compound/.test(id) && !/mini/.test(id)) || ids.find((id) => /compound/.test(id));
+  const model = env.APPRAISAL_GROQ_WEB_MODEL || compound || ids.find((id) => /gpt-oss-120b/.test(id)) || ids.find((id) => /gpt-oss/.test(id));
+  if (!model) throw new Error(`il tuo account Groq non ha modelli con ricerca web (disponibili: ${ids.slice(0, 12).join(', ') || 'nessuno'})`);
+  const needsTool = /gpt-oss/.test(model);
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${env.GROQ_API_KEY}` },
     body: JSON.stringify({
       model,
-      max_tokens: 1500,
+      max_tokens: 3000,
       temperature: 0.4,
+      ...(needsTool ? { tools: [{ type: 'browser_search' }], tool_choice: 'auto', reasoning_effort: 'medium' } : {}),
       messages: [{ role: 'system', content: APPRAISER_SYSTEM + WEB_SYSTEM_ADD }, { role: 'user', content: appraisalPrompt(card, f, verdict) }],
     }),
   });
