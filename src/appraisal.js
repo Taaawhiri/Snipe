@@ -2,7 +2,7 @@
 // il commento in parole lo scrive Claude partendo da quei numeri, senza inventarne altri.
 import Anthropic from '@anthropic-ai/sdk';
 import { isListable, listingLang, normLang, condRank } from './deals.js';
-import { isRiskySeller } from './deals.js';
+import { isRiskySeller, isZero } from './deals.js';
 
 const median = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); };
 
@@ -45,10 +45,14 @@ export function appraisalFacts({ products, hist = [], rule = {}, cmCents = null,
   const minC = rule.minCondition ? condRank(rule.minCondition) : -1;
   const ok = (products || []).filter((p) => p && p.price && p.price.cents > 0 && isListable(p) && !(reliable && isRiskySeller(p))
     && (!lang.length || lang.includes(normLang(listingLang(p)))) && (minC < 0 || condRank(p.properties_hash && p.properties_hash.condition) >= minC))
-    .map((p) => p.price.cents).sort((a, b) => a - b);
-  if (!ok.length) return { listings: 0 };
-  const low = ok[0];
-  const typ = median(ok.slice(0, 5));
+    ;
+  const okP = ok.slice().sort((a, b) => a.price.cents - b.price.cents);
+  const cheapest = okP[0];
+  const zeroCents = okP.filter(isZero).map((p) => p.price.cents);
+  const ok2 = okP.map((p) => p.price.cents);
+  if (!ok2.length) return { listings: 0 };
+  const low = ok2[0];
+  const typ = median(ok2.slice(0, 5));
   const h = (hist || []).filter((p) => p && p.min > 0);
   const back = (n) => { const t = h.length > n ? h[h.length - 1 - n] : null; return t ? t.min : null; };
   const chg = (v) => (v ? low / v - 1 : null);
@@ -57,11 +61,13 @@ export function appraisalFacts({ products, hist = [], rule = {}, cmCents = null,
   const avg = (a) => (a.length ? a.reduce((t, x) => t + x, 0) / a.length : null);
   const mins90 = h.slice(-90).map((p) => p.min);
   return {
-    listings: ok.length,
+    listings: ok2.length,
     lowCents: low,
+    lowIsZero: !!(cheapest && isZero(cheapest)),
+    zeroLowCents: zeroCents.length ? zeroCents[0] : null,
     typicalCents: typ,
-    secondCents: ok[1] ?? null,
-    outlierLow: ok.length >= 4 && low < 0.6 * typ, // il più basso è molto sotto gli altri: da controllare (errore, copia rovinata)
+    secondCents: ok2[1] ?? null,
+    outlierLow: ok2.length >= 4 && low < 0.6 * typ, // il più basso è molto sotto gli altri: da controllare (errore, copia rovinata)
     histDays: h.length,
     pct30: percentileIn(h, low, 30),
     pct90: percentileIn(h, low, 90),
@@ -100,7 +106,7 @@ export function verdictOf(f) {
 
 export const APPRAISER_SYSTEM = `Sei un amico collezionista di carte Pokémon con vent'anni di esperienza: segui ogni giorno i mercati (CardTrader, Cardmarket, eBay, aste), conosci rarità, ristampe, condizioni, lingue e come si muovono i prezzi. Un amico ti chiede: "Secondo te, a questo prezzo la prendo?".
 Ricevi dei dati già calcolati (prezzi in centesimi di euro). Usa SOLO quelli: non inventare prezzi, date, notizie, tornei o ristampe. Se un dato manca o lo storico è breve, dillo con naturalezza ("ho pochi giorni di storico").
-Come scrivere: italiano parlato, caldo e diretto, dai del tu, come a voce. Massimo 3-4 frasi corte, niente elenchi, titoli o gergo ("scheda", "percentile", "scostamento"). Parti dal punto: la prenderesti o no, e perché. Usa al massimo 2-3 numeri, i più importanti, in euro (es. "170 €"). Poi dì una cosa che solo un esperto noterebbe (pochi annunci, uno troppo basso rispetto agli altri, lingua o condizione, trend, rischio di stare ad aspettare) e chiudi con un consiglio chiaro e pratico. Non ripetere il voto dell'app, lo mostra già lei. Se nei dati c'è un prezzo alert consigliato, nel consiglio finale puoi dire a che prezzo conviene aspettare o impostare l'alert.`;
+Come scrivere: italiano parlato, caldo e diretto, dai del tu, come a voce. Massimo 3-4 frasi corte, niente elenchi, titoli o gergo ("scheda", "percentile", "scostamento"). Parti dal punto: la prenderesti o no, e perché. Usa al massimo 2-3 numeri, i più importanti, in euro (es. "170 €"). Poi dì una cosa che solo un esperto noterebbe (pochi annunci, uno troppo basso rispetto agli altri, lingua o condizione, trend, rischio di stare ad aspettare) e chiudi con un consiglio chiaro e pratico. Non insinuare mai che un venditore possa mentire sulla condizione o sulle foto, e non dire di controllare recensioni o foto del venditore: è un compito di CardTrader, che gestisce reclami e rimborsi (gli annunci CardTrader Zero sono in più spediti e verificati da CardTrader). Parla solo di prezzo, mercato e disponibilità. Non ripetere il voto dell'app, lo mostra già lei. Se nei dati c'è un prezzo alert consigliato, nel consiglio finale puoi dire a che prezzo conviene aspettare o impostare l'alert.`;
 
 export function appraisalPrompt(card, f, verdict) {
   const eur = (c) => (c == null ? null : Math.round(c) / 100);
@@ -109,7 +115,8 @@ export function appraisalPrompt(card, f, verdict) {
 Voto calcolato dall'app: ${VERDICTS[verdict]}.
 Scheda: ${JSON.stringify({
     annunciAcquistabili: f.listings, prezzoPiuBassoEur: eur(f.lowCents), prezzoTipicoEur: eur(f.typicalCents), secondoPiuBassoEur: eur(f.secondCents),
-    piuBassoMoltoSottoGliAltri: f.outlierLow, giorniDiStorico: f.histDays,
+    annuncioPiuBassoEZero_verificatoDaCardTrader: f.lowIsZero, prezzoPiuBassoZeroEur: eur(f.zeroLowCents),
+    piuBassoMoltoSottoGliAltri_offertaIsolata: f.outlierLow, giorniDiStorico: f.histDays,
     posizioneNegliUltimi30Giorni_0min_100max: pc(f.pct30), posizioneNegliUltimi90Giorni_0min_100max: pc(f.pct90),
     minimo90gEur: eur(f.min90), massimo90gEur: eur(f.max90), variazione7gPercento: pc(f.change7), variazione30gPercento: pc(f.change30),
     annunciMediUltimi7g: f.supplyNow, annunciMediPrima: f.supplyBefore,

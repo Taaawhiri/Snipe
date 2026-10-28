@@ -32,7 +32,7 @@
       const box = [
         el('div', { class: `ap-verdict v-${a.verdict}` }, el('b', { text: a.label }),
           f.listings && f.pct90 != null ? el('small', { text: `Il prezzo è al ${Math.round(f.pct90 * 100)}° percentile degli ultimi 90 giorni (0 = il più basso).` }) : null),
-        f.outlierLow ? el('p', { class: 'small ap-warn', text: 'Attenzione: l’annuncio più basso è molto sotto gli altri. Controlla condizione, lingua e venditore.' }) : null,
+        f.outlierLow && !f.lowIsZero ? el('p', { class: 'small ap-warn', text: 'L’annuncio più basso è molto sotto gli altri: può essere un’offerta isolata. Controlla condizione e lingua.' }) : null,
         f.suggest ? el('div', { class: 'ap-suggest' },
           el('div', { class: 'ap-k', text: f.suggest.now ? 'Puoi comprare adesso' : 'Prezzo consigliato per l’alert' }),
           el('b', { text: m(f.suggest.cents) }),

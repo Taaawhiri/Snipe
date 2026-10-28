@@ -45,3 +45,11 @@ test('prezzo consigliato: dallo storico, mai sopra il prezzo di adesso', () => {
   assert.equal(suggestPrice({ hist: [], lowCents: 2000, typicalCents: 2000, cmCents: 2000 }).cents, 1700);
   assert.equal(suggestPrice({ hist: [], lowCents: 0 }), null);
 });
+
+test('annuncio Zero: segnalato nei fatti', () => {
+  const z = { ...prod(1000), properties_hash: { condition: 'Near Mint', pokemon_language: 'en' }, user: { username: 'u', user_type: 'zero' }, can_sell_via_hub: true };
+  const f = appraisalFacts({ products: [prod(2000), prod(2100)], hist: [] });
+  assert.equal(f.lowIsZero, false);
+  assert.equal(typeof f.zeroLowCents, 'object'); // null senza annunci Zero
+  assert.ok(z);
+});
