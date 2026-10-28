@@ -184,7 +184,7 @@ async function appraise(req, env, user, headers) {
     if (todo.kind === 'web') {
       const w = await askAppraiserWeb(env, todo.card, out.facts, out.verdict);
       if (!w) { out.note = 'La ricerca sul web non è riuscita: nessuna risposta.'; return json(out); }
-      saved = { kind: 'web', text: w.text, sources: w.sources };
+      saved = { kind: 'web', text: w.text, sources: w.sources, searched: w.searched };
       out.web = { ...w, ts: Date.now() };
     } else {
       const c = await askAppraiser(env, todo.card, out.facts, out.verdict);

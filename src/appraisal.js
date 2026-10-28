@@ -202,7 +202,7 @@ export async function askAppraiser(env, card, f, verdict) {
 }
 
 const WEB_SYSTEM_ADD = `
-Hai la ricerca web. Cerca lo STORICO e le vendite recenti di QUESTA carta (nome esatto, numero, espansione, lingua): PriceCharting, Cardmarket, eBay (vendute), TCGplayer, discussioni su Reddit, notizie su ristampe. Controlla di non confondere edizione, lingua o versione.
+Hai la ricerca web e DEVI usarla: fai almeno 2 ricerche diverse prima di rispondere (per esempio "<nome carta> <numero> <lingua> price history PriceCharting" e "<nome carta> <numero> sold eBay"). Cerca lo STORICO e le vendite recenti di QUESTA carta (nome esatto, numero, espansione, lingua): PriceCharting, Cardmarket, eBay (vendute), TCGplayer, discussioni su Reddit, notizie su ristampe. Controlla di non confondere edizione, lingua o versione.
 Regole: i dati dell'app restano la base. Un prezzo o una tendenza che non è nei dati dell'app dilla solo se l'hai trovata in un risultato, dicendo dove ("su PriceCharting", "su eBay"), con valuta e periodo, e segnala se è in dollari. Se non trovi niente di affidabile per questa edizione, dillo chiaramente: non riempire. Forum e Reddit sono indizi, non dati. Resta in 4-5 frasi, tono parlato.`;
 
 /** Parere con ricerca web, con i modelli "compound" di Groq (cercano da soli). Restituisce { text, sources } oppure lancia un errore. */
@@ -214,17 +214,20 @@ export async function askAppraiserWeb(env, card, f, verdict) {
   const model = env.APPRAISAL_GROQ_WEB_MODEL || compound || ids.find((id) => /gpt-oss-120b/.test(id)) || ids.find((id) => /gpt-oss/.test(id));
   if (!model) throw new Error(`il tuo account Groq non ha modelli con ricerca web (disponibili: ${ids.slice(0, 12).join(', ') || 'nessuno'})`);
   const needsTool = /gpt-oss/.test(model);
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const call = (choice) => fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${env.GROQ_API_KEY}` },
     body: JSON.stringify({
       model,
       max_tokens: 3000,
       temperature: 0.4,
-      ...(needsTool ? { tools: [{ type: 'browser_search' }], tool_choice: 'auto', reasoning_effort: 'medium' } : {}),
+      ...(needsTool ? { tools: [{ type: 'browser_search' }], tool_choice: choice, reasoning_effort: 'medium' } : {}),
       messages: [{ role: 'system', content: APPRAISER_SYSTEM + WEB_SYSTEM_ADD }, { role: 'user', content: appraisalPrompt(card, f, verdict) }],
     }),
   });
+  // Si obbliga il modello a cercare (con "auto" rispondeva spesso solo con i dati dell'app); se Groq non accetta "required" si riprova con "auto".
+  let res = await call('required');
+  if (res.status === 400 && needsTool) res = await call('auto');
   if (!res.ok) throw new Error(`Groq ${res.status} (${model}): ${(await res.text().catch(() => '')).slice(0, 160)}`);
   const j = await res.json();
   const msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
@@ -241,5 +244,6 @@ export async function askAppraiserWeb(env, card, f, verdict) {
     }
   };
   walk(msg.executed_tools);
-  return { text: text.slice(0, 1500), sources: [...sources].slice(0, 6).map(([url, title]) => ({ url, title })) };
+  const searched = Array.isArray(msg.executed_tools) && msg.executed_tools.length > 0;
+  return { searched, text: text.slice(0, 1500), sources: [...sources].slice(0, 6).map(([url, title]) => ({ url, title })) };
 }

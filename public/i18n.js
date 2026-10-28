@@ -459,6 +459,7 @@
     "Usa": "Use",
     "Diminuisci di 0,50 €": "Decrease by €0.50", "Aumenta di 0,50 €": "Increase by €0.50",
     "Prezzo attuale": "Current price", "Somma delle soglie": "Sum of thresholds", "Ancora sopra di": "Still above by", "Sotto di": "Below by",
+    "Il modello non ha eseguito ricerche: questo parere si basa solo sui dati dell’app. Riprova con «Rigenera la ricerca».": "The model ran no searches: this opinion is based only on the app's data. Try again with “Regenerate the search”.",
     "Storico cercato sul web": "History searched on the web", "Cerca lo storico sul web": "Search the history on the web",
     "Cerco sul web… (anche 30 secondi)": "Searching the web… (up to 30 seconds)",
     "Cerca storico e vendite recenti su PriceCharting, eBay e Reddit. Al massimo 10 al giorno.": "Searches history and recent sales on PriceCharting, eBay and Reddit. 10 a day at most.",

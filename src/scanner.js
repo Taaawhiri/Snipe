@@ -1181,7 +1181,7 @@ export class Scanner extends DurableObject {
       q.n++;
       await this.ctx.storage.put(qk, q);
       const sources = Array.isArray(b.sources) ? b.sources.slice(0, 6).map((x) => ({ url: /^https:\/\//.test(x && x.url) ? String(x.url).slice(0, 400) : '', title: String((x && x.title) || '').slice(0, 90) })).filter((x) => x.url) : [];
-      await this.ctx.storage.put(b.kind === 'web' ? `aprw:${rule.id}` : `apr:${rule.id}`, { v: 2, ts: Date.now(), low: Number(b.low) || 0, ...(b.kind === 'web' ? { text: String(b.text).slice(0, 1500), sources } : { comment: String(b.text).slice(0, 800) }) });
+      await this.ctx.storage.put(b.kind === 'web' ? `aprw:${rule.id}` : `apr:${rule.id}`, { v: 2, ts: Date.now(), low: Number(b.low) || 0, ...(b.kind === 'web' ? { text: String(b.text).slice(0, 1500), sources, searched: b.searched !== false } : { comment: String(b.text).slice(0, 800) }) });
       return json({ ok: true });
     }
 
@@ -1209,7 +1209,7 @@ export class Scanner extends DurableObject {
         const again = !!url.searchParams.get('refresh'); // "Rigenera": ignora il parere salvato
         if (!again && cached && cached.v === 2 && cached.comment && Date.now() - cached.ts < 6 * 3600_000 && f.lowCents && Math.abs(cached.low / f.lowCents - 1) < 0.05) { out.comment = cached.comment; out.commentTs = cached.ts; }
         const cw = await this.get(`aprw:${rule.id}`, null);
-        if (!again && cw && cw.v === 2 && Date.now() - cw.ts < 6 * 3600_000 && f.lowCents && Math.abs(cw.low / f.lowCents - 1) < 0.05) out.web = { text: cw.text, sources: cw.sources, ts: cw.ts };
+        if (!again && cw && cw.v === 2 && Date.now() - cw.ts < 6 * 3600_000 && f.lowCents && Math.abs(cw.low / f.lowCents - 1) < 0.05) out.web = { text: cw.text, sources: cw.sources, searched: cw.searched !== false, ts: cw.ts };
         if (url.searchParams.get('web') && !out.web && f.listings) {
           const day = new Date().toISOString().slice(0, 10);
           const q = await this.get('aprWebDay', { day, n: 0 });

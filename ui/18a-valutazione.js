@@ -81,7 +81,9 @@
       if (f.listings) {
         const web = el('div', { class: 'ap-expert ap-web' });
         if (a.web) {
-          web.append(el('div', { class: 'ap-k', text: 'Storico cercato sul web' }), el('p', { text: a.web.text }),
+          web.append(el('div', { class: 'ap-k', text: 'Storico cercato sul web' }),
+            ...(a.web.searched === false ? [el('p', { class: 'small ap-warn', text: 'Il modello non ha eseguito ricerche: questo parere si basa solo sui dati dell’app. Riprova con «Rigenera la ricerca».' })] : []),
+            el('p', { text: a.web.text }),
             ...(a.web.sources && a.web.sources.length ? [el('div', { class: 'ap-src' }, ...a.web.sources.map((x) => el('a', { href: x.url, target: '_blank', rel: 'noopener', text: x.title })))] : []),
             el('small', { class: 'muted', text: 'Cerca su PriceCharting, eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.' }),
             regen('web', 'Rigenera la ricerca'));
