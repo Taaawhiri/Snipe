@@ -355,7 +355,11 @@
         <h2>Valore minimo in collezione</h2>
         <div class="field">
           <label for="setCollMin">Non tenere carte che valgono meno di (€)</label>
-          <input id="setCollMin" type="text" inputmode="decimal" placeholder="Spento">
+          <div class="stepper">
+            <button id="setCollMinDown" class="btn" type="button" aria-label="Diminuisci di 0,50 €">−</button>
+            <input id="setCollMin" type="text" inputmode="decimal" placeholder="Spento">
+            <button id="setCollMinUp" class="btn" type="button" aria-label="Aumenta di 0,50 €">+</button>
+          </div>
           <p class="muted small">Le carte nuove (scansione, importazione, ordini) sotto questo valore non vengono aggiunte. Quelle già in collezione restano, ma si nascondono e non contano nel valore: le rivedi con «Mostra». Vuoto = spento.</p>
         </div>
       </div>

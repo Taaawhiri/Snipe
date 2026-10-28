@@ -2655,10 +2655,17 @@
   $('setSummary').addEventListener('change', () => saveSettings({ summary: $('setSummary').checked }));
   $('setReminders').addEventListener('change', () => saveSettings({ reminders: $('setReminders').checked }));
   $('setOrderAlerts').addEventListener('change', () => saveSettings({ orderAlerts: $('setOrderAlerts').checked }));
-  $('setCollMin').addEventListener('change', () => {
-    const v = parseFloat($('setCollMin').value.replace(',', '.'));
-    saveSettings({ collMinCents: Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0 }).then(() => { coll = null; });
-  });
+  // Virgola o punto per i decimali vanno bene entrambi; + e − cambiano di 0,50 € (sotto lo zero si spegne).
+  const saveCollMin = (v) => saveSettings({ collMinCents: Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0 }).then(() => { coll = null; });
+  const collMinNow = () => { const v = parseFloat($('setCollMin').value.replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : 0; };
+  $('setCollMin').addEventListener('change', () => saveCollMin(collMinNow()));
+  for (const [id, d] of [['setCollMinDown', -0.5], ['setCollMinUp', 0.5]]) {
+    $(id).addEventListener('click', () => {
+      const v = Math.max(0, Math.round((collMinNow() + d) * 100) / 100);
+      $('setCollMin').value = v ? String(v).replace('.', ',') : '';
+      saveCollMin(v);
+    });
+  }
   $('setFrom').addEventListener('change', () => saveSettings({ quietFrom: $('setFrom').value }));
   $('setTo').addEventListener('change', () => saveSettings({ quietTo: $('setTo').value }));
   $('setSound').addEventListener('change', () => {

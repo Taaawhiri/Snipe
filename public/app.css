@@ -175,6 +175,9 @@ details.more[open] > summary { margin-bottom: 10px; }
 .alert-suggest[hidden] { display: none; }
 .alert-suggest b { display: block; font-size: 14px; }
 .alert-suggest small { display: block; color: var(--muted); font-size: 12px; }
+.stepper { display: flex; gap: 8px; align-items: stretch; }
+.stepper input { flex: 1; min-width: 0; text-align: center; }
+.stepper .btn { min-width: 48px; font-size: 20px; padding: 0; }
 .ap-warn { color: var(--yellow); }
 .ap-rows { margin: 10px 0; }
 .ap-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }

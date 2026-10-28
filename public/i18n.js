@@ -457,6 +457,7 @@
     "circa il 10% sotto il prezzo tipico (storico ancora breve)": "about 10% below the typical price (short history)",
     "Già impostato": "Already set", "Salvo…": "Saving…",
     "Usa": "Use",
+    "Diminuisci di 0,50 €": "Decrease by €0.50", "Aumenta di 0,50 €": "Increase by €0.50",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",
