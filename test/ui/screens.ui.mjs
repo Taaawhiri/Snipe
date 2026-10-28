@@ -224,3 +224,19 @@ test('scheda carta: prezzo consigliato per l\'alert con pulsante Usa', async () 
   assert.equal(await page.inputValue('#alertMax'), '165.00');
   assert.deepEqual(errors, []);
 });
+
+test('regole: totale attuale e somma delle soglie', async () => {
+  const mk = (id, max) => ({ id, cardName: id, enabled: true, blueprintId: Number(id.slice(1)), maxPriceCents: max, minPriceCents: 5 });
+  const st = baseState({
+    rules: [mk('r1', 10000), mk('r2', 5000), mk('r3', 2000)],
+    checks: { r1: { ts: Date.now(), reads: [], listings: 3, valid: 1, bestCents: 11000, currency: 'EUR' }, r2: { ts: Date.now(), reads: [], listings: 3, valid: 1, bestCents: 4000, currency: 'EUR' }, r3: { ts: Date.now(), reads: [], listings: 0, valid: 0, bestCents: null, currency: 'EUR' } },
+  });
+  const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': st });
+  await page.click('[data-tab="rules"]');
+  await page.waitForTimeout(300);
+  const t = await page.textContent('#ruleTotals');
+  assert.match(t, /150,00/);
+  assert.match(t, /150,00/); // 110 + 40 = 150 attuale, soglie 100 + 50 = 150
+  assert.ok(t.includes('1 senza annunci validi'));
+  assert.deepEqual(errors, []);
+});

@@ -458,6 +458,7 @@
     "Già impostato": "Already set", "Salvo…": "Saving…",
     "Usa": "Use",
     "Diminuisci di 0,50 €": "Decrease by €0.50", "Aumenta di 0,50 €": "Increase by €0.50",
+    "Prezzo attuale": "Current price", "Somma delle soglie": "Sum of thresholds", "Ancora sopra di": "Still above by", "Sotto di": "Below by",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",
@@ -543,6 +544,7 @@
   };
 
   const R = [
+    [/^(\d+) alert sotto un prezzo con un annuncio valido, (\d+) già sotto la soglia(?: · (\d+) senza annunci validi, esclusi dai totali)?\.$/, (m, a, b, c) => `${a} price alerts with a valid listing, ${b} already under the threshold${c ? ` · ${c} without valid listings, left out of the totals` : ''}.`],
     [/^Sto raccogliendo lo storico di questa ricerca: (\d+) giorni su 5 necessari\.$/, 'Collecting the history for this search: $1 of 5 days needed.'],
     [/^Lo storico considera solo copie Near Mint o migliori, nella lingua scelta\.$/, 'The history only counts Near Mint or better copies, in the chosen language.'],
     [/^Lo storico considera solo copie Near Mint o migliori, tutte le lingue\.$/, 'The history only counts Near Mint or better copies, all languages.'],

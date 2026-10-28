@@ -177,7 +177,10 @@ async function appraise(req, env, user, headers) {
   const todo = out.todo;
   if (!todo) return json(out);
   delete out.todo;
-  if (!env.ANTHROPIC_API_KEY) { out.note = 'Il server non ha il segreto ANTHROPIC_API_KEY: aggiungilo tra i Secret del Worker e riprova.'; return json(out); }
+  if (todo.kind === 'web' ? !env.ANTHROPIC_API_KEY : !(env.GROQ_API_KEY || env.ANTHROPIC_API_KEY)) {
+    out.note = todo.kind === 'web' ? 'La ricerca sul web usa Claude: manca il segreto ANTHROPIC_API_KEY tra i Secret del Worker.' : 'Manca una chiave: aggiungi GROQ_API_KEY (o ANTHROPIC_API_KEY) tra i Secret del Worker e riprova.';
+    return json(out);
+  }
   const clean = (e) => String((e && e.message) || e).replace(/sk-[A-Za-z0-9_-]+/g, '…').slice(0, 220);
   try {
     let saved;

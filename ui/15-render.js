@@ -59,7 +59,26 @@
     box.append(btn, el('p', { class: 'chk-det', text: det }));
     return box;
   }
+  /** Totali degli alert su carta "sotto un prezzo": quanto costano adesso (il più basso con i tuoi criteri) e quanto sommano le soglie. */
+  function renderRuleTotals() {
+    const box = $('ruleTotals');
+    const price = state.rules.filter((r) => r.enabled && r.blueprintId && r.maxPriceCents);
+    const rows = price.map((r) => ({ r, c: (state.checks || {})[r.id] || {} })).filter((x) => x.c.bestCents != null);
+    box.hidden = !price.length;
+    if (!price.length) return;
+    const now = rows.reduce((t, x) => t + x.c.bestCents, 0);
+    const goal = rows.reduce((t, x) => t + x.r.maxPriceCents, 0);
+    const gap = now - goal;
+    const below = rows.filter((x) => x.c.bestCents <= x.r.maxPriceCents).length;
+    box.replaceChildren(
+      el('div', { class: 'rt-grid' },
+        el('div', null, el('span', { text: 'Prezzo attuale' }), el('b', { text: money(now) })),
+        el('div', null, el('span', { text: 'Somma delle soglie' }), el('b', { text: money(goal) })),
+        el('div', null, el('span', { text: gap > 0 ? 'Ancora sopra di' : 'Sotto di' }), el('b', { class: gap > 0 ? 'over' : 'ok', text: money(Math.abs(gap)) }))),
+      el('small', { text: `${rows.length} alert sotto un prezzo con un annuncio valido, ${below} già sotto la soglia${price.length > rows.length ? ` · ${price.length - rows.length} senza annunci validi, esclusi dai totali` : ''}.` }));
+  }
   function renderRuleHealth() {
+    renderRuleTotals();
     const box = $('ruleHealth');
     const active = state.rules.filter((r) => r.enabled);
     box.hidden = !active.length;

@@ -65,3 +65,15 @@ test('storico per lingua: non si confronta una lingua con un\'altra', () => {
   assert.equal(histForLangs([{ d: 'x', min: 70, n: 3 }], ['jp']).length, 0); // giorno vecchio, senza lingue
   assert.equal(histForLangs(h, []).length, 1);
 });
+
+import { askAppraiser } from '../src/appraisal.js';
+test('esperto: con la chiave Groq usa Groq e senza chiavi non fa nulla', async () => {
+  assert.equal(await askAppraiser({}, { name: 'x' }, { listings: 1 }, 'fair'), null);
+  const real = globalThis.fetch;
+  let url = '';
+  globalThis.fetch = async (u, o) => { url = String(u); return new Response(JSON.stringify({ choices: [{ message: { content: 'Io la prenderei.' } }] }), { status: 200 }); };
+  try {
+    assert.equal(await askAppraiser({ GROQ_API_KEY: 'k' }, { name: 'x' }, { listings: 1 }, 'fair'), 'Io la prenderei.');
+    assert.match(url, /api\.groq\.com/);
+  } finally { globalThis.fetch = real; }
+});

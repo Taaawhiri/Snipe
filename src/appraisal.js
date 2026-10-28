@@ -146,8 +146,37 @@ Scheda: ${JSON.stringify({
   })}`;
 }
 
-/** Commento di Claude (Haiku, il più economico: una richiesta costa meno di un centesimo). null senza chiave. */
+/** Commento da Groq (API compatibile OpenAI, molto economica). Il modello si cambia con APPRAISAL_GROQ_MODEL. */
+async function askGroq(env, card, f, verdict) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${env.GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: env.APPRAISAL_GROQ_MODEL || 'llama-3.3-70b-versatile',
+      max_tokens: 600,
+      temperature: 0.5,
+      messages: [{ role: 'system', content: APPRAISER_SYSTEM }, { role: 'user', content: appraisalPrompt(card, f, verdict) }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Groq ${res.status}: ${(await res.text().catch(() => '')).slice(0, 160)}`);
+  const j = await res.json();
+  const text = j && j.choices && j.choices[0] && j.choices[0].message && String(j.choices[0].message.content || '').trim();
+  if (!text) throw new Error('Groq: risposta vuota');
+  return text.slice(0, 800);
+}
+
+/**
+ * Commento dell'esperto. Con GROQ_API_KEY usa Groq (se fallisce e c'è anche la chiave Anthropic, riprova con Claude Haiku);
+ * altrimenti Claude Haiku (meno di un centesimo a richiesta). null senza nessuna chiave.
+ */
 export async function askAppraiser(env, card, f, verdict) {
+  if (env.GROQ_API_KEY && env.APPRAISAL_PROVIDER !== 'claude') {
+    try { return await askGroq(env, card, f, verdict); } catch (e) { if (!env.ANTHROPIC_API_KEY) throw e; }
+  }
+  return askClaudeAppraiser(env, card, f, verdict);
+}
+
+async function askClaudeAppraiser(env, card, f, verdict) {
   if (!env.ANTHROPIC_API_KEY) return null;
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   const res = await client.messages.create({
