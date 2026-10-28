@@ -3107,7 +3107,7 @@
       ].filter(Boolean);
       const box = [
         el('div', { class: `ap-verdict v-${a.verdict}` }, el('b', { text: a.label }),
-          f.listings && (f.pct90 ?? f.pct30) != null ? el('small', { text: whereText(f) }) : null),
+          f.listings && (f.pct90 ?? f.pct30) != null ? el('small', { text: whereText(f) }) : f.listings ? el('small', { text: `Sto raccogliendo lo storico di questa ricerca: ${f.histDays || 0} giorni su 5 necessari.` }) : null),
         f.outlierLow && !f.lowIsZero ? el('p', { class: 'small ap-warn', text: 'L’annuncio più basso è molto sotto gli altri: può essere un’offerta isolata. Controlla condizione e lingua.' }) : null,
         f.suggest ? el('div', { class: 'ap-suggest' },
           el('div', { class: 'ap-k', text: f.suggest.now ? 'Puoi comprare adesso' : 'Prezzo consigliato per l’alert' }),

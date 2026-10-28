@@ -542,6 +542,7 @@
   };
 
   const R = [
+    [/^Sto raccogliendo lo storico di questa ricerca: (\d+) giorni su 5 necessari\.$/, 'Collecting the history for this search: $1 of 5 days needed.'],
     [/^Lo storico considera solo copie Near Mint o migliori, nella lingua scelta\.$/, 'The history only counts Near Mint or better copies, in the chosen language.'],
     [/^Lo storico considera solo copie Near Mint o migliori, tutte le lingue\.$/, 'The history only counts Near Mint or better copies, all languages.'],
     [/^Consigliato: (.+)$/, 'Suggested: $1'],
