@@ -78,6 +78,24 @@
         if (a.note) parere.append(el('p', { class: 'small muted', text: a.note }));
       }
       box.push(parere);
+      if (f.listings) {
+        const web = el('div', { class: 'ap-expert ap-web' });
+        if (a.web) {
+          web.append(el('div', { class: 'ap-k', text: 'Storico cercato sul web' }), el('p', { text: a.web.text }),
+            ...(a.web.sources && a.web.sources.length ? [el('div', { class: 'ap-src' }, ...a.web.sources.map((x) => el('a', { href: x.url, target: '_blank', rel: 'noopener', text: x.title })))] : []),
+            el('small', { class: 'muted', text: 'Cerca su PriceCharting, eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.' }),
+            regen('web', 'Rigenera la ricerca'));
+        } else {
+          const w = el('button', { class: 'btn', type: 'button', text: 'Cerca lo storico sul web' });
+          w.addEventListener('click', async () => {
+            w.disabled = true; w.textContent = 'Cerco sul web… (anche 30 secondi)';
+            try { draw(await api(`/api/appraisal?rule_id=${r.id}&web=1`)); } catch (e) { w.disabled = false; w.textContent = 'Cerca lo storico sul web'; web.append(el('p', { class: 'error small', text: e.message })); }
+          });
+          web.append(w, el('small', { class: 'muted', text: 'Cerca storico e vendite recenti su PriceCharting, eBay e Reddit. Al massimo 10 al giorno.' }));
+          if (a.note) web.append(el('p', { class: 'small muted', text: a.note }));
+        }
+        box.push(web);
+      }
       $('apBody').replaceChildren(...box.filter(Boolean));
     };
     try { draw(await api(`/api/appraisal?rule_id=${r.id}`)); } catch (e) { $('apBody').replaceChildren(el('p', { class: 'error', text: e.message })); }

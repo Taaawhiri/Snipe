@@ -149,12 +149,20 @@ Scheda: ${JSON.stringify({
 const GROQ_PREFS = [/llama-4-maverick/, /llama-3\.3-70b/, /gpt-oss-120b/, /llama-4-scout/, /gpt-oss-20b/, /llama-3\.1-8b/];
 let groqPicked = null;
 
-async function groqModel(env) {
-  if (env.APPRAISAL_GROQ_MODEL) return env.APPRAISAL_GROQ_MODEL;
-  if (groqPicked && Date.now() - groqPicked.ts < 6 * 3600_000) return groqPicked.id;
+let groqIdsCache = null;
+async function groqIds(env) {
+  if (groqIdsCache && Date.now() - groqIdsCache.ts < 6 * 3600_000) return groqIdsCache.ids;
   const res = await fetch('https://api.groq.com/openai/v1/models', { headers: { authorization: `Bearer ${env.GROQ_API_KEY}` } });
   if (!res.ok) throw new Error(`Groq ${res.status} nel leggere l'elenco dei modelli: ${(await res.text().catch(() => '')).slice(0, 120)}`);
   const ids = ((await res.json()).data || []).map((m) => m.id).filter((id) => id && !/whisper|tts|guard|embed|orpheus/i.test(id));
+  groqIdsCache = { ts: Date.now(), ids };
+  return ids;
+}
+
+async function groqModel(env) {
+  if (env.APPRAISAL_GROQ_MODEL) return env.APPRAISAL_GROQ_MODEL;
+  if (groqPicked && Date.now() - groqPicked.ts < 6 * 3600_000) return groqPicked.id;
+  const ids = (await groqIds(env)).filter((id) => !/compound/.test(id)); // i modelli "compound" cercano sul web: servono solo al parere con ricerca
   for (const re of GROQ_PREFS) {
     const hit = ids.find((id) => re.test(id));
     if (hit) { groqPicked = { id: hit, ts: Date.now() }; return hit; }
@@ -191,4 +199,43 @@ async function askGroq(env, card, f, verdict) {
 export async function askAppraiser(env, card, f, verdict) {
   if (!env.GROQ_API_KEY) return null;
   return askGroq(env, card, f, verdict);
+}
+
+const WEB_SYSTEM_ADD = `
+Hai la ricerca web. Cerca lo STORICO e le vendite recenti di QUESTA carta (nome esatto, numero, espansione, lingua): PriceCharting, Cardmarket, eBay (vendute), TCGplayer, discussioni su Reddit, notizie su ristampe. Controlla di non confondere edizione, lingua o versione.
+Regole: i dati dell'app restano la base. Un prezzo o una tendenza che non è nei dati dell'app dilla solo se l'hai trovata in un risultato, dicendo dove ("su PriceCharting", "su eBay"), con valuta e periodo, e segnala se è in dollari. Se non trovi niente di affidabile per questa edizione, dillo chiaramente: non riempire. Forum e Reddit sono indizi, non dati. Resta in 4-5 frasi, tono parlato.`;
+
+/** Parere con ricerca web, con i modelli "compound" di Groq (cercano da soli). Restituisce { text, sources } oppure lancia un errore. */
+export async function askAppraiserWeb(env, card, f, verdict) {
+  if (!env.GROQ_API_KEY) return null;
+  const ids = await groqIds(env);
+  const model = env.APPRAISAL_GROQ_WEB_MODEL || ids.find((id) => /compound/.test(id) && !/mini/.test(id)) || ids.find((id) => /compound/.test(id));
+  if (!model) throw new Error(`il tuo account Groq non ha modelli con ricerca web (disponibili: ${ids.slice(0, 8).join(', ') || 'nessuno'})`);
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${env.GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1500,
+      temperature: 0.4,
+      messages: [{ role: 'system', content: APPRAISER_SYSTEM + WEB_SYSTEM_ADD }, { role: 'user', content: appraisalPrompt(card, f, verdict) }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Groq ${res.status} (${model}): ${(await res.text().catch(() => '')).slice(0, 160)}`);
+  const j = await res.json();
+  const msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
+  const text = String(msg.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  if (!text) throw new Error(`Groq (${model}): risposta vuota`);
+  // Le fonti: i risultati di ricerca che il modello ha letto (il formato può variare: si cerca ogni url https).
+  const sources = new Map();
+  const walk = (v, d = 0) => {
+    if (!v || d > 6) return;
+    if (Array.isArray(v)) { v.forEach((x) => walk(x, d + 1)); return; }
+    if (typeof v === 'object') {
+      if (typeof v.url === 'string' && /^https:\/\//.test(v.url) && !sources.has(v.url)) sources.set(v.url, String(v.title || v.url).slice(0, 90));
+      Object.values(v).forEach((x) => walk(x, d + 1));
+    }
+  };
+  walk(msg.executed_tools);
+  return { text: text.slice(0, 1500), sources: [...sources].slice(0, 6).map(([url, title]) => ({ url, title })) };
 }

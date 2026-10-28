@@ -2,7 +2,7 @@ import { BUILD } from './build.js';
 import { DEFAULT_PLAN, PLANS } from './plans.js';
 import { billingChange, checkoutUrl, verifySignature } from './billing.js';
 import { recognizeCard } from './recognize.js';
-import { askAppraiser } from './appraisal.js';
+import { askAppraiser, askAppraiserWeb } from './appraisal.js';
 import { COOKIE, clearCookie, getCookie, makeSession, readSession, sessionCookie } from './session.js';
 export { Scanner } from './scanner.js';
 export { Registry } from './registry.js';
@@ -177,19 +177,27 @@ async function appraise(req, env, user, headers) {
   const todo = out.todo;
   if (!todo) return json(out);
   delete out.todo;
-  if (todo.kind === 'web') { out.note = 'La ricerca sul web non è più disponibile.'; return json(out); }
   if (!env.GROQ_API_KEY) { out.note = 'Manca il segreto GROQ_API_KEY tra i Secret del Worker.'; return json(out); }
   const clean = (e) => String((e && e.message) || e).replace(/sk-[A-Za-z0-9_-]+/g, '…').slice(0, 220);
   try {
-    const c = await askAppraiser(env, todo.card, out.facts, out.verdict);
-    if (!c) { out.note = 'Il parere dell’esperto non è riuscito: nessuna risposta.'; return json(out); }
-    out.comment = c;
-    out.commentTs = Date.now();
+    let saved;
+    if (todo.kind === 'web') {
+      const w = await askAppraiserWeb(env, todo.card, out.facts, out.verdict);
+      if (!w) { out.note = 'La ricerca sul web non è riuscita: nessuna risposta.'; return json(out); }
+      saved = { kind: 'web', text: w.text, sources: w.sources };
+      out.web = { ...w, ts: Date.now() };
+    } else {
+      const c = await askAppraiser(env, todo.card, out.facts, out.verdict);
+      if (!c) { out.note = 'Il parere dell’esperto non è riuscito: nessuna risposta.'; return json(out); }
+      saved = { kind: 'comment', text: c };
+      out.comment = c;
+      out.commentTs = Date.now();
+    }
     const h = new Headers(headers);
     h.set('content-type', 'application/json');
-    await scanner(env, user.doName).fetch(new Request(new URL('/api/appraisal/save', url), { method: 'POST', headers: h, body: JSON.stringify({ rule_id: url.searchParams.get('rule_id'), low: todo.low, kind: 'comment', text: c }) })).catch(() => null);
+    await scanner(env, user.doName).fetch(new Request(new URL('/api/appraisal/save', url), { method: 'POST', headers: h, body: JSON.stringify({ rule_id: url.searchParams.get('rule_id'), low: todo.low, ...saved }) })).catch(() => null);
   } catch (e) {
-    out.note = `Il parere dell’esperto non è riuscito: ${clean(e)}`;
+    out.note = `${todo.kind === 'web' ? 'La ricerca sul web' : 'Il parere dell’esperto'} non è riuscito: ${clean(e)}`;
   }
   return json(out);
 }
