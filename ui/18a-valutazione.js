@@ -15,6 +15,15 @@
       });
       return b;
     };
+    // Dove si colloca il prezzo rispetto agli ultimi giorni, a parole (niente percentili).
+    const whereText = (f) => {
+      const p = f.pct90 ?? f.pct30;
+      const n = Math.min(f.histDays || 0, f.pct90 != null ? 90 : 30);
+      if (p <= 0.1) return `È tra i prezzi più bassi degli ultimi ${n} giorni.`;
+      if (p >= 0.9) return `È tra i prezzi più alti degli ultimi ${n} giorni.`;
+      const x = Math.round(p * n);
+      return `Negli ultimi ${n} giorni è stato più basso di così in ${x} ${x === 1 ? 'giorno' : 'giorni'}.`;
+    };
     const draw = (a) => {
       const f = a.facts || {};
       const cur = 'EUR';
@@ -31,7 +40,7 @@
       ].filter(Boolean);
       const box = [
         el('div', { class: `ap-verdict v-${a.verdict}` }, el('b', { text: a.label }),
-          f.listings && f.pct90 != null ? el('small', { text: `Il prezzo è al ${Math.round(f.pct90 * 100)}° percentile degli ultimi 90 giorni (0 = il più basso).` }) : null),
+          f.listings && (f.pct90 ?? f.pct30) != null ? el('small', { text: whereText(f) }) : null),
         f.outlierLow && !f.lowIsZero ? el('p', { class: 'small ap-warn', text: 'L’annuncio più basso è molto sotto gli altri: può essere un’offerta isolata. Controlla condizione e lingua.' }) : null,
         f.suggest ? el('div', { class: 'ap-suggest' },
           el('div', { class: 'ap-k', text: f.suggest.now ? 'Puoi comprare adesso' : 'Prezzo consigliato per l’alert' }),
