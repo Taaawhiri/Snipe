@@ -145,22 +145,45 @@ Scheda: ${JSON.stringify({
   })}`;
 }
 
-/** Commento da Groq (API compatibile OpenAI, molto economica). Il modello si cambia con APPRAISAL_GROQ_MODEL. */
+// Modelli Groq in ordine di preferenza (il primo che l'account può usare): l'elenco lo chiede Groq stesso, così un modello ritirato non rompe i pareri.
+const GROQ_PREFS = [/llama-4-maverick/, /llama-3\.3-70b/, /gpt-oss-120b/, /llama-4-scout/, /gpt-oss-20b/, /llama-3\.1-8b/];
+let groqPicked = null;
+
+async function groqModel(env) {
+  if (env.APPRAISAL_GROQ_MODEL) return env.APPRAISAL_GROQ_MODEL;
+  if (groqPicked && Date.now() - groqPicked.ts < 6 * 3600_000) return groqPicked.id;
+  const res = await fetch('https://api.groq.com/openai/v1/models', { headers: { authorization: `Bearer ${env.GROQ_API_KEY}` } });
+  if (!res.ok) throw new Error(`Groq ${res.status} nel leggere l'elenco dei modelli: ${(await res.text().catch(() => '')).slice(0, 120)}`);
+  const ids = ((await res.json()).data || []).map((m) => m.id).filter((id) => id && !/whisper|tts|guard|embed|orpheus/i.test(id));
+  for (const re of GROQ_PREFS) {
+    const hit = ids.find((id) => re.test(id));
+    if (hit) { groqPicked = { id: hit, ts: Date.now() }; return hit; }
+  }
+  throw new Error(`nessun modello adatto tra quelli di Groq (${ids.slice(0, 8).join(', ') || 'elenco vuoto'}): imposta APPRAISAL_GROQ_MODEL`);
+}
+
+/** Commento da Groq (API compatibile OpenAI, molto economica). Il modello si sceglie da solo; APPRAISAL_GROQ_MODEL lo forza. */
 async function askGroq(env, card, f, verdict) {
+  const model = await groqModel(env);
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${env.GROQ_API_KEY}` },
     body: JSON.stringify({
-      model: env.APPRAISAL_GROQ_MODEL || 'llama-3.3-70b-versatile',
-      max_tokens: 600,
+      model,
+      max_tokens: 1500, // i modelli che ragionano consumano token prima di rispondere
       temperature: 0.5,
+      ...(/gpt-oss/.test(model) ? { reasoning_effort: 'low' } : {}),
       messages: [{ role: 'system', content: APPRAISER_SYSTEM }, { role: 'user', content: appraisalPrompt(card, f, verdict) }],
     }),
   });
-  if (!res.ok) throw new Error(`Groq ${res.status}: ${(await res.text().catch(() => '')).slice(0, 160)}`);
+  if (!res.ok) {
+    if (res.status === 404) groqPicked = null;
+    throw new Error(`Groq ${res.status} (${model}): ${(await res.text().catch(() => '')).slice(0, 160)}`);
+  }
   const j = await res.json();
-  const text = j && j.choices && j.choices[0] && j.choices[0].message && String(j.choices[0].message.content || '').trim();
-  if (!text) throw new Error('Groq: risposta vuota');
+  const raw = j && j.choices && j.choices[0] && j.choices[0].message && String(j.choices[0].message.content || '');
+  const text = raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  if (!text) throw new Error(`Groq (${model}): risposta vuota`);
   return text.slice(0, 800);
 }
 

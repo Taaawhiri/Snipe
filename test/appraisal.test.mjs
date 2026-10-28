@@ -71,9 +71,9 @@ test('esperto: con la chiave Groq usa Groq e senza chiavi non fa nulla', async (
   assert.equal(await askAppraiser({}, { name: 'x' }, { listings: 1 }, 'fair'), null);
   const real = globalThis.fetch;
   let url = '';
-  globalThis.fetch = async (u, o) => { url = String(u); return new Response(JSON.stringify({ choices: [{ message: { content: 'Io la prenderei.' } }] }), { status: 200 }); };
+  globalThis.fetch = async (u) => { url = String(u); return new Response(JSON.stringify(/models$/.test(url) ? { data: [{ id: 'whisper-large-v3' }, { id: 'openai/gpt-oss-120b' }] } : { choices: [{ message: { content: 'Io la prenderei.' } }] }), { status: 200 }); };
   try {
     assert.equal(await askAppraiser({ GROQ_API_KEY: 'k' }, { name: 'x' }, { listings: 1 }, 'fair'), 'Io la prenderei.');
-    assert.match(url, /api\.groq\.com/);
+    assert.match(url, /api\.groq\.com\/openai\/v1\/chat/);
   } finally { globalThis.fetch = real; }
 });
