@@ -2,6 +2,7 @@ import { BUILD } from './build.js';
 import { DEFAULT_PLAN, PLANS } from './plans.js';
 import { billingChange, checkoutUrl, verifySignature } from './billing.js';
 import { recognizeCard } from './recognize.js';
+import { askAppraiser, askAppraiserWeb } from './appraisal.js';
 import { COOKIE, clearCookie, getCookie, makeSession, readSession, sessionCookie } from './session.js';
 export { Scanner } from './scanner.js';
 export { Registry } from './registry.js';
@@ -162,6 +163,45 @@ async function forward(env, doName, req, headers) {
   return res || json({ error: 'Server dati non raggiungibile: riprova.' }, 503);
 }
 
+/**
+ * Parere dell'esperto (Claude). I dati e i limiti li gestisce il server dati; la chiamata all'API la facciamo qui nel Worker:
+ * dal server dati, che può trovarsi in un'altra zona, Anthropic rispondeva 403 "Request not allowed".
+ */
+async function appraise(req, env, user, headers) {
+  const url = new URL(req.url);
+  const prep = new URL(url);
+  prep.searchParams.set('prep', '1');
+  const first = await forward(env, user.doName, new Request(prep, { method: 'GET', headers }), headers);
+  const out = await first.json().catch(() => null);
+  if (!first.ok || !out) return json(out || { error: 'Server dati non raggiungibile: riprova.' }, first.status || 503);
+  const todo = out.todo;
+  if (!todo) return json(out);
+  delete out.todo;
+  if (!env.ANTHROPIC_API_KEY) { out.note = 'Il server non ha il segreto ANTHROPIC_API_KEY: aggiungilo tra i Secret del Worker e riprova.'; return json(out); }
+  const clean = (e) => String((e && e.message) || e).replace(/sk-[A-Za-z0-9_-]+/g, '…').slice(0, 220);
+  try {
+    let saved;
+    if (todo.kind === 'web') {
+      const w = await askAppraiserWeb(env, todo.card, out.facts, out.verdict);
+      if (!w) { out.note = 'La ricerca sul web non è riuscita: nessuna risposta.'; return json(out); }
+      saved = { kind: 'web', text: w.text, sources: w.sources };
+      out.web = { ...w, ts: Date.now() };
+    } else {
+      const c = await askAppraiser(env, todo.card, out.facts, out.verdict);
+      if (!c) { out.note = 'Il parere dell’esperto non è riuscito: nessuna risposta.'; return json(out); }
+      saved = { kind: 'comment', text: c };
+      out.comment = c;
+      out.commentTs = Date.now();
+    }
+    const h = new Headers(headers);
+    h.set('content-type', 'application/json');
+    await scanner(env, user.doName).fetch(new Request(new URL('/api/appraisal/save', url), { method: 'POST', headers: h, body: JSON.stringify({ rule_id: url.searchParams.get('rule_id'), low: todo.low, ...saved }) })).catch(() => null);
+  } catch (e) {
+    out.note = `${todo.kind === 'web' ? 'La ricerca sul web' : 'Il parere dell’esperto'} non è riuscito: ${clean(e)}`;
+  }
+  return json(out);
+}
+
 /** Scanner: foto della carta -> lettura (nome, numero, lingua) -> carte candidate nell'indice. */
 async function scanCard(req, env, user) {
   const b = await req.json().catch(() => ({}));
@@ -270,6 +310,7 @@ async function handle(req, env) {
     headers.set('x-do', user.doName);
     headers.set('x-build', BUILD);
     headers.set('x-user-name', encodeURIComponent(displayName(user)));
+    if (url.pathname === '/api/appraisal' && req.method === 'GET' && (url.searchParams.get('comment') || url.searchParams.get('web'))) return appraise(req, env, user, headers);
     // Ricerca per nome e rinnovo dell'indice usano il catalogo condiviso (server dati 'main').
     if (url.pathname === '/api/search') return forward(env, 'main', req, headers);
     if (url.pathname === '/api/deals') return forward(env, 'main', req, headers);

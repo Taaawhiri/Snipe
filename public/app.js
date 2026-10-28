@@ -3072,7 +3072,7 @@
     $('apTitle').textContent = r.cardName || 'Valutazione';
     $('apBody').replaceChildren(el('p', { class: 'muted small', text: 'Valuto il prezzo…' }));
     openSheet(d);
-    const pct = (v) => (v == null ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v * 100))}%`);
+    const pct = (v) => { if (v == null) return '—'; const n = Math.round(v * 100); return `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)}%`; };
     // Un parere già dato si riusa per 6 ore; "Rigenera" ne chiede uno nuovo (conta nel limite giornaliero).
     const regen = (kind, label) => {
       const b = el('button', { class: 'btn mini ap-regen', type: 'button', text: `↻ ${label}` });

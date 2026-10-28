@@ -12,7 +12,7 @@ import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShard
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
 import { generateVapidKeys, sendPush } from './push.js';
 import { REGION_FIXED, regionFromLangs, regionFromName } from './region.js';
-import { APPRAISER_LIMIT_PER_DAY, APPRAISER_WEB_PER_DAY, VERDICTS, appraisalFacts, askAppraiser, askAppraiserWeb, verdictOf } from './appraisal.js';
+import { APPRAISER_LIMIT_PER_DAY, APPRAISER_WEB_PER_DAY, VERDICTS, appraisalFacts, verdictOf } from './appraisal.js';
 import { vintageEra } from './vintage.js';
 import { expansionNameOf, nextOrderStates, orderChanges, trackingCodeOf, trackingUrlOf } from './orders.js';
 import { addSamples, isReverse, mergeRatios, samplesFromCard, summarizeRatios } from './ratios.js';
@@ -1169,6 +1169,22 @@ export class Scanner extends DurableObject {
       }
     }
 
+    if (path === '/api/appraisal/save' && method === 'POST') {
+      // Il Worker ha ottenuto il parere da Claude: lo teniamo per 6 ore e lo contiamo nel limite giornaliero.
+      const b = await req.json().catch(() => ({}));
+      const rule = (await this.get('rules', [])).find((r) => r.id === b.rule_id);
+      if (!rule || !['comment', 'web'].includes(b.kind) || !b.text) return json({ error: 'Dati non validi' }, 400);
+      const day = new Date().toISOString().slice(0, 10);
+      const qk = b.kind === 'web' ? 'aprWebDay' : 'aprDay';
+      const q = await this.get(qk, { day, n: 0 });
+      if (q.day !== day) { q.day = day; q.n = 0; }
+      q.n++;
+      await this.ctx.storage.put(qk, q);
+      const sources = Array.isArray(b.sources) ? b.sources.slice(0, 6).map((x) => ({ url: /^https:\/\//.test(x && x.url) ? String(x.url).slice(0, 400) : '', title: String((x && x.title) || '').slice(0, 90) })).filter((x) => x.url) : [];
+      await this.ctx.storage.put(b.kind === 'web' ? `aprw:${rule.id}` : `apr:${rule.id}`, { v: 2, ts: Date.now(), low: Number(b.low) || 0, ...(b.kind === 'web' ? { text: String(b.text).slice(0, 1500), sources } : { comment: String(b.text).slice(0, 800) }) });
+      return json({ ok: true });
+    }
+
     if (path === '/api/appraisal' && method === 'GET') {
       // Valutazione del prezzo di un alert su una carta: voto e dati sempre, commento dell'esperto (Claude) solo se richiesto.
       const rule = (await this.get('rules', [])).find((r) => r.id === url.searchParams.get('rule_id'));
@@ -1199,31 +1215,16 @@ export class Scanner extends DurableObject {
           const q = await this.get('aprWebDay', { day, n: 0 });
           if (q.day !== day) { q.day = day; q.n = 0; }
           if (q.n >= APPRAISER_WEB_PER_DAY) { out.note = `Hai usato i ${APPRAISER_WEB_PER_DAY} pareri con ricerca web di oggi: riprova domani.`; return json(out); }
-          if (!this.env.ANTHROPIC_API_KEY) { out.note = 'Manca la chiave ANTHROPIC_API_KEY sul server (vedi il parere dell’esperto).'; return json(out); }
-          let w = null;
-          let whyW = '';
-          try { w = await askAppraiserWeb(this.env, { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, f, verdict); } catch (e) { w = null; whyW = String((e && e.message) || e).replace(/sk-[A-Za-z0-9_-]+/g, '…').slice(0, 220); await this.reportError('Parere web', e).catch(() => null); }
-          if (!w) { out.note = `La ricerca sul web non è riuscita${whyW ? `: ${whyW}` : ''}`; return json(out); }
-          q.n++;
-          await this.ctx.storage.put('aprWebDay', q);
-          await this.ctx.storage.put(`aprw:${rule.id}`, { v: 2, ts: Date.now(), low: f.lowCents, ...w });
-          out.web = { ...w, ts: Date.now() };
+          out.todo = { kind: 'web', card: { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, low: f.lowCents };
+          return json(out); // la chiamata a Claude la fa il Worker (vedi worker.js): da qui l'API risponde 403 per la zona del server dati
         }
         if (url.searchParams.get('comment') && !out.comment && f.listings) {
           const day = new Date().toISOString().slice(0, 10);
           const q = await this.get('aprDay', { day, n: 0 });
           if (q.day !== day) { q.day = day; q.n = 0; }
           if (q.n >= APPRAISER_LIMIT_PER_DAY) { out.note = `Hai usato i ${APPRAISER_LIMIT_PER_DAY} pareri di oggi: riprova domani.`; return json(out); }
-          if (!this.env.ANTHROPIC_API_KEY) { out.note = 'Il server non ha il segreto ANTHROPIC_API_KEY (con le foto su Workers AI non serve, qui sì). Aggiungilo tra i Secret del Worker e riprova.'; return json(out); }
-          let comment = null;
-          let why = '';
-          try { comment = await askAppraiser(this.env, { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, f, verdict); } catch (e) { why = String((e && e.message) || e).replace(/sk-[A-Za-z0-9_-]+/g, '…').slice(0, 220); await this.reportError('Parere', e).catch(() => null); }
-          if (!comment) { out.note = `Il parere dell’esperto non è riuscito${why ? `: ${why}` : ''}`; return json(out); }
-          q.n++;
-          await this.ctx.storage.put('aprDay', q);
-          await this.ctx.storage.put(`apr:${rule.id}`, { v: 2, ts: Date.now(), low: f.lowCents, comment });
-          out.comment = comment;
-          out.commentTs = Date.now();
+          out.todo = { kind: 'comment', card: { name: rule.cardName, expansion: rule.expansionName, language: rule.language, minCondition: rule.minCondition }, low: f.lowCents };
+          return json(out);
         }
         return json(out);
       } catch (e) {
