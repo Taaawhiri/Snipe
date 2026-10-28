@@ -77,3 +77,17 @@ test('esperto: con la chiave Groq usa Groq e senza chiavi non fa nulla', async (
     assert.match(url, /api\.groq\.com\/openai\/v1\/chat/);
   } finally { globalThis.fetch = real; }
 });
+
+import { askAppraiserWeb } from '../src/appraisal.js';
+test('ricerca web: toglie i marcatori di citazione e legge le fonti', async () => {
+  const real = globalThis.fetch;
+  globalThis.fetch = async (u) => new Response(JSON.stringify(/models$/.test(String(u))
+    ? { data: [{ id: 'openai/gpt-oss-120b' }] }
+    : { choices: [{ message: { content: 'Vale circa $160 【1†L99-L106】 su eBay 【2†L16-L22】 .', executed_tools: [{ search_results: { results: [{ title: 'PriceCharting', url: 'https://www.pricecharting.com/x' }] } }] } }] }), { status: 200 });
+  try {
+    const r = await askAppraiserWeb({ GROQ_API_KEY: 'k' }, { name: 'x' }, { listings: 1 }, 'fair');
+    assert.equal(r.text, 'Vale circa $160 su eBay.');
+    assert.equal(r.searched, true);
+    assert.equal(r.sources[0].url, 'https://www.pricecharting.com/x');
+  } finally { globalThis.fetch = real; }
+});

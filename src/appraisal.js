@@ -231,7 +231,8 @@ export async function askAppraiserWeb(env, card, f, verdict) {
   if (!res.ok) throw new Error(`Groq ${res.status} (${model}): ${(await res.text().catch(() => '')).slice(0, 160)}`);
   const j = await res.json();
   const msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
-  const text = String(msg.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  // I modelli gpt-oss lasciano nel testo i marcatori delle citazioni (【1†L99-L106】): si tolgono, le fonti sono elencate sotto.
+  const text = String(msg.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\s*【[^】]*】/g, '').replace(/ +([.,;:])/g, '$1').trim();
   if (!text) throw new Error(`Groq (${model}): risposta vuota`);
   // Le fonti: i risultati di ricerca che il modello ha letto (il formato può variare: si cerca ogni url https).
   const sources = new Map();
