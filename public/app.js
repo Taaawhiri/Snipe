@@ -3171,24 +3171,6 @@
         if (a.note) parere.append(el('p', { class: 'small muted', text: a.note }));
       }
       box.push(parere);
-      if (f.listings) {
-        const web = el('div', { class: 'ap-expert ap-web' });
-        if (a.web) {
-          web.append(el('div', { class: 'ap-k', text: 'Parere con ricerca sul web' }), el('p', { text: a.web.text }),
-            ...(a.web.sources && a.web.sources.length ? [el('div', { class: 'ap-src' }, ...a.web.sources.map((s) => el('a', { href: s.url, target: '_blank', rel: 'noopener', text: s.title })))] : []),
-            el('small', { class: 'muted', text: 'Cerca su eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.' }),
-            regen('web', 'Rigenera la ricerca'));
-        } else {
-          const w = el('button', { class: 'btn', type: 'button', text: 'Parere approfondito (cerca sul web)' });
-          w.addEventListener('click', async () => {
-            w.disabled = true; w.textContent = 'Cerco sul web… (anche 20 secondi)';
-            try { draw(await api(`/api/appraisal?rule_id=${r.id}&web=1`)); } catch (e) { w.disabled = false; w.textContent = 'Parere approfondito (cerca sul web)'; web.append(el('p', { class: 'error small', text: e.message })); }
-          });
-          web.append(w, el('small', { class: 'muted', text: 'Cerca vendite eBay, Reddit e notizie. Costa di più: al massimo 10 al giorno.' }));
-          if (a.note) web.append(el('p', { class: 'small muted', text: a.note }));
-        }
-        box.push(web);
-      }
       $('apBody').replaceChildren(...box.filter(Boolean));
     };
     try { draw(await api(`/api/appraisal?rule_id=${r.id}`)); } catch (e) { $('apBody').replaceChildren(el('p', { class: 'error', text: e.message })); }

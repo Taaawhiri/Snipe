@@ -1,6 +1,5 @@
 // Valutazione del prezzo di una carta di un alert. Il voto lo calcola il codice dai dati (storico, annunci, Cardmarket);
 // il commento in parole lo scrive Claude partendo da quei numeri, senza inventarne altri.
-import Anthropic from '@anthropic-ai/sdk';
 import { isListable, listingLang, normLang, condRank } from './deals.js';
 import { isRiskySeller, isZero } from './deals.js';
 
@@ -165,71 +164,8 @@ async function askGroq(env, card, f, verdict) {
   return text.slice(0, 800);
 }
 
-/**
- * Commento dell'esperto. Con GROQ_API_KEY usa solo Groq (senza riserva: se sbaglia si vede l'errore);
- * altrimenti Claude Haiku (meno di un centesimo a richiesta). null senza nessuna chiave.
- */
+/** Commento dell'esperto: solo Groq (Claude resta riservato al riconoscimento delle foto). null senza GROQ_API_KEY. */
 export async function askAppraiser(env, card, f, verdict) {
-  if (env.GROQ_API_KEY && env.APPRAISAL_PROVIDER !== 'claude') {
-    return askGroq(env, card, f, verdict); // niente riserva su Claude: se Groq sbaglia si vede l'errore (per provarlo)
-  }
-  return askClaudeAppraiser(env, card, f, verdict);
-}
-
-async function askClaudeAppraiser(env, card, f, verdict) {
-  if (!env.ANTHROPIC_API_KEY) return null;
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  const res = await client.messages.create({
-    model: env.APPRAISAL_MODEL || 'claude-haiku-5-5',
-    max_tokens: 2000, // il tetto è largo: se il modello ragiona prima di rispondere, 300 non lasciava spazio al testo
-    system: APPRAISER_SYSTEM,
-    messages: [{ role: 'user', content: appraisalPrompt(card, f, verdict) }],
-  });
-  if (res.stop_reason === 'refusal') throw new Error('il modello ha rifiutato la richiesta');
-  const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
-  if (!text) throw new Error(`risposta vuota (${res.stop_reason}, blocchi: ${res.content.map((b) => b.type).join(',') || 'nessuno'})`);
-  return text.slice(0, 800);
-}
-
-const WEB_SYSTEM_ADD = `
-Puoi cercare sul web (al massimo 3 ricerche): vendite e prezzi recenti su eBay e altri marketplace, discussioni su Reddit e forum, notizie su ristampe, set nuovi o tendenze di quella carta. Cerca con il nome esatto, il numero e il set della carta, e controlla di non confondere edizione o lingua.
-Regole: i numeri della scheda restano la base. Un prezzo o una notizia che non è nella scheda va detto solo se l'hai trovato in un risultato, indicando da dove (es. "su eBay", "su Reddit"). Se non trovi niente di affidabile, dillo: non riempire. Tratta Reddit e i forum come indizi, non come dati. Resta in 4-5 frasi, con lo stesso tono parlato; se citi una fonte, dillo con naturalezza (\"su eBay le vendute recenti sono sui…\"), convertendo o segnalando le valute diverse dall'euro.`;
-
-/** Parere con ricerca web (eBay, Reddit, notizie): più caro, solo su richiesta. Restituisce { text, sources } oppure null. */
-export async function askAppraiserWeb(env, card, f, verdict) {
-  if (!env.ANTHROPIC_API_KEY) return null;
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  const messages = [{ role: 'user', content: appraisalPrompt(card, f, verdict) }];
-  const sources = new Map();
-  let text = '';
-  // Versioni dello strumento di ricerca: se il modello non accetta la prima si prova la successiva (APPRAISAL_WEB_TOOL la forza).
-  const versions = env.APPRAISAL_WEB_TOOL ? [env.APPRAISAL_WEB_TOOL] : ['web_search_20250305', 'web_search_20260209'];
-  let vi = 0;
-  for (let turn = 0; turn < 3; turn++) {
-    let res;
-    for (;;) {
-      try {
-        res = await client.messages.create({
-          model: env.APPRAISAL_MODEL || 'claude-haiku-5-5',
-          max_tokens: 2500,
-          system: APPRAISER_SYSTEM + WEB_SYSTEM_ADD,
-          tools: [{ type: versions[vi], name: 'web_search', max_uses: 3 }],
-          messages,
-        });
-        break;
-      } catch (e) {
-        if (e && e.status === 400 && vi < versions.length - 1) { vi++; continue; }
-        throw e;
-      }
-    }
-    if (res.stop_reason === 'refusal') throw new Error('il modello ha rifiutato la richiesta');
-    for (const b of res.content) {
-      if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) for (const r of b.content) if (r && r.url && !sources.has(r.url)) sources.set(r.url, String(r.title || r.url).slice(0, 90));
-    }
-    text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-    if (res.stop_reason !== 'pause_turn') break;
-    messages.push({ role: 'assistant', content: res.content }); // il server ha messo in pausa il turno: si continua
-  }
-  if (!text) throw new Error('risposta vuota dopo la ricerca');
-  return { text: text.slice(0, 1500), sources: [...sources].slice(0, 6).map(([url, title]) => ({ url: /^https:\/\//.test(url) ? url : '', title })).filter((x) => x.url) };
+  if (!env.GROQ_API_KEY) return null;
+  return askGroq(env, card, f, verdict);
 }
