@@ -166,12 +166,12 @@ async function askGroq(env, card, f, verdict) {
 }
 
 /**
- * Commento dell'esperto. Con GROQ_API_KEY usa Groq (se fallisce e c'è anche la chiave Anthropic, riprova con Claude Haiku);
+ * Commento dell'esperto. Con GROQ_API_KEY usa solo Groq (senza riserva: se sbaglia si vede l'errore);
  * altrimenti Claude Haiku (meno di un centesimo a richiesta). null senza nessuna chiave.
  */
 export async function askAppraiser(env, card, f, verdict) {
   if (env.GROQ_API_KEY && env.APPRAISAL_PROVIDER !== 'claude') {
-    try { return await askGroq(env, card, f, verdict); } catch (e) { if (!env.ANTHROPIC_API_KEY) throw e; }
+    return askGroq(env, card, f, verdict); // niente riserva su Claude: se Groq sbaglia si vede l'errore (per provarlo)
   }
   return askClaudeAppraiser(env, card, f, verdict);
 }
