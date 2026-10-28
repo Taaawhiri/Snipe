@@ -15,6 +15,23 @@ export function percentileIn(hist, cents, days) {
 }
 
 /**
+ * Storico adatto alla ricerca: senza lingua è quello di tutte le lingue; con una o più lingue (es. "ja") si usano solo i giorni
+ * in cui è stato salvato il prezzo di quella lingua (i giorni vecchi, salvati senza lingua, si scartano: sarebbero confronti sbagliati).
+ */
+export function histForLangs(hist, langs) {
+  const h = (hist || []).filter((p) => p && p.min > 0);
+  if (!langs || !langs.length) return h;
+  const out = [];
+  for (const p of h) {
+    if (!p.l) continue;
+    const es = langs.map((x) => p.l[x]).filter(Boolean);
+    if (!es.length) continue;
+    out.push({ d: p.d, min: Math.min(...es.map((e) => e[0])), n: es.reduce((t, e) => t + e[1], 0) });
+  }
+  return out;
+}
+
+/**
  * Prezzo consigliato per l'alert: abbastanza basso da essere un buon affare, abbastanza alto da scattare davvero.
  * Con almeno 5 giorni di storico è il 20° percentile dei prezzi più bassi (limitato dalla tendenza Cardmarket −10%);
  * senza storico si parte da Cardmarket −15% o dal prezzo tipico −10%. Mai sopra il prezzo di adesso né sotto il minimo storico −3%.
@@ -53,9 +70,11 @@ export function appraisalFacts({ products, hist = [], rule = {}, cmCents = null,
   if (!ok2.length) return { listings: 0 };
   const low = ok2[0];
   const typ = median(ok2.slice(0, 5));
-  const h = (hist || []).filter((p) => p && p.min > 0);
+  // Lo storico è delle copie Near Mint o migliori: il confronto si fa con il più basso NM+ di adesso, non con quello di una copia più rovinata.
+  const nmLow = okP.filter((p) => condRank(p.properties_hash && p.properties_hash.condition) >= condRank('Near Mint')).map((p) => p.price.cents)[0] ?? null;
+  const h = histForLangs(hist, lang);
   const back = (n) => { const t = h.length > n ? h[h.length - 1 - n] : null; return t ? t.min : null; };
-  const chg = (v) => (v ? low / v - 1 : null);
+  const chg = (v) => (v && nmLow ? nmLow / v - 1 : null);
   const nRecent = h.slice(-7).map((p) => p.n).filter(Boolean);
   const nBefore = h.slice(-21, -7).map((p) => p.n).filter(Boolean);
   const avg = (a) => (a.length ? a.reduce((t, x) => t + x, 0) / a.length : null);
@@ -69,8 +88,8 @@ export function appraisalFacts({ products, hist = [], rule = {}, cmCents = null,
     secondCents: ok2[1] ?? null,
     outlierLow: ok2.length >= 4 && low < 0.6 * typ, // il più basso è molto sotto gli altri: da controllare (errore, copia rovinata)
     histDays: h.length,
-    pct30: percentileIn(h, low, 30),
-    pct90: percentileIn(h, low, 90),
+    pct30: nmLow ? percentileIn(h, nmLow, 30) : null,
+    pct90: nmLow ? percentileIn(h, nmLow, 90) : null,
     min90: mins90.length ? Math.min(...mins90) : null,
     max90: mins90.length ? Math.max(...mins90) : null,
     change7: chg(back(7)),
@@ -81,6 +100,7 @@ export function appraisalFacts({ products, hist = [], rule = {}, cmCents = null,
     vsCm: cmCents ? low / cmCents - 1 : null,
     limitCents: limitCents || null,
     vsLimit: limitCents ? low / limitCents - 1 : null,
+    histNote: lang.length ? 'solo copie Near Mint o migliori, nella lingua scelta' : 'solo copie Near Mint o migliori, tutte le lingue',
     suggest: suggestPrice({ hist: h, lowCents: low, typicalCents: typ, cmCents }),
   };
 }

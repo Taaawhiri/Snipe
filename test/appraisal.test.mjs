@@ -53,3 +53,15 @@ test('annuncio Zero: segnalato nei fatti', () => {
   assert.equal(typeof f.zeroLowCents, 'object'); // null senza annunci Zero
   assert.ok(z);
 });
+
+import { histForLangs } from '../src/appraisal.js';
+import { addPoint } from '../src/history.js';
+test('storico per lingua: non si confronta una lingua con un\'altra', () => {
+  const p = (c, lg) => ({ ...prod(c, lg), id: Math.random() });
+  const h = addPoint([], [p(70, 'zh-CN'), p(160, 'ja'), p(170, 'ja')]);
+  assert.deepEqual(h[0].l.jp, [160, 2]);
+  const ja = histForLangs(h, ['jp']);
+  assert.equal(ja[0].min, 160);
+  assert.equal(histForLangs([{ d: 'x', min: 70, n: 3 }], ['jp']).length, 0); // giorno vecchio, senza lingue
+  assert.equal(histForLangs(h, []).length, 1);
+});

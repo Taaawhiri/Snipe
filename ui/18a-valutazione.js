@@ -61,6 +61,7 @@
             return b;
           })()) : null,
         el('div', { class: 'ap-rows' }, ...rows.map(([k, v]) => el('div', null, el('span', { text: k }), el('b', { text: v })))),
+        f.histNote ? el('p', { class: 'small muted', text: `Lo storico considera ${f.histNote}.` }) : null,
       ];
       const parere = el('div', { class: 'ap-expert' });
       if (a.comment) {

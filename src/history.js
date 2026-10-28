@@ -28,13 +28,23 @@ export function addPoint(hist, products, ts = Date.now()) {
   const zs = ok.filter(isZero).map((p) => p.price.cents);
   const zero = zs.length ? Math.min(...zs) : null;
   const d = dayKey(ts);
+  // Prezzo più basso e numero di annunci per lingua: una carta giapponese e una cinese non si confrontano tra loro.
+  const l = {};
+  for (const p of ok) {
+    const lg = normLang(listingLang(p));
+    if (!lg || lg === 'sconosciuta') continue;
+    const e = l[lg] || (l[lg] = [Infinity, 0]);
+    e[0] = Math.min(e[0], p.price.cents);
+    e[1]++;
+  }
+  const point = { d, min, zero, n: ok.length, ...(Object.keys(l).length ? { l } : {}) };
   const out = [...(hist || [])];
   const last = out[out.length - 1];
   if (last && last.d === d) {
     // Il punto di oggi segue l'ultima lettura: un annuncio economico già venduto non resta come "prezzo di oggi".
-    out[out.length - 1] = { d, min, zero, n: ok.length };
+    out[out.length - 1] = point;
   } else {
-    out.push({ d, min, zero, n: ok.length });
+    out.push(point);
   }
   return out.slice(-HISTORY_DAYS);
 }

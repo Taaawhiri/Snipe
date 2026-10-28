@@ -542,6 +542,8 @@
   };
 
   const R = [
+    [/^Lo storico considera solo copie Near Mint o migliori, nella lingua scelta\.$/, 'The history only counts Near Mint or better copies, in the chosen language.'],
+    [/^Lo storico considera solo copie Near Mint o migliori, tutte le lingue\.$/, 'The history only counts Near Mint or better copies, all languages.'],
     [/^Consigliato: (.+)$/, 'Suggested: $1'],
     [/^Puoi comprare adesso \((.+)\)$/, 'You can buy now ($1)'],
     [/^(.+) · ora: (.+)$/, (m, a, b) => `${a} · now: ${b}`],
