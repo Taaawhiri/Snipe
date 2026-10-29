@@ -2315,6 +2315,7 @@
   let ruleLang = '';
   let ruleCond = '';
   let ruleZero = '';
+  let ruleVerdict = ''; // filtro per valutazione del prezzo: deal, good, fair, high, few
   function render() {
     if (!state) return;
     const active = state.rules.filter((r) => r.enabled).length;
@@ -2433,6 +2434,14 @@
     const zeroOf = (r) => r.zero || 'any';
     const ZLABEL = { only: 'Solo Zero', exclude: 'Senza Zero', any: 'Tutti i venditori' };
     const zeroUsed = ['only', 'exclude', 'any'].filter((z) => state.rules.some((r) => zeroOf(r) === z));
+    // Valutazione del prezzo (Occasione, Buon prezzo…): solo i voti che hanno almeno un alert, con il numero.
+    const VLABELS = [['deal', 'Occasione'], ['good', 'Buon prezzo'], ['fair', 'Nella media'], ['high', 'Caro'], ['few', 'Dati scarsi']];
+    const vOf = (r) => (r.blueprintId && verdicts[r.id] && verdicts[r.id].v !== 'none' ? verdicts[r.id].v : null);
+    const vCount = Object.fromEntries(VLABELS.map(([v]) => [v, state.rules.filter((r) => vOf(r) === v).length]));
+    const vUsed = VLABELS.filter(([v]) => vCount[v]);
+    if (ruleVerdict && !vCount[ruleVerdict]) ruleVerdict = '';
+    $('ruleVerdictG').hidden = !vUsed.length;
+    filterChips($('ruleVerdict'), [['', 'Tutte'], ...vUsed.map(([v, l]) => [v, `${l} (${vCount[v]})`])], ruleVerdict, (v) => { ruleVerdict = v; render(); });
     if (ruleLang && !ruleLangs.includes(ruleLang)) ruleLang = '';
     if (ruleCond && !ruleConds.includes(ruleCond)) ruleCond = '';
     if (ruleZero && !zeroUsed.includes(ruleZero)) ruleZero = '';
@@ -2447,6 +2456,7 @@
     // Filtri attivi: pillole con × sotto la ricerca, e il numero sul pulsante.
     const activeF = [
       ruleState !== 'all' && [STATES.find(([v]) => v === ruleState)[1], () => { ruleState = 'all'; }],
+      ruleVerdict && [VLABELS.find(([v]) => v === ruleVerdict)[1], () => { ruleVerdict = ''; }],
       ruleLang && [LBL.lang(ruleLang), () => { ruleLang = ''; }],
       ruleCond && [LBL.cond(ruleCond), () => { ruleCond = ''; }],
       ruleZero && [LBL.zero(ruleZero), () => { ruleZero = ''; }],
@@ -2456,7 +2466,7 @@
     $('ruleActive').hidden = !activeF.length || !$('ruleFilters').hidden;
     $('ruleActive').replaceChildren(...activeF.map(([label, clear]) => el('button', { class: 'af-chip', type: 'button', 'aria-label': `Togli il filtro ${label}`, onclick: () => { clear(); render(); } }, el('span', { text: label }), el('b', { text: '×', 'aria-hidden': 'true' }))));
     const stateOk = (r) => ruleState === 'all' || (ruleState === 'on' && r.enabled) || (ruleState === 'off' && !r.enabled) || (ruleState === 'star' && r.priority) || (ruleState === 'set' && !r.blueprintId);
-    const shownRules = state.rules.filter((r) => stateOk(r) && (!ruleLang || langOf(r).includes(ruleLang)) && (!ruleCond || r.minCondition === ruleCond) && (!ruleZero || zeroOf(r) === ruleZero)
+    const shownRules = state.rules.filter((r) => stateOk(r) && (!ruleLang || langOf(r).includes(ruleLang)) && (!ruleCond || r.minCondition === ruleCond) && (!ruleZero || zeroOf(r) === ruleZero) && (!ruleVerdict || vOf(r) === ruleVerdict)
       && (!rq || plainText([r.cardName, r.expansionName, r.nameContains].join(' ')).includes(rq)));
     const filtering = !!rq || activeF.length > 0;
     $('ruleCount').hidden = !filtering;
@@ -3958,7 +3968,7 @@
   const toggleFilters = (open) => { $('ruleFilters').hidden = !open; $('ruleFilterBtn').setAttribute('aria-expanded', String(open)); render(); };
   $('ruleFilterBtn').addEventListener('click', () => toggleFilters($('ruleFilters').hidden));
   $('ruleFilterClose').addEventListener('click', () => toggleFilters(false));
-  $('ruleFilterReset').addEventListener('click', () => { ruleState = 'all'; ruleLang = ''; ruleCond = ''; ruleZero = ''; render(); });
+  $('ruleFilterReset').addEventListener('click', () => { ruleState = 'all'; ruleLang = ''; ruleCond = ''; ruleZero = ''; ruleVerdict = ''; render(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
   $('setNameSave').addEventListener('click', async () => {
     try {

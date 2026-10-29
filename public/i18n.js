@@ -550,6 +550,7 @@
   };
 
   const R = [
+    [/^(Occasione|Buon prezzo|Nella media|Caro|Dati scarsi) \((\d+)\)$/, (m, l, n) => `${({ 'Occasione': 'Bargain', 'Buon prezzo': 'Good price', 'Nella media': 'Fair price', 'Caro': 'Expensive', 'Dati scarsi': 'Not enough data' })[l]} (${n})`],
     [/^(\d+) nell'ultima ora · pausa più lunga in 3 ore: (.+)$/, '$1 in the last hour · longest pause in 3 hours: $2'],
     [/^(\d+) alert sotto un prezzo con un annuncio valido, (\d+) già sotto la soglia(?: · (\d+) senza annunci validi, esclusi dai totali)?\.$/, (m, a, b, c) => `${a} price alerts with a valid listing, ${b} already under the threshold${c ? ` · ${c} without valid listings, left out of the totals` : ''}.`],
     [/^Sto raccogliendo lo storico di questa ricerca: (\d+) giorni su 5 necessari\.$/, 'Collecting the history for this search: $1 of 5 days needed.'],

@@ -29,7 +29,7 @@
   const toggleFilters = (open) => { $('ruleFilters').hidden = !open; $('ruleFilterBtn').setAttribute('aria-expanded', String(open)); render(); };
   $('ruleFilterBtn').addEventListener('click', () => toggleFilters($('ruleFilters').hidden));
   $('ruleFilterClose').addEventListener('click', () => toggleFilters(false));
-  $('ruleFilterReset').addEventListener('click', () => { ruleState = 'all'; ruleLang = ''; ruleCond = ''; ruleZero = ''; render(); });
+  $('ruleFilterReset').addEventListener('click', () => { ruleState = 'all'; ruleLang = ''; ruleCond = ''; ruleZero = ''; ruleVerdict = ''; render(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && state) refresh(); });
   $('setNameSave').addEventListener('click', async () => {
     try {

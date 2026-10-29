@@ -250,3 +250,21 @@ test('regole: voto del prezzo sulla card dell\'alert', async () => {
   assert.equal((await page.textContent('.nl-verdict >> visible=true')).trim(), 'Occasione');
   assert.deepEqual(errors, []);
 });
+
+test('regole: filtro per valutazione del prezzo', async () => {
+  const mk = (id) => ({ id, cardName: `Carta ${id}`, enabled: true, blueprintId: Number(id.slice(1)), maxPriceCents: 1000, minPriceCents: 5 });
+  const rules = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'].map(mk);
+  const checks = Object.fromEntries(rules.map((r) => [r.id, { ts: Date.now() - 5000, reads: [], listings: 3, valid: 1, bestCents: 900, currency: 'EUR', infoTs: Date.now() - 5000 }]));
+  const verdicts = { r1: { v: 'deal', label: 'Occasione' }, r2: { v: 'deal', label: 'Occasione' }, r3: { v: 'high', label: 'Caro' }, r4: { v: 'fair', label: 'Nella media' }, r5: { v: 'fair', label: 'Nella media' }, r6: { v: 'fair', label: 'Nella media' } };
+  const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': baseState({ rules, checks }), 'GET /api/verdicts': verdicts });
+  await page.click('[data-tab="rules"]');
+  await page.waitForTimeout(400);
+  await page.click('#ruleFilterBtn');
+  const chips = await page.textContent('#ruleVerdict');
+  assert.ok(chips.includes('Occasione (2)') && chips.includes('Caro (1)') && chips.includes('Nella media (3)'));
+  await page.click('#ruleVerdict button:has-text("Occasione")');
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('#ruleList .rule:visible, #ruleList > *:visible').count() > 0, true);
+  assert.ok((await page.textContent('#ruleCount')).includes('2 alert su 6'));
+  assert.deepEqual(errors, []);
+});
