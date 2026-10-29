@@ -92,6 +92,19 @@
           : `${p.subs} ${p.subs === 1 ? 'dispositivo' : 'dispositivi'} · ultimo invio ${ago(l.ts)}: ${l.sent} consegnat${l.sent === 1 ? 'o' : 'i'} (codici ${l.codes.join(', ')})`;
         return kvRow('Notifiche push', txt, !p.subs || (l && l.codes && l.sent === 0 && l.codes.length) ? 'bad' : '');
       })()] : []),
+      ...(sys.rounds && active ? [(() => {
+        const rs = sys.rounds;
+        const hour = rs.filter((x) => Date.now() - x.ts < 3600_000);
+        // La pausa più lunga tra due giri nelle ultime 3 ore: se è di molti minuti il giro si è fermato.
+        const recent = rs.filter((x) => Date.now() - x.ts < 3 * 3600_000);
+        let gap = 0;
+        for (let i = 1; i < recent.length; i++) gap = Math.max(gap, recent[i].ts - recent[i - 1].ts);
+        if (recent.length) gap = Math.max(gap, Date.now() - recent[recent.length - 1].ts);
+        const row = kvRow('Giri degli alert', `${hour.length} nell'ultima ora · pausa più lunga in 3 ore: ${dur(gap)}`, gap > 5 * 60_000 ? 'warn' : '');
+        const errs = hour.filter((x) => x.err);
+        if (errs.length) row.append(el('span', { class: 'small muted', text: `${errs.length} con errore, l'ultimo: ${friendlyError(errs[errs.length - 1].err)}` }));
+        return row;
+      })()] : []),
       ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'warn' : '')] : []),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? friendlyError(st.lastError) : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
@@ -270,6 +283,7 @@
         $('alertCond').value = 'Slightly Played';
       }
       render();
+      loadVerdicts();
     } catch {}
   }
 

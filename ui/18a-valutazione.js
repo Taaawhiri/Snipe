@@ -1,3 +1,12 @@
+  // ---------- Voto del prezzo sulle card degli alert ----------
+  let verdicts = {};
+  let verdictsAt = 0;
+  async function loadVerdicts() {
+    if (Date.now() - verdictsAt < 60_000 || !state || !state.rules.some((r) => r.blueprintId)) return;
+    verdictsAt = Date.now();
+    try { verdicts = await api('/api/verdicts'); render(); } catch { verdictsAt = 0; }
+  }
+
   // ---------- Valutazione del prezzo di un alert ----------
   // Il voto e i numeri li calcola il server dai dati; il parere in parole lo scrive Claude solo se lo chiedi (costa un po').
   async function appraiseRule(r) {

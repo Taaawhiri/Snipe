@@ -697,6 +697,7 @@ export class Scanner extends DurableObject {
       limitUntil: this.blockedUntil > Date.now() ? this.blockedUntil : null,
       market: { gapMs: this.mktGap, tokens: Math.floor(this.tokens), recent429: this.recent429 },
       // Per capire se il giro degli alert è lento: letture fatte nell'ultima ora e come è andato l'ultimo giro.
+      rounds: ((status && status.rounds) || []).slice(-120),
       reads: {
         hour: [...((this.readLog && this.readLog.values()) || [])].reduce((t, l) => t + l.filter((x) => Date.now() - x < 3600_000).length, 0),
         last: (status && status.lastRefresh) || null,
@@ -746,7 +747,8 @@ export class Scanner extends DurableObject {
         await this.ctx.storage.put('mktGap', this.mktGap);
       }
       const backoff = Math.min(MIN_BACKOFF_MS * 2 ** (this.strikes - 1), 2 * 60_000);
-      const pause = Math.max(backoff, Number.isFinite(retry) ? retry * 1000 : 0);
+      // Retry-After di CardTrader: al massimo 5 minuti. Un valore enorme fermava tutti gli alert per ore (in memoria, fino al riavvio del server).
+      const pause = Math.min(5 * 60_000, Math.max(backoff, Number.isFinite(retry) ? retry * 1000 : 0));
       this.blockedUntil = Date.now() + pause;
       const err = new Error(`CardTrader sta limitando le richieste: riprovo tra ${Math.round(pause / 1000)}s`);
       err.rateLimited = true;
@@ -1149,6 +1151,24 @@ export class Scanner extends DurableObject {
       } catch (e) {
         return json({ error: String(e.message || e) }, 502);
       }
+    }
+
+    if (path === '/api/verdicts' && method === 'GET') {
+      // Voto del prezzo (Occasione, Buon prezzo…) di ogni alert su carta, dai dati già in memoria: nessuna lettura a CardTrader.
+      const rules = (await this.get('rules', [])).filter((r) => r.blueprintId);
+      const cm = await this.cmLookup(rules.map((r) => r.cmId).filter(Boolean));
+      const reliable = (await this.settings()).collReliable !== false;
+      const out = {};
+      for (const r of rules) {
+        const hit = this.bpCache.get(r.blueprintId);
+        if (!hit) continue;
+        const products = hit.data[r.blueprintId] || hit.data[String(r.blueprintId)] || [];
+        const e = r.cmId && cm.get(r.cmId);
+        const f = appraisalFacts({ products, hist: await this.get(`h:${r.blueprintId}`, []), rule: r, cmCents: e && e.trend ? Math.round(e.trend * 100) : null, limitCents: r.maxPriceCents || null, reliable });
+        const v = verdictOf(f);
+        out[r.id] = { v, label: VERDICTS[v] };
+      }
+      return json(out);
     }
 
     if (path === '/api/suggest' && method === 'GET') {
@@ -2565,6 +2585,8 @@ export class Scanner extends DurableObject {
       if (!e.rateLimited && !e.budget && !/^CardTrader|Token CardTrader/.test(status.lastError)) await this.reportError('Scan', e);
     }
     status.lastScan = Date.now();
+    // Registro degli ultimi giri (per vedere in Opzioni se il giro degli alert si ferma e per quanto).
+    status.rounds = [...(status.rounds || []).filter((r) => Date.now() - r.ts < 6 * 3600_000), { ts: t0, ms: Date.now() - t0, read: status.lastRefresh ? status.lastRefresh.read : 0, want: status.lastRefresh ? status.lastRefresh.want : 0, err: status.lastError ? String(status.lastError).slice(0, 60) : null }].slice(-120);
     try {
       await this.cmStep();
       status.cmError = null;

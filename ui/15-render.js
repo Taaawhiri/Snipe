@@ -27,8 +27,10 @@
       const gap = c.bestCents - max;
       rel = gap <= 0 ? el('span', { class: 'nl-rel ok', text: 'sotto la soglia ✓' }) : el('span', { class: 'nl-rel over', text: `${money(gap, cur)} sopra la soglia` });
     }
+    const vd = r.blueprintId && verdicts[r.id] && verdicts[r.id].v !== 'none' ? verdicts[r.id] : null;
     const old = c.infoTs && Date.now() - c.infoTs > 10 * 60_000 ? el('span', { class: 'nl-age', text: `letto ${ago(c.infoTs)}` }) : null;
     return el('div', { class: 'now-line' }, el('span', { class: 'nl-k', text: 'Ora il più basso' }), el('b', { text: money(c.bestCents, cur) }), ...(rel ? [rel] : []), ...(old ? [old] : []),
+      ...(vd ? [el('button', { class: `chip-btn nl-verdict v-${vd.v}`, type: 'button', text: vd.label, title: 'Valutazione del prezzo', onclick: () => appraiseRule(r) })] : []),
       ...(r.blueprintId ? [el('button', { class: 'chip-btn nl-appraise', type: 'button', text: 'Valuta il prezzo', onclick: () => appraiseRule(r) })] : []));
   }
 

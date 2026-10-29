@@ -464,6 +464,7 @@
     "Cerco sul web… (anche 30 secondi)": "Searching the web… (up to 30 seconds)",
     "Cerca storico e vendite recenti su PriceCharting, eBay e Reddit. Al massimo 10 al giorno.": "Searches history and recent sales on PriceCharting, eBay and Reddit. 10 a day at most.",
     "Cerca su PriceCharting, eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.": "Searches PriceCharting, eBay, Reddit and news: results may be incomplete or refer to another edition, check the sources.",
+    "Giri degli alert": "Alert rounds", "Valutazione del prezzo": "Price appraisal",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",
@@ -549,6 +550,7 @@
   };
 
   const R = [
+    [/^(\d+) nell'ultima ora · pausa più lunga in 3 ore: (.+)$/, '$1 in the last hour · longest pause in 3 hours: $2'],
     [/^(\d+) alert sotto un prezzo con un annuncio valido, (\d+) già sotto la soglia(?: · (\d+) senza annunci validi, esclusi dai totali)?\.$/, (m, a, b, c) => `${a} price alerts with a valid listing, ${b} already under the threshold${c ? ` · ${c} without valid listings, left out of the totals` : ''}.`],
     [/^Sto raccogliendo lo storico di questa ricerca: (\d+) giorni su 5 necessari\.$/, 'Collecting the history for this search: $1 of 5 days needed.'],
     [/^Lo storico considera solo copie Near Mint o migliori, nella lingua scelta\.$/, 'The history only counts Near Mint or better copies, in the chosen language.'],

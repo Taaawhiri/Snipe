@@ -2241,8 +2241,10 @@
       const gap = c.bestCents - max;
       rel = gap <= 0 ? el('span', { class: 'nl-rel ok', text: 'sotto la soglia ✓' }) : el('span', { class: 'nl-rel over', text: `${money(gap, cur)} sopra la soglia` });
     }
+    const vd = r.blueprintId && verdicts[r.id] && verdicts[r.id].v !== 'none' ? verdicts[r.id] : null;
     const old = c.infoTs && Date.now() - c.infoTs > 10 * 60_000 ? el('span', { class: 'nl-age', text: `letto ${ago(c.infoTs)}` }) : null;
     return el('div', { class: 'now-line' }, el('span', { class: 'nl-k', text: 'Ora il più basso' }), el('b', { text: money(c.bestCents, cur) }), ...(rel ? [rel] : []), ...(old ? [old] : []),
+      ...(vd ? [el('button', { class: `chip-btn nl-verdict v-${vd.v}`, type: 'button', text: vd.label, title: 'Valutazione del prezzo', onclick: () => appraiseRule(r) })] : []),
       ...(r.blueprintId ? [el('button', { class: 'chip-btn nl-appraise', type: 'button', text: 'Valuta il prezzo', onclick: () => appraiseRule(r) })] : []));
   }
 
@@ -2616,6 +2618,19 @@
           : `${p.subs} ${p.subs === 1 ? 'dispositivo' : 'dispositivi'} · ultimo invio ${ago(l.ts)}: ${l.sent} consegnat${l.sent === 1 ? 'o' : 'i'} (codici ${l.codes.join(', ')})`;
         return kvRow('Notifiche push', txt, !p.subs || (l && l.codes && l.sent === 0 && l.codes.length) ? 'bad' : '');
       })()] : []),
+      ...(sys.rounds && active ? [(() => {
+        const rs = sys.rounds;
+        const hour = rs.filter((x) => Date.now() - x.ts < 3600_000);
+        // La pausa più lunga tra due giri nelle ultime 3 ore: se è di molti minuti il giro si è fermato.
+        const recent = rs.filter((x) => Date.now() - x.ts < 3 * 3600_000);
+        let gap = 0;
+        for (let i = 1; i < recent.length; i++) gap = Math.max(gap, recent[i].ts - recent[i - 1].ts);
+        if (recent.length) gap = Math.max(gap, Date.now() - recent[recent.length - 1].ts);
+        const row = kvRow('Giri degli alert', `${hour.length} nell'ultima ora · pausa più lunga in 3 ore: ${dur(gap)}`, gap > 5 * 60_000 ? 'warn' : '');
+        const errs = hour.filter((x) => x.err);
+        if (errs.length) row.append(el('span', { class: 'small muted', text: `${errs.length} con errore, l'ultimo: ${friendlyError(errs[errs.length - 1].err)}` }));
+        return row;
+      })()] : []),
       ...(st.cycle && active ? [kvRow('Giro completo', `tutti gli alert ricontrollati in ${dur(st.cycle.ms)}`, st.cycle.ms > 20 * 60_000 ? 'warn' : '')] : []),
       kvRow('CardTrader', limited ? `richieste limitate fino alle ${hhmmss(sys.limitUntil)}` : st.lastError ? friendlyError(st.lastError) : 'tutto regolare', limited || st.lastError ? 'bad' : ''),
       ...(sys.regions ? [regionsRow(sys.regions, sys.regionError)] : []),
@@ -2794,6 +2809,7 @@
         $('alertCond').value = 'Slightly Played';
       }
       render();
+      loadVerdicts();
     } catch {}
   }
 
@@ -3089,6 +3105,15 @@
     } catch (e) {
       $('exInfo').textContent = e.message;
     }
+  }
+
+  // ---------- Voto del prezzo sulle card degli alert ----------
+  let verdicts = {};
+  let verdictsAt = 0;
+  async function loadVerdicts() {
+    if (Date.now() - verdictsAt < 60_000 || !state || !state.rules.some((r) => r.blueprintId)) return;
+    verdictsAt = Date.now();
+    try { verdicts = await api('/api/verdicts'); render(); } catch { verdictsAt = 0; }
   }
 
   // ---------- Valutazione del prezzo di un alert ----------

@@ -161,6 +161,10 @@ details.more[open] > summary { margin-bottom: 10px; }
 .now-line .nl-rel.ok { color: var(--green); }
 .now-line .nl-rel.over { color: var(--yellow); }
 .now-line .nl-age { color: var(--muted); font-size: 11.5px; }
+.now-line .nl-verdict { font-size: 12px; font-weight: 800; padding: 4px 10px; }
+.now-line .nl-verdict.v-deal, .now-line .nl-verdict.v-good { color: var(--green); border-color: #2f8f5f; }
+.now-line .nl-verdict.v-high { color: #ff9aac; border-color: #a0394d; }
+.now-line .nl-verdict.v-few { color: var(--muted); }
 .now-line .nl-appraise { margin-left: auto; font-size: 12px; padding: 4px 10px; }
 .ap-verdict { border-radius: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); }
 .ap-verdict b { display: block; font-size: 20px; }

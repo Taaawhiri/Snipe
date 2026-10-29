@@ -17,6 +17,6 @@
     { "tag": "v1", "new_sqlite_classes": ["Scanner"] },
     { "tag": "v2", "new_sqlite_classes": ["Registry"] }
   ],
-  // Ogni 10 minuti rimette in moto lo scan se per qualsiasi motivo si fosse fermato (gli alarm bastano di norma).
-  "triggers": { "crons": ["*/10 * * * *"] }
+  // Ogni 2 minuti rimette in moto lo scan se per qualsiasi motivo si fosse fermato (gli alarm bastano di norma).
+  "triggers": { "crons": ["*/2 * * * *"] }
 }

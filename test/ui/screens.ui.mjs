@@ -240,3 +240,13 @@ test('regole: totale attuale e somma delle soglie', async () => {
   assert.ok(t.includes('1 senza annunci validi'));
   assert.deepEqual(errors, []);
 });
+
+test('regole: voto del prezzo sulla card dell\'alert', async () => {
+  const rule = { id: 'r1', cardName: 'Pikachu', enabled: true, blueprintId: 1, maxPriceCents: 1000, minPriceCents: 5 };
+  const st = baseState({ rules: [rule], checks: { r1: { ts: Date.now() - 5000, reads: [], listings: 4, valid: 1, bestCents: 900, currency: 'EUR', infoTs: Date.now() - 5000 } } });
+  const { page, errors } = await openApp(browser, srv.url, { 'GET /api/state': st, 'GET /api/verdicts': { r1: { v: 'deal', label: 'Occasione' } } });
+  await page.click('[data-tab="rules"]');
+  await page.waitForTimeout(400);
+  assert.equal((await page.textContent('.nl-verdict >> visible=true')).trim(), 'Occasione');
+  assert.deepEqual(errors, []);
+});
