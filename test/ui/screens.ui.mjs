@@ -268,3 +268,20 @@ test('regole: filtro per valutazione del prezzo', async () => {
   assert.ok((await page.textContent('#ruleCount')).includes('2 alert su 6'));
   assert.deepEqual(errors, []);
 });
+
+test('cerca: filtro rarità con la proprietà di CardTrader quando la versione non la contiene', async () => {
+  const exps = [{ id: 3, code: 'gb', name: 'Gift Box' }];
+  const cardsData = { expansionId: 3, cards: [
+    { id: 1, name: 'Mew', version: '001/021', single: true, rarity: 'Holo Rare', listings: 2, lowest: 500, lowestZero: null, currency: 'EUR', langs: {}, lc: {} },
+    { id: 2, name: 'Lucario', version: '002/021', single: true, rarity: 'Common', listings: 2, lowest: 50, lowestZero: null, currency: 'EUR', langs: {}, lc: {} },
+    { id: 3, name: 'Pikachu', version: '003/021', single: true, rarity: 'Common', listings: 2, lowest: 40, lowestZero: null, currency: 'EUR', langs: {}, lc: {} },
+  ] };
+  const { page, errors } = await openApp(browser, srv.url, { 'GET /api/expansions': exps, 'GET /api/cards': cardsData });
+  await page.click('[data-tab="cards"]');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { const s = document.querySelector('#cardExp'); s.value = '3'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.waitForTimeout(700);
+  const opts = await page.$$eval('#cardRarity option', (o) => o.map((x) => x.textContent));
+  assert.ok(opts.some((t) => t.startsWith('Common (2)')) && opts.some((t) => t.startsWith('Holo Rare (1)')), opts.join('|'));
+  assert.deepEqual(errors, []);
+});

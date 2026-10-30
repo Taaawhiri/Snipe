@@ -3388,7 +3388,8 @@
 
   // ---------- filtro rarità (dalla versione CardTrader: "Special Illustration Rare | 199/165") ----------
   let searchAll = []; // risultati completi della ricerca, prima del filtro rarità
-  const rarityOf = (c) => rarityFromVersion(c.version) || '';
+  // La rarità è nella versione ("Holo Rare | 137/103") solo per alcune carte; quando manca si usa la proprietà di CardTrader (pokemon_rarity), che c'è per le carte lette per espansione.
+  const rarityOf = (c) => rarityFromVersion(c.version) || (c.rarity && !/^\d/.test(String(c.rarity)) ? String(c.rarity) : '');
   /** Riempie il menu con le rarità presenti, dalla più frequente; lo nasconde se ce n'è meno di due. */
   function fillRarities(list) {
     const count = new Map();
