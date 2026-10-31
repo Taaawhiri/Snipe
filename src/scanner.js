@@ -1156,6 +1156,7 @@ export class Scanner extends DurableObject {
     if (path === '/api/verdicts' && method === 'GET') {
       // Voto del prezzo (Occasione, Buon prezzo…) di ogni alert su carta, dai dati già in memoria: nessuna lettura a CardTrader.
       const rules = (await this.get('rules', [])).filter((r) => r.blueprintId);
+      await this.warmCards([...new Set(rules.map((r) => Number(r.blueprintId)))]); // dopo un riavvio gli annunci si ricaricano dal disco
       const cm = await this.cmLookup(rules.map((r) => r.cmId).filter(Boolean));
       const reliable = (await this.settings()).collReliable !== false;
       const out = {};
@@ -2672,10 +2673,13 @@ export class Scanner extends DurableObject {
       this.readLog.set(k, [...new Set([...keep, ...cur])].sort((a, b) => a - b));
     }
     for (const [k, t] of Object.entries(saved.last || {})) if (!this.lastRead.has(k) || this.lastRead.get(k) < t) this.lastRead.set(k, t);
+    // Prezzo più basso e annunci di ogni alert: dopo un riavvio (aggiornamento dell'app) le card non devono svuotarsi per poi riempirsi una alla volta.
+    this.ruleInfo = this.ruleInfo || new Map();
+    for (const [id, info] of Object.entries(saved.info || {})) if (!this.ruleInfo.has(id)) this.ruleInfo.set(id, info);
   }
 
   async saveReadLog(force = false) {
-    if (!this.readDirty || (!force && Date.now() - (this.readSavedAt || 0) < 60_000)) return;
+    if (!this.readDirty || (!force && Date.now() - (this.readSavedAt || 0) < 30_000)) return;
     this.readDirty = false;
     this.readSavedAt = Date.now();
     const now = Date.now();
@@ -2683,7 +2687,9 @@ export class Scanner extends DurableObject {
     for (const [k, list] of this.readLog || []) { const keep = list.filter((t) => now - t < 3600_000); if (keep.length) log[k] = keep; }
     const last = {};
     for (const [k, t] of this.lastRead || []) if (now - t < 24 * 3600_000) last[k] = t;
-    await this.ctx.storage.put('readLog', { log, last });
+    const info = {};
+    for (const [id, v] of this.ruleInfo || []) info[id] = v;
+    await this.ctx.storage.put('readLog', { log, last, info });
   }
 
   /** Stato del controllo di ogni alert: ultima lettura, letture dell'ultima ora, annunci e più economico valido. */
@@ -2946,6 +2952,7 @@ export class Scanner extends DurableObject {
         const all = rule.blueprintId ? data[rule.blueprintId] || data[String(rule.blueprintId)] || [] : Object.values(data).flat();
         const valid = all.filter((p) => p && p.price && !rejectReasons(p, evalRule).length);
         this.ruleInfo = this.ruleInfo || new Map();
+        this.readDirty = true;
         this.ruleInfo.set(rule.id, { listings: all.length, valid: valid.length, bestCents: valid.length ? Math.min(...valid.map((p) => p.price.cents)) : null, currency: (all[0] && all[0].price && all[0].price.currency) || 'EUR' , infoTs: srcHit ? srcHit.ts : null });
       }
       if (staleData) continue;

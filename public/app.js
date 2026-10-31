@@ -2221,7 +2221,7 @@
     if (!c.ts) return { st: 'slow', c, why: c.restarted && Date.now() - c.restarted < 15 * 60_000 ? 'App appena aggiornata: il controllo riparte entro pochi minuti' : 'Succede entro pochi minuti' };
     const cycle = (state.status && state.status.cycle && state.status.cycle.ms) || 5 * 60_000;
     const age = Date.now() - c.ts;
-    if (age <= Math.max(cycle * 1.5, 5 * 60_000)) return { st: 'ok', c };
+    if (age <= Math.max(cycle * 1.5, 10 * 60_000)) return { st: 'ok', c }; // il giro completo dura al più ~5 minuti: sotto i 10 non c'è nessun ritardo
     // Dopo un aggiornamento dell'app il giro riparte da capo: gli alert non ancora riletti sono "in ripartenza", non in ritardo.
     if (c.restarted && c.ts < c.restarted && Date.now() - c.restarted < 30 * 60_000) return { st: 'slow', c, restart: true, why: 'App appena aggiornata: il controllo riparte entro pochi minuti' };
     if (age <= 30 * 60_000) return { st: 'slow', c, why: state.system && state.system.limitUntil ? 'In ritardo: CardTrader sta rallentando le richieste' : 'In ritardo rispetto al solito giro' };
