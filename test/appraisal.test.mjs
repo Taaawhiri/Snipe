@@ -41,7 +41,9 @@ test('prezzo consigliato: dallo storico, mai sopra il prezzo di adesso', () => {
   const s = suggestPrice({ hist: h, lowCents: 1800, typicalCents: 1900 });
   assert.equal(s.now, false);
   assert.ok(s.cents <= 1800 && s.cents >= 970);
-  assert.equal(suggestPrice({ hist: h, lowCents: 1000, typicalCents: 1000 }).now, true);
+  const now = suggestPrice({ hist: h, lowCents: 1000, typicalCents: 1000 });
+  assert.equal(now.now, true);
+  assert.ok(now.cents < 1000 && now.cents >= 900); // sempre un prezzo da suggerire, ~5% sotto quello di adesso
   assert.equal(suggestPrice({ hist: [], lowCents: 2000, typicalCents: 2000, cmCents: 2000 }).cents, 1700);
   assert.equal(suggestPrice({ hist: [], lowCents: 0 }), null);
 });

@@ -3171,13 +3171,14 @@
           f.listings && (f.pct90 ?? f.pct30) != null ? el('small', { text: whereText(f) }) : f.listings ? el('small', { text: `Sto raccogliendo lo storico di questa ricerca: ${f.histDays || 0} giorni su 5 necessari.` }) : null),
         f.outlierLow && !f.lowIsZero ? el('p', { class: 'small ap-warn', text: 'L’annuncio più basso è molto sotto gli altri: può essere un’offerta isolata. Controlla condizione e lingua.' }) : null,
         f.suggest ? el('div', { class: 'ap-suggest' },
-          el('div', { class: 'ap-k', text: f.suggest.now ? 'Puoi comprare adesso' : 'Prezzo consigliato per l’alert' }),
+          el('div', { class: 'ap-k', text: 'Prezzo consigliato per l’alert' }),
           el('b', { text: m(f.suggest.cents) }),
           el('small', { text: f.suggest.why }),
+          ...(f.suggest.now ? [el('small', { class: 'ap-now', text: `Adesso costa ${m(f.lowCents)}: è già un buon livello, puoi comprare subito.` })] : []),
           (() => {
             // Il prezzo si può impostare solo sugli alert "sotto un prezzo": quelli con sconto Cardmarket, calo o ritorno disponibile hanno un'altra logica.
             const plain = !r.cmDiscount && !r.dropPct && !r.stock;
-            if (!plain || f.suggest.now) return null;
+            if (!plain) return null;
             const same = r.maxPriceCents === f.suggest.cents;
             const b = el('button', { class: 'btn mini', type: 'button', text: same ? 'Già impostato' : `Imposta l’alert a ${m(f.suggest.cents)}` });
             b.disabled = same;
@@ -3659,7 +3660,7 @@
       const s = await api(`/api/suggest?${q}`);
       if (seq !== suggestSeq || current !== c || !s.suggest) return;
       const use = el('button', { class: 'btn mini', type: 'button', text: 'Usa', onclick: () => { $('alertMax').value = (s.suggest.cents / 100).toFixed(2); } });
-      box.replaceChildren(el('span', null, el('b', { text: s.suggest.now ? `Puoi comprare adesso (${money(s.suggest.cents, c.currency)})` : `Consigliato: ${money(s.suggest.cents, c.currency)}` }), el('small', { text: `${s.suggest.why}${s.verdict ? ` · ora: ${s.verdict}` : ''}` })), ...(s.suggest.now ? [] : [use]));
+      box.replaceChildren(el('span', null, el('b', { text: `Consigliato: ${money(s.suggest.cents, c.currency)}` }), el('small', { text: `${s.suggest.why}${s.verdict ? ` · ora: ${s.verdict}` : ''}` }), ...(s.suggest.now && s.lowCents ? [el('small', { class: 'ap-now', text: `Adesso costa ${money(s.lowCents, c.currency)}: puoi anche comprare subito.` })] : [])), use);
       box.hidden = false;
     } catch { box.hidden = true; }
   }

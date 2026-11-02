@@ -47,8 +47,12 @@ export function suggestPrice({ hist = [], lowCents, typicalCents, cmCents }) {
   } else if (cmCents) { c = Math.round(cmCents * 0.85); why = 'circa il 15% sotto la tendenza Cardmarket (storico ancora breve)'; }
   else if (typicalCents) { c = Math.round(typicalCents * 0.9); why = 'circa il 10% sotto il prezzo tipico (storico ancora breve)'; }
   if (!(c > 0)) return null;
-  if (lowCents && c >= lowCents) return { cents: lowCents, why: 'è già vicino al tuo obiettivo: puoi comprare adesso', now: true };
   const step = c >= 1000 ? 50 : 10; // arrotonda a 0,50 € sopra i 10 €, a 0,10 € sotto
+  // Il prezzo di adesso è già al livello consigliato (o sotto): si può comprare subito, e per l'alert si propone un affare ancora migliore (5% sotto).
+  if (lowCents && c >= lowCents) {
+    const better = Math.max(step, Math.floor((lowCents * 0.95) / step) * step);
+    return { cents: Math.min(better, lowCents), why: 'adesso costa già poco: questo è il prezzo per un affare ancora migliore', now: true };
+  }
   return { cents: Math.max(step, Math.round(c / step) * step), why, now: false };
 }
 
