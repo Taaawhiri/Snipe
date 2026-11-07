@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { DEAL_LANGS, DAY_RULE, bogusRef, dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
-import { checkAgainstHistory, cmCappable, collKey, gradedFromBase, pickPrice, priceFor, summarize, useCmPrice } from './collection.js';
+import { checkAgainstHistory, cmCappable, collKey, gradedFromBase, isOutlierPrice, pickPrice, priceFor, summarize, useCmPrice } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -546,7 +546,7 @@ export class Scanner extends DurableObject {
       return { ...c, price, cmCents: cmC };
     });
     const minCents = Number((await this.settings()).collMinCents) || 0;
-    const live = (arr) => (minCents > 0 ? arr.filter((it) => !(it.price && it.price.cents != null && it.price.cents < minCents)) : arr);
+    const live = (arr) => arr.filter((it) => !(it.price && it.price.cents != null && ((minCents > 0 && it.price.cents < minCents) || isOutlierPrice(it.price.cents, { cmCents: it.cmCents, paidCents: it.paidCents, graded: !!parseGradeLabel(it.cond) }))));
     const items = base(false);
     const sum = summarize(live(items));
     const sumZero = summarize(live(base(true)));
@@ -619,10 +619,12 @@ export class Scanner extends DurableObject {
     // Soglia "valore minimo in collezione": le copie sotto soglia restano ma si nascondono e non contano nel valore.
     const minCents = Number((await this.settings()).collMinCents) || 0;
     if (minCents > 0) for (const it of items) if (it.price && it.price.cents != null && it.price.cents < minCents) it.belowMin = true;
-    const visible = items.filter((it) => !it.belowMin);
+    // Prezzi assurdi (annuncio parcheggiato a 10.000 €): la copia resta in elenco, ma non entra nel valore.
+    for (const it of items) if (it.price && it.price.cents != null && !it.price.cmCapped && isOutlierPrice(it.price.cents, { cmCents: it.cmCents, paidCents: it.paidCents, graded: !!parseGradeLabel(it.cond) })) it.outlier = true;
+    const visible = items.filter((it) => !it.belowMin && !it.outlier);
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
     const reliable = (await this.settings()).collReliable !== false;
-    return { items, summary: summarize(visible), hidden: items.length - visible.length, minCents, history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, reliable, refreshing };
+    return { items, summary: summarize(visible), hidden: items.filter((it) => it.belowMin).length, outliers: items.filter((it) => it.outlier).length, minCents, history: hist, limit: plan.maxColl, unlimited: plan.unlimited, zeroOnly, typical, reliable, refreshing };
   }
 
   async reportError(where, err) {

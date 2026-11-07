@@ -97,3 +97,14 @@ test('il tetto Cardmarket non vale per gradate, 1ª edizione e reverse', () => {
   assert.equal(cmCappable({ cond: 'Near Mint', first: true }), false);
   assert.equal(cmCappable({ cond: 'Near Mint', reverse: true }), false);
 });
+
+import { isOutlierPrice } from '../src/collection.js';
+test('prezzi stratosferici: annunci parcheggiati non contano nel valore', () => {
+  assert.equal(isOutlierPrice(1000064, { paidCents: 200 }), true); // Vulpix a 10.000 €, pagata 2 €
+  assert.equal(isOutlierPrice(1000064, { cmCents: 150 }), true);
+  assert.equal(isOutlierPrice(12000, { cmCents: 2500 }), true); // oltre 4 volte Cardmarket
+  assert.equal(isOutlierPrice(9000, { cmCents: 5000 }), false);
+  assert.equal(isOutlierPrice(15000, { paidCents: 8000 }), false); // 150 €: valore normale
+  assert.equal(isOutlierPrice(1000064, { graded: true }), false); // le gradate possono valere molto
+  assert.equal(isOutlierPrice(600000, {}), true); // oltre 5.000 € senza riferimenti
+});

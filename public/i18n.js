@@ -466,6 +466,7 @@
     "Cerca su PriceCharting, eBay, Reddit e notizie: i risultati possono essere incompleti o riferirsi a un’altra edizione, controlla le fonti.": "Searches PriceCharting, eBay, Reddit and news: results may be incomplete or refer to another edition, check the sources.",
     "Giri degli alert": "Alert rounds", "Valutazione del prezzo": "Price appraisal",
     "adesso costa già poco: questo è il prezzo per un affare ancora migliore": "it already costs little now: this is the price for an even better deal",
+    "⚠ prezzo anomalo: non conta nel valore": "⚠ unusual price: not counted in the value", "Prezzo anomalo": "Unusual price",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",

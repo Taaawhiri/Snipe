@@ -867,8 +867,8 @@
       coll.limit < coll.unlimited ? el('p', { class: 'small muted', text: `${items.length} su ${coll.limit} carte diverse incluse nel tuo piano.` }) : null,
     ].filter(Boolean)); // replaceChildren(null) scriverebbe la parola "null"
     const sort = (document.querySelector('input[name="csort"]:checked') || {}).value || 'value';
-    const val = (it) => (it.price ? it.price.cents * it.qty : -1);
-    const g = (it) => (it.price && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : -Infinity);
+    const val = (it) => (it.price && !it.outlier ? it.price.cents * it.qty : -1);
+    const g = (it) => (it.price && !it.outlier && it.paidCents != null ? (it.price.cents - it.paidCents) * it.qty : -Infinity);
     // Ricerca per nome della carta o dell'espansione (anche con il numero: "charizard 4").
     const cq = plainText($('collSearch').value).trim();
     $('collSearch').closest('.coll-tools').hidden = !items.length;
@@ -976,7 +976,8 @@
             el('div', { class: 'price-line' },
               // STIMA ambra = calcolata con i rapporti di mercato; STIMA grigia = regole fisse, dati di mercato ancora insufficienti.
               isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', title: 'Valore stimato: tocca per sapere come', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
-              el('b', { text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : it.noListings ? '—' : '…' })),
+              el('b', { class: it.outlier ? 'outlier-price' : '', text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : it.noListings ? '—' : '…' })),
+            it.outlier ? el('button', { class: 's linklike', type: 'button', text: '⚠ prezzo anomalo: non conta nel valore', onclick: () => dialog({ title: 'Prezzo anomalo', text: `L’annuncio più basso su CardTrader per questa carta è ${money(it.price.cents)}: una cifra così lontana dal valore reale di solito è un annuncio “parcheggiato”. Per questo la copia resta in elenco ma non viene contata nel valore della collezione né nel guadagno.` }) }) : null,
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
             miniSpark(it.spark30),
@@ -1006,6 +1007,7 @@
   /** Guadagno o perdita rispetto al prezzo pagato: importo e percentuale in una pillola colorata. */
   function gainPill(it) {
     if (!it.price || it.paidCents == null) return null;
+    if (it.outlier) return null; // un prezzo anomalo non fa guadagno
     const diff = (it.price.cents - it.paidCents) * it.qty;
     const pct = it.paidCents ? (it.price.cents / it.paidCents - 1) * 100 : null; // pagata 0: tutto guadagno, senza percentuale
     const cls = diff > 0 ? 'up' : diff < 0 ? 'dn' : 'eq';
