@@ -41,7 +41,7 @@ function median(nums) {
 // Valori prudenti e medi: il premio reale cambia molto da carta a carta.
 const GRADE_MULT = { '10': 2.5, '9.5': 1.8, '9': 1.4, '8.5': 1.2, '8': 1.1, '7.5': 1, '7': 1, '6.5': 1, '6': 1, '5.5': 1, '5': 1 };
 const GRADER_FACTOR = { PSA: 1, BGS: 1, CGC: 0.85, SGC: 0.85 }; // le altre società: 0.75
-const GRADING_COST_CENTS = 2500; // costo indicativo di una gradazione: una 9 o 10 vale almeno la carta più questo
+export const GRADING_COST_CENTS = 2500; // costo indicativo di una gradazione: una 9 o 10 vale almeno la carta più questo
 
 export function estimateGraded(list, lang, grade, opts = {}) {
   const g = Number(grade.g);

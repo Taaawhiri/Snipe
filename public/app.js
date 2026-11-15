@@ -572,6 +572,13 @@
       else if (!p.approx && p.skipped && p.skipped.length) lines.push(`Annuncio con la stessa combinazione della tua copia: il più basso affidabile. Ignorat${p.skipped.length > 1 ? 'i' : 'o'} ${p.skipped.map((c) => money(c)).join(' e ')}, molto sotto gli altri (circa ${money(p.skipRef)}): probabile errore, copia rovinata o svendita.`);
       else if (!p.approx) lines.push('Annuncio con la stessa combinazione della tua copia: il più basso.');
     }
+    // Copia gradata con annunci veri: confronto con la stessa carta non gradata più il costo indicativo della gradazione.
+    if (p.rawNm && isGradeLabel(it.cond) && !p.estimated && !p.cmCapped) {
+      const fee = 2500;
+      const ref = p.rawNm + fee;
+      const diff = p.cents / ref - 1;
+      lines.push(`Per confronto: la stessa carta non gradata (Near Mint) parte da ${money(p.rawNm)}; con una gradazione di circa ${money(fee)} sono ${money(ref)}. Questa copia è valutata ${money(p.cents)}, il ${Math.round(Math.abs(diff) * 100)}% ${diff >= 0 ? 'sopra' : 'sotto'}. Il premio di una slab cambia molto da carta a carta: è solo un riferimento, il valore resta il più basso tra gli annunci con lo stesso voto.`);
+    }
     if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
     if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
     if (p.cmCapped) dialog({ title: 'Come è calcolato', text: lines.join('\n\n'), ok: 'Torna a CardTrader', cancel: 'Chiudi' }).then((v) => { if (v) saveOwn({ ...it, cmPrice: false, add: false }); });

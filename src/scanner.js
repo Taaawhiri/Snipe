@@ -21,7 +21,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 13; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 14; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -482,6 +482,11 @@ export class Scanner extends DurableObject {
       const era = c.expansionId && vintageEra(Number(c.expansionId)) ? 'vintage' : 'modern';
       const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, reverse: !!c.reverse, ratios, era, reliable });
       prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
+      // Gradata con annunci veri: si tiene anche il prezzo della stessa carta non gradata (NM), per confronto nella spiegazione del valore.
+      if (pr && !pr.estimated && pr.listings > 0 && parseGradeLabel(c.cond)) {
+        const raw = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, 'Near Mint', { blocked, reliable });
+        if (raw && !raw.approx && raw.cents) prices[c.key].rawNm = raw.cents;
+      }
       // Prezzo precedente (per "cosa è cambiato"): si tiene quello di prima dell'ultimo cambio, per 24 ore.
       if (old && old.cents != null && pr) {
         const keys = ['cents', 'typCents', 'zeroCents', 'zeroTypCents'];
