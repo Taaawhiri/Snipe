@@ -574,10 +574,10 @@
     }
     // Copia gradata con annunci veri: confronto con la stessa carta non gradata più il costo indicativo della gradazione.
     if (p.rawNm && isGradeLabel(it.cond) && !p.estimated && !p.cmCapped) {
-      const fee = 2500;
+      const fee = p.feeCents != null ? p.feeCents : 2500; // costo di gradazione + spedizione dalle impostazioni
       const ref = p.rawNm + fee;
       const diff = p.cents / ref - 1;
-      lines.push(`Per confronto: la stessa carta non gradata (Near Mint) parte da ${money(p.rawNm)}; con una gradazione di circa ${money(fee)} sono ${money(ref)}. Questa copia è valutata ${money(p.cents)}, il ${Math.round(Math.abs(diff) * 100)}% ${diff >= 0 ? 'sopra' : 'sotto'}. Il premio di una slab cambia molto da carta a carta: è solo un riferimento, il valore resta il più basso tra gli annunci con lo stesso voto.`);
+      lines.push(`Per confronto: la stessa carta non gradata (Near Mint) parte da ${money(p.rawNm)}; con gradazione e spedizione (circa ${money(fee)}, modificabili in Opzioni) sono ${money(ref)}. Questa copia è valutata ${money(p.cents)}, il ${Math.round(Math.abs(diff) * 100)}% ${diff >= 0 ? 'sopra' : 'sotto'}. Il premio di una slab cambia molto da carta a carta: è solo un riferimento, il valore resta il più basso tra gli annunci con lo stesso voto.`);
     }
     if (p.notZero) lines.push('Nessun annuncio Zero adatto: prezzo tra tutti i venditori.');
     if (p.ts) lines.push(`Annunci letti: ${new Date(p.ts).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${p.v ? ` · calcolo v${p.v}` : ' · calcolo vecchio, in aggiornamento'}.`);
@@ -2685,6 +2685,15 @@
     if (free('setSummary')) $('setSummary').checked = s.summary !== false;
     if (free('setOrderAlerts')) $('setOrderAlerts').checked = s.orderAlerts !== false;
     if (free('setReminders')) $('setReminders').checked = s.reminders !== false;
+    // Costi di gradazione: un campo per società
+    const gf = s.gradeFees || {};
+    const feeBox = $('gradeFeeRows');
+    if (!feeBox.children.length) {
+      feeBox.replaceChildren(...['PSA', 'BGS', 'CGC', 'SGC', 'ACE', 'TAG', 'PCG'].map((co) => el('label', { class: 'gf-row' }, el('span', { text: co }),
+        el('input', { 'data-co': co, type: 'text', inputmode: 'decimal', 'aria-label': `Costo di gradazione ${co} in euro`, onchange: saveGradeFees }))));
+    }
+    for (const inp of feeBox.querySelectorAll('input')) if (document.activeElement !== inp) inp.value = gf[inp.dataset.co] != null ? String(gf[inp.dataset.co]).replace('.', ',') : '';
+    if (free('setGradeShip')) $('setGradeShip').value = s.gradeShip != null ? String(s.gradeShip).replace('.', ',') : '';
     if (free('setCollMin')) $('setCollMin').value = s.collMinCents ? String(s.collMinCents / 100).replace('.', ',') : '';
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
     if (free('setTo')) $('setTo').value = s.quietTo;
@@ -2709,6 +2718,13 @@
   $('setReminders').addEventListener('change', () => saveSettings({ reminders: $('setReminders').checked }));
   $('setOrderAlerts').addEventListener('change', () => saveSettings({ orderAlerts: $('setOrderAlerts').checked }));
   // Virgola o punto per i decimali vanno bene entrambi; + e − cambiano di 0,50 € (sotto lo zero si spegne).
+  const num = (v) => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) && n >= 0 ? n : null; };
+  function saveGradeFees() {
+    const fees = {};
+    for (const inp of $('gradeFeeRows').querySelectorAll('input')) { const n = num(inp.value); if (n != null) fees[inp.dataset.co] = n; }
+    saveSettings({ gradeFees: fees }).then(() => { coll = null; });
+  }
+  $('setGradeShip').addEventListener('change', () => { const n = num($('setGradeShip').value); if (n != null) saveSettings({ gradeShip: n }).then(() => { coll = null; }); });
   const saveCollMin = (v) => saveSettings({ collMinCents: Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0 }).then(() => { coll = null; });
   const collMinNow = () => { const v = parseFloat($('setCollMin').value.replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : 0; };
   $('setCollMin').addEventListener('change', () => saveCollMin(collMinNow()));

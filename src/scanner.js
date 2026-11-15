@@ -6,7 +6,7 @@ import { cheapestShipping } from './shipping.js';
 import { addPoint, currentLow, refWeekAgo } from './history.js';
 import { pickDue, pickData, slimProducts, slimSig } from './sources.js';
 import { DEAL_LANGS, DAY_RULE, bogusRef, dealsFromProducts, zeroDealsFromProducts } from './daydeals.js';
-import { checkAgainstHistory, cmCappable, collKey, gradedFromBase, isOutlierPrice, pickPrice, priceFor, summarize, useCmPrice } from './collection.js';
+import { checkAgainstHistory, cmCappable, collKey, gradedFromBase, gradingFeeCents, isOutlierPrice, pickPrice, priceFor, summarize, useCmPrice } from './collection.js';
 import { scoreRow } from './cardid.js';
 import { CM_PRICE_URL, cmEntry, maxCentsBelow, parsePriceGuide, shardOf, toShards } from './cardmarket.js';
 import { DEFAULT_SETTINGS, cleanSettings, isQuiet, localMinutes } from './settings.js';
@@ -21,7 +21,7 @@ import { expScore, mapRows, parseCsv } from './importcsv.js';
 import { matchesQuery, matchesRarity, matchesTerms, normText, packImg, queryTerms, relevance, splitQuery, unpackImg } from './search.js';
 
 const API = 'https://api.cardtrader.com/api/v2';
-const PRICE_V = 14; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
+const PRICE_V = 15; // versione del calcolo dei prezzi della collezione: cambiandola si ricalcolano tutti (es. stime delle gradate)
 const SCAN_EVERY_MS = 10_000; // CardTrader mette in cache leggermente le risposte: sotto i 10s non serve
 // Limiti CardTrader: 200 richieste/10s in totale, ma sul marketplace la documentazione cita anche
 // 1 richiesta al secondo. Restiamo prudenti: tutte le chiamate passano da un unico limitatore.
@@ -461,6 +461,13 @@ export class Scanner extends DurableObject {
   }
 
   /** Aggiorna i prezzi della collezione con gli annunci già letti e salva un punto al giorno del valore. */
+  /** Costi di gradazione per società in centesimi (costo + spedizione), dalle impostazioni. */
+  async gradeFeesCents() {
+    const s = await this.settings();
+    const ship = Number.isFinite(Number(s.gradeShip)) ? Number(s.gradeShip) : 0;
+    return Object.fromEntries(Object.entries(s.gradeFees || {}).map(([co, eur]) => [co, Math.round((Number(eur) + ship) * 100)]));
+  }
+
   async collectionPrices(force = false) {
     const coll = await this.get('coll', []);
     if (!coll.length) return;
@@ -469,6 +476,7 @@ export class Scanner extends DurableObject {
     const blocked = new Set((await this.get('sellers', { fav: [], block: [] })).block);
     const ratios = await this.marketRatios().catch(() => null);
     const reliable = (await this.settings()).collReliable !== false;
+    const gradeFees = await this.gradeFeesCents();
     const histTodo = [];
     let changed = false;
     for (const c of coll) {
@@ -480,12 +488,12 @@ export class Scanner extends DurableObject {
       const old = prices[c.key];
       if (!force && old && old.ts >= hit.ts && old.v === PRICE_V) continue;
       const era = c.expansionId && vintageEra(Number(c.expansionId)) ? 'vintage' : 'modern';
-      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, reverse: !!c.reverse, ratios, era, reliable });
+      const pr = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, c.cond, { blocked, first: !!c.first, reverse: !!c.reverse, ratios, era, reliable, gradeFees });
       prices[c.key] = pr ? { ...pr, ts: hit.ts, v: PRICE_V } : { cents: null, ts: hit.ts, v: PRICE_V };
       // Gradata con annunci veri: si tiene anche il prezzo della stessa carta non gradata (NM), per confronto nella spiegazione del valore.
       if (pr && !pr.estimated && pr.listings > 0 && parseGradeLabel(c.cond)) {
         const raw = priceFor(hit.data[c.bp] || hit.data[String(c.bp)], c.lang, 'Near Mint', { blocked, reliable });
-        if (raw && !raw.approx && raw.cents) prices[c.key].rawNm = raw.cents;
+        if (raw && !raw.approx && raw.cents) { prices[c.key].rawNm = raw.cents; prices[c.key].feeCents = gradingFeeCents(parseGradeLabel(c.cond).co, gradeFees); }
       }
       // Prezzo precedente (per "cosa è cambiato"): si tiene quello di prima dell'ultimo cambio, per 24 ore.
       if (old && old.cents != null && pr) {
@@ -534,7 +542,8 @@ export class Scanner extends DurableObject {
         if (!e || !e.trend) continue;
         const base = Math.round(e.trend * 100);
         const grade = parseGradeLabel(c.cond);
-        const cents = grade ? gradedFromBase(base, grade) : base;
+        const feeC = grade ? gradingFeeCents(grade.co, await this.gradeFeesCents()) : 0;
+        const cents = grade ? gradedFromBase(base, grade, feeC) : base;
         prices[c.key] = { cents, typCents: cents, approx: true, estimated: true, fromCm: true, rawCents: base, listings: 0, graded: grade ? c.cond : null, zeroCents: null, zeroTypCents: null, zeroApprox: null, ts: Date.now(), v: PRICE_V };
         changed = true;
       }
@@ -1030,7 +1039,9 @@ export class Scanner extends DurableObject {
 
     if (path === '/api/settings' && method === 'POST') {
       const next = cleanSettings(await req.json(), await this.settings());
+      const feesChanged = JSON.stringify(next.gradeFees) !== JSON.stringify((await this.settings()).gradeFees) || next.gradeShip !== (await this.settings()).gradeShip;
       await this.ctx.storage.put('settings', next);
+      if (feesChanged) { await this.collectionPrices(true).catch(() => null); } // i costi di gradazione cambiano le stime: si ricalcolano
       if (!next.paused) await this.ensureAlarm();
       return json(next);
     }

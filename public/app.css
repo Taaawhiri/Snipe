@@ -179,6 +179,10 @@ details.more[open] > summary { margin-bottom: 10px; }
 .alert-suggest[hidden] { display: none; }
 .alert-suggest b { display: block; font-size: 14px; }
 .alert-suggest small { display: block; color: var(--muted); font-size: 12px; }
+.grade-fees { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0; }
+.gf-row { display: flex; align-items: center; gap: 8px; }
+.gf-row span { min-width: 38px; font-weight: 800; color: var(--muted); font-size: 13px; }
+.gf-row input { flex: 1; min-width: 0; }
 .stepper { display: flex; gap: 8px; align-items: stretch; }
 .stepper input { flex: 1; min-width: 0; text-align: center; }
 .stepper .btn { min-width: 48px; font-size: 20px; padding: 0; }

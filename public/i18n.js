@@ -467,6 +467,8 @@
     "Giri degli alert": "Alert rounds", "Valutazione del prezzo": "Price appraisal",
     "adesso costa già poco: questo è il prezzo per un affare ancora migliore": "it already costs little now: this is the price for an even better deal",
     "⚠ anomalo": "⚠ unusual", "Prezzo anomalo": "Unusual price",
+    "Costi di gradazione": "Grading costs", "Spedizione, imballo e assicurazione per carta (€)": "Shipping, packing and insurance per card (€)",
+    "Servono per stimare il valore delle carte gradate quando non ci sono annunci con lo stesso voto, e per il confronto con la carta non gradata. Sono costi indicativi in euro (tariffa standard di fine 2026): i listini cambiano spesso, aggiornali qui.": "Used to estimate the value of graded cards when there are no listings with the same grade, and to compare with the raw card. They are indicative costs in euros (standard rate, late 2026): price lists change often, update them here.",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",

@@ -120,3 +120,13 @@ test('prezzo tipico con pochi annunci (gradate): vale il più basso, non la medi
   assert.equal(p.cents, 17063);
   assert.equal(p.typCents, 17063);
 });
+
+import { gradedFromBase, gradingFeeCents } from '../src/collection.js';
+test('stima gradata: usa il costo di gradazione della società', () => {
+  const base = 10000;
+  const psa = gradedFromBase(base, { co: 'PSA', g: '9' }, 8000);
+  const cgc = gradedFromBase(base, { co: 'CGC', g: '9' }, 6000);
+  assert.ok(psa >= base + 8000 && cgc >= base + 6000 * 0.85 - 1);
+  assert.equal(gradingFeeCents('PSA', { PSA: 8000 }), 8000);
+  assert.equal(gradingFeeCents('ACE', { PSA: 8000 }), 2500); // società senza costo: valore di riferimento
+});

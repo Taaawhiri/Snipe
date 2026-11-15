@@ -43,3 +43,15 @@ test('valore minimo in collezione: spento di default, solo numeri validi', () =>
   assert.equal(cleanSettings({ collMinCents: 'abc' }).collMinCents, 0);
   assert.equal(cleanSettings({}, { collMinCents: 200 }).collMinCents, 200);
 });
+
+test('costi di gradazione: valori di partenza, solo società note e numeri validi', () => {
+  const d = cleanSettings({});
+  assert.equal(d.gradeFees.PSA, 70);
+  assert.equal(d.gradeShip, 10);
+  const c = cleanSettings({ gradeFees: { PSA: '99,5x', BGS: 40.5, XXX: 5, CGC: -3 }, gradeShip: 12 }, d);
+  assert.equal(c.gradeFees.PSA, 70); // non valido: resta il valore di prima
+  assert.equal(c.gradeFees.BGS, 40.5);
+  assert.equal(c.gradeFees.CGC, 0); // negativo: si ferma a 0
+  assert.equal(c.gradeFees.XXX, undefined);
+  assert.equal(c.gradeShip, 12);
+});

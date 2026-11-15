@@ -11,13 +11,19 @@ export function collKey(bp, lang, cond, first = false, reverse = false) {
 export { isFirstEd, isReverse } from './ratios.js';
 
 /** Stima di una gradata da un prezzo di base (copia non gradata o tendenza Cardmarket). */
-export function gradedFromBase(base, grade) {
+/** Costo di gradazione (centesimi) per la società di un voto: dalle impostazioni dell'utente (gradeFees in centesimi, già con la spedizione), altrimenti il valore di riferimento. */
+export function gradingFeeCents(co, fees) {
+  const v = fees && fees[co];
+  return Number.isFinite(v) && v >= 0 ? v : GRADING_COST_CENTS;
+}
+
+export function gradedFromBase(base, grade, feeCents = GRADING_COST_CENTS) {
   const g = Number(grade.g);
   const f = GRADER_FACTOR[grade.co] || 0.75;
   let cents = Math.round(base * Math.max(1, (GRADE_MULT[grade.g] || 1) * f));
   // Una slab vale almeno la carta più una parte del costo di gradazione (più alta per i voti alti).
   const share = g >= 10 ? 1.6 : g >= 9.5 ? 1.3 : g >= 9 ? 1 : g >= 8.5 ? 0.8 : g >= 8 ? 0.7 : g >= 7.5 ? 0.6 : g >= 7 ? 0.5 : 0;
-  if (share) cents = Math.max(cents, base + Math.round(GRADING_COST_CENTS * share * f));
+  if (share) cents = Math.max(cents, base + Math.round(feeCents * share * f));
   return cents;
 }
 
@@ -70,8 +76,9 @@ export function estimateGraded(list, lang, grade, opts = {}) {
   // 3) Ultima risorsa: copie non gradate di altre lingue o condizioni.
   if (base == null && rawAny) { base = rawAny.cents; how = 'copie non gradate di altre lingue o condizioni'; }
   if (base == null) return null;
-  const cents = gradedFromBase(base, grade);
-  return { cents, typCents: cents, approx: true, estimated: true, rawCents: base, how, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
+  const feeCents = gradingFeeCents(grade.co, opts.gradeFees);
+  const cents = gradedFromBase(base, grade, feeCents);
+  return { cents, feeCents, typCents: cents, approx: true, estimated: true, rawCents: base, how, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
 }
 
 export function priceFor(list, lang, cond, opts = {}) {
