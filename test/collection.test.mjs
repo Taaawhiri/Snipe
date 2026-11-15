@@ -108,3 +108,8 @@ test('prezzi stratosferici: annunci parcheggiati non contano nel valore', () => 
   assert.equal(isOutlierPrice(1000064, { graded: true }), false); // le gradate possono valere molto
   assert.equal(isOutlierPrice(600000, {}), true); // oltre 5.000 € senza riferimenti
 });
+
+test('prezzi anomali: reverse, 1ª edizione e stime non si confrontano con Cardmarket', () => {
+  assert.equal(isOutlierPrice(10241, { cmCents: 221, comparable: false }), false); // reverse holo EX: vale molto più del prezzo generico
+  assert.equal(isOutlierPrice(10241, { cmCents: 221, comparable: true }), true);
+});

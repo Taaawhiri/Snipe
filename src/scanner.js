@@ -546,7 +546,7 @@ export class Scanner extends DurableObject {
       return { ...c, price, cmCents: cmC };
     });
     const minCents = Number((await this.settings()).collMinCents) || 0;
-    const live = (arr) => arr.filter((it) => !(it.price && it.price.cents != null && ((minCents > 0 && it.price.cents < minCents) || isOutlierPrice(it.price.cents, { cmCents: it.cmCents, paidCents: it.paidCents, graded: !!parseGradeLabel(it.cond) }))));
+    const live = (arr) => arr.filter((it) => !(it.price && it.price.cents != null && ((minCents > 0 && it.price.cents < minCents) || isOutlierPrice(it.price.cents, { cmCents: it.cmCents, paidCents: it.paidCents, graded: !!parseGradeLabel(it.cond), comparable: !it.reverse && !it.first && !(it.price.est || it.price.estimated || it.price.approx) }))));
     const items = base(false);
     const sum = summarize(live(items));
     const sumZero = summarize(live(base(true)));
@@ -620,7 +620,7 @@ export class Scanner extends DurableObject {
     const minCents = Number((await this.settings()).collMinCents) || 0;
     if (minCents > 0) for (const it of items) if (it.price && it.price.cents != null && it.price.cents < minCents) it.belowMin = true;
     // Prezzi assurdi (annuncio parcheggiato a 10.000 €): la copia resta in elenco, ma non entra nel valore.
-    for (const it of items) if (it.price && it.price.cents != null && !it.price.cmCapped && isOutlierPrice(it.price.cents, { cmCents: it.cmCents, paidCents: it.paidCents, graded: !!parseGradeLabel(it.cond) })) it.outlier = true;
+    for (const it of items) if (it.price && it.price.cents != null && !it.price.cmCapped && isOutlierPrice(it.price.cents, { cmCents: it.cmCents, paidCents: it.paidCents, graded: !!parseGradeLabel(it.cond), comparable: !it.reverse && !it.first && !(it.price.est || it.price.estimated || it.price.approx) })) it.outlier = true;
     const visible = items.filter((it) => !it.belowMin && !it.outlier);
     const hist = (await this.get('collHist', [])).slice(-plan.historyDays).map((h) => (zeroOnly ? { ...h, value: h.valueZero ?? null } : h));
     const reliable = (await this.settings()).collReliable !== false;

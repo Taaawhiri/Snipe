@@ -230,9 +230,11 @@ export function summarize(items) {
  * Con la tendenza Cardmarket: oltre 4 volte quella (e almeno 50 €). Senza: oltre 1.000 € e più di 100 volte quanto l'hai pagata,
  * oppure oltre 5.000 €. Le gradate sono escluse (possono valere molto davvero).
  */
-export function isOutlierPrice(cents, { cmCents = null, paidCents = null, graded = false } = {}) {
+export function isOutlierPrice(cents, { cmCents = null, paidCents = null, graded = false, comparable = true } = {}) {
   if (graded || !(cents > 0)) return false;
-  if (cmCents > 0) return cents > 4 * cmCents && cents >= 5000;
+  // Il prezzo Cardmarket è uno solo per carta: una reverse holo, una 1ª edizione o un valore stimato possono valere molto di più senza essere anomali.
+  if (cmCents > 0 && comparable) return cents > 4 * cmCents && cents >= 5000;
+  if (cmCents > 0) return cents >= 500000;
   if (cents >= 500000) return true;
   return cents >= 100000 && paidCents > 0 && cents > 100 * paidCents;
 }

@@ -488,7 +488,7 @@
               // STIMA ambra = calcolata con i rapporti di mercato; STIMA grigia = regole fisse, dati di mercato ancora insufficienti.
               isEstimate(it.price) ? el('button', { class: 'est-badge' + (it.price.est ? '' : ' fallback'), type: 'button', title: 'Valore stimato: tocca per sapere come', text: 'STIMA', onclick: () => explainPrice(it) }) : null,
               el('b', { class: it.outlier ? 'outlier-price' : '', text: it.price ? `${isEstimate(it.price) ? '≈ ' : ''}${money(it.price.cents * it.qty)}` : it.noListings ? '—' : '…' })),
-            it.outlier ? el('button', { class: 's linklike', type: 'button', text: '⚠ prezzo anomalo: non conta nel valore', onclick: () => dialog({ title: 'Prezzo anomalo', text: `L’annuncio più basso su CardTrader per questa carta è ${money(it.price.cents)}: una cifra così lontana dal valore reale di solito è un annuncio “parcheggiato”. Per questo la copia resta in elenco ma non viene contata nel valore della collezione né nel guadagno.` }) }) : null,
+            it.outlier ? el('button', { class: 's linklike', type: 'button', text: '⚠ anomalo', title: 'Prezzo anomalo: non conta nel valore', onclick: () => dialog({ title: 'Prezzo anomalo', text: `L’annuncio più basso su CardTrader per questa carta è ${money(it.price.cents)}: una cifra così lontana dal valore reale di solito è un annuncio “parcheggiato”. Per questo la copia resta in elenco ma non viene contata nel valore della collezione né nel guadagno.` }) }) : null,
             it.qty > 1 && it.price ? el('span', { class: 's', text: `${money(it.price.cents)} l'una` }) : null,
             gainPill(it),
             miniSpark(it.spark30),
