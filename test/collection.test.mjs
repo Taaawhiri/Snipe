@@ -130,3 +130,29 @@ test('stima gradata: usa il costo di gradazione della società', () => {
   assert.equal(gradingFeeCents('PSA', { PSA: 8000 }), 8000);
   assert.equal(gradingFeeCents('ACE', { PSA: 8000 }), 2500); // società senza costo: valore di riferimento
 });
+
+import { cardTier } from '../src/collection.js';
+test('tipo di carta dalla rarità', () => {
+  assert.equal(cardTier('Charizard ex (Special Illustration Rare | 199/165)'), 'chase');
+  assert.equal(cardTier('Umbreon (Hyper Rare)'), 'chase');
+  assert.equal(cardTier('Pikachu (Illustration Rare | 075/066)'), 'mid');
+  assert.equal(cardTier('Charizard (Holo Rare | 4/102)'), 'mid');
+  assert.equal(cardTier('Pidgey (Common | 16/102)'), 'common');
+  assert.equal(cardTier('Mew ex (SVP 053)'), 'mid');
+});
+
+test('gradata: annuncio molto più alto della stima → vale la stima; vicino → vale l\'annuncio', () => {
+  const raw = (c, u) => ({ ...L(c, 'en', 'Near Mint'), user: { username: u, can_sell_via_hub: false } });
+  const G = (cents, u) => ({ quantity: 1, price: { cents }, properties_hash: { condition: 'Near Mint', pokemon_language: 'en' }, description: 'PSA 9', user: { username: u, can_sell_via_hub: false } });
+  const fees = { PSA: 4000 };
+  // carta non gradata a 100 €: stima PSA 9 intermedia = max(100×1,4, 100+40) = 140 €
+  const far = priceFor([raw(10000, 'r'), G(51688, 'a'), G(51688, 'b')], 'en', 'PSA 9', { gradeFees: fees, premium: 1 });
+  assert.equal(far.cents, 14000);
+  assert.ok(far.hybrid && far.hybrid.listing === 51688);
+  const near = priceFor([raw(10000, 'r'), G(17063, 'a'), G(51688, 'b')], 'en', 'PSA 9', { gradeFees: fees, premium: 1 });
+  assert.equal(near.cents, 17063); // 170 € ≤ 1,6 × 140 € = 224 €
+  assert.equal(near.hybrid, undefined);
+  // una chase ha un premio più alto: la stessa carta a 100 € vale più
+  const chase = priceFor([raw(10000, 'r'), G(51688, 'a')], 'en', 'PSA 9', { gradeFees: fees, premium: 1.6 });
+  assert.ok(chase.cents > 14000 && chase.cents < 51688 / 1.6 + 1);
+});

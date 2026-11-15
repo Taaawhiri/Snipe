@@ -357,6 +357,12 @@
         <h2>Costi di gradazione</h2>
         <p class="muted small">Servono per stimare il valore delle carte gradate quando non ci sono annunci con lo stesso voto, e per il confronto con la carta non gradata. Sono costi indicativi in euro (tariffa standard di fine 2026): i listini cambiano spesso, aggiornali qui.</p>
         <div id="gradeFeeRows" class="grade-fees"></div>
+        <p class="muted small">Premio del voto per tipo di carta (1 = moltiplicatori base: PSA 9 ×1,4, PSA 10 ×2,5). Le chase (SIR, SAR, Hyper/Secret Rare, oro) valgono molto di più gradate; le comuni molto meno.</p>
+        <div class="grade-fees">
+          <label class="gf-row"><span>Chase</span><input id="setPremChase" type="text" inputmode="decimal" aria-label="Premio chase"></label>
+          <label class="gf-row"><span>Media</span><input id="setPremMid" type="text" inputmode="decimal" aria-label="Premio carte intermedie"></label>
+          <label class="gf-row"><span>Comune</span><input id="setPremCommon" type="text" inputmode="decimal" aria-label="Premio carte comuni"></label>
+        </div>
         <div class="field">
           <label for="setGradeShip">Spedizione, imballo e assicurazione per carta (€)</label>
           <input id="setGradeShip" type="text" inputmode="decimal">

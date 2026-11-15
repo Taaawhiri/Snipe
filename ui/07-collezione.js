@@ -63,6 +63,11 @@
     if (p.cmCapped) {
       lines.push(`Hai scelto di usare la tendenza Cardmarket per questa copia: ${money(p.cents)}. Su CardTrader ci sono pochi annunci e il più basso è ${money(p.ctCents)}.`);
       lines.push('Attenzione: il prezzo Cardmarket è uno solo per carta e NON dipende dalla condizione né dalla lingua della tua copia. È solo un riferimento indicativo.');
+    } else if (p.hybrid) {
+      const TL = { chase: 'chase (SIR, SAR, Secret…)', mid: 'intermedia', common: 'comune' };
+      lines.push(`L'annuncio più basso con questo voto (${it.cond}) è ${money(p.hybrid.listing)}, oltre ${String(p.hybrid.ratio).replace('.', ',')} volte la stima di mercato (${money(p.hybrid.est)}): non lo considero un prezzo di mercato, quindi il valore è la stima.`);
+      lines.push(`Stima: carta non gradata ${isGradeLabel(it.cond) ? 'Near Mint' : ''} da ${money(p.rawCents)} × premio del voto${p.tier ? ` (tipo carta ${TL[p.tier] || p.tier}, scala ×${String(p.premium).replace('.', ',')})` : ''}, e mai meno della carta più gradazione e spedizione (${money(p.feeCents != null ? p.feeCents : 2500)}). Costi e scale si cambiano in Opzioni.`);
+      lines.push(`Gli annunci con questo voto sono ${p.hybrid.listings}: se la slab vale davvero quanto l'annuncio, puoi fidarti dell'annuncio e cambiare la scala del tipo di carta in Opzioni.`);
     } else if (p.est && p.est.from) {
       const f = p.est.from;
       lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
@@ -102,6 +107,7 @@
     const p = it.price;
     if (!p) return null;
     const text = p.cmCapped ? '≈ Cardmarket (generico)'
+      : p.hybrid ? '≈ stima (annunci troppo alti)'
       : p.est ? '≈ stima di mercato'
       : p.estimated ? (p.fromCm ? '≈ Cardmarket (generico)' : '≈ stima dal voto')
       : p.revApprox ? '≈ altra variante'

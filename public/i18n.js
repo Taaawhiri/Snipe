@@ -469,6 +469,8 @@
     "⚠ anomalo": "⚠ unusual", "Prezzo anomalo": "Unusual price",
     "Costi di gradazione": "Grading costs", "Spedizione, imballo e assicurazione per carta (€)": "Shipping, packing and insurance per card (€)",
     "Servono per stimare il valore delle carte gradate quando non ci sono annunci con lo stesso voto, e per il confronto con la carta non gradata. Sono costi indicativi in euro (tariffa standard di fine 2026): i listini cambiano spesso, aggiornali qui.": "Used to estimate the value of graded cards when there are no listings with the same grade, and to compare with the raw card. They are indicative costs in euros (standard rate, late 2026): price lists change often, update them here.",
+    "Premio del voto per tipo di carta (1 = moltiplicatori base: PSA 9 ×1,4, PSA 10 ×2,5). Le chase (SIR, SAR, Hyper/Secret Rare, oro) valgono molto di più gradate; le comuni molto meno.": "Grade premium by card type (1 = base multipliers: PSA 9 ×1.4, PSA 10 ×2.5). Chase cards (SIR, SAR, Hyper/Secret Rare, gold) are worth much more graded; commons much less.",
+    "Chase": "Chase", "Media": "Medium", "Comune": "Common", "≈ stima (annunci troppo alti)": "≈ estimate (listings too high)",
     "Notifiche push spente": "Push notifications off",
     "Nessun dispositivo iscritto: gli avvisi compaiono solo nell'app. Tocca per attivarle.": "No device subscribed: alerts only show up in the app. Tap to turn them on.",
     "Valore minimo in collezione": "Minimum value in collection",

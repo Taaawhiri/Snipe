@@ -17,10 +17,25 @@ export function gradingFeeCents(co, fees) {
   return Number.isFinite(v) && v >= 0 ? v : GRADING_COST_CENTS;
 }
 
-export function gradedFromBase(base, grade, feeCents = GRADING_COST_CENTS) {
+/**
+ * Tipo di carta dalla rarità (o dal nome): "chase" (SIR, SAR, Hyper/Secret Rare, oro), "common" (comune, non comune, rare, reverse)
+ * o "mid" (tutto il resto: AR, Ultra Rare, Holo Rare, ex…). Il premio di una slab è molto più alto su una chase.
+ */
+export function cardTier(text) {
+  const t = String(text || '');
+  if (/special illustration|special art|\bsir\b|\bsar\b|hyper rare|secret rare|rainbow|gold|mega hyper|black white rare/i.test(t)) return 'chase';
+  if (/illustration rare|art rare|ultra rare|double rare|holo rare|\bex\b|\bgx\b|vmax|vstar|\bv\b|full art|shiny|radiant|ace spec|promo|amazing/i.test(t)) return 'mid';
+  if (/\buncommon\b|\bcommon\b|\brare\b|reverse/i.test(t)) return 'common';
+  return 'mid';
+}
+export const DEFAULT_GRADE_PREMIUM = { chase: 1.6, mid: 1, common: 0.5 }; // scala del premio del voto: 1 = moltiplicatori di base
+export const GRADED_LISTING_MAX_RATIO = 1.6; // un annuncio gradato oltre 1,6 volte la stima non conta come prezzo di mercato
+
+export function gradedFromBase(base, grade, feeCents = GRADING_COST_CENTS, scale = 1) {
   const g = Number(grade.g);
   const f = GRADER_FACTOR[grade.co] || 0.75;
-  let cents = Math.round(base * Math.max(1, (GRADE_MULT[grade.g] || 1) * f));
+  const m = 1 + ((GRADE_MULT[grade.g] || 1) - 1) * scale; // il premio sul prezzo di base cresce con la scala del tipo di carta
+  let cents = Math.round(base * Math.max(1, m * f));
   // Una slab vale almeno la carta più una parte del costo di gradazione (più alta per i voti alti).
   const share = g >= 10 ? 1.6 : g >= 9.5 ? 1.3 : g >= 9 ? 1 : g >= 8.5 ? 0.8 : g >= 8 ? 0.7 : g >= 7.5 ? 0.6 : g >= 7 ? 0.5 : 0;
   if (share) cents = Math.max(cents, base + Math.round(feeCents * share * f));
@@ -77,8 +92,9 @@ export function estimateGraded(list, lang, grade, opts = {}) {
   if (base == null && rawAny) { base = rawAny.cents; how = 'copie non gradate di altre lingue o condizioni'; }
   if (base == null) return null;
   const feeCents = gradingFeeCents(grade.co, opts.gradeFees);
-  const cents = gradedFromBase(base, grade, feeCents);
-  return { cents, feeCents, typCents: cents, approx: true, estimated: true, rawCents: base, how, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
+  const scale = Number.isFinite(opts.premium) ? opts.premium : 1;
+  const cents = gradedFromBase(base, grade, feeCents, scale);
+  return { cents, feeCents, premium: scale, tier: opts.tier || null, typCents: cents, approx: true, estimated: true, rawCents: base, how, listings: 0, graded: `${grade.co} ${grade.g}`, zeroCents: null, zeroTypCents: null, zeroApprox: null };
 }
 
 export function priceFor(list, lang, cond, opts = {}) {
@@ -130,6 +146,18 @@ export function priceFor(list, lang, cond, opts = {}) {
   if (exact.length) {
     const all = stats(exact);
     const zero = stats(exact.filter(isZero)); // nessuno Zero giusto: pickPrice usa il prezzo di tutti, segnato "non Zero"
+    // Gradata: si incrocia con la stima (carta non gradata + premio del voto + costo di gradazione). Se l'annuncio più basso è molto
+    // più alto della stima (oltre 1,6 volte) non è un prezzo di mercato: vale la stima, e si ricorda l'annuncio.
+    if (grade && opts.ratios !== false) {
+      const est = estimateGraded(list, lang, grade, opts);
+      if (est && /^copia non gradata/.test(est.how || '') && all.low > GRADED_LISTING_MAX_RATIO * est.cents) {
+        return {
+          cents: est.cents, typCents: est.cents, zeroCents: est.cents, zeroTypCents: est.cents, zeroApprox: true,
+          approx: true, estimated: true, hybrid: { listing: all.low, est: est.cents, listings: exact.length, ratio: GRADED_LISTING_MAX_RATIO },
+          rawCents: est.rawCents, feeCents: est.feeCents, premium: est.premium, tier: est.tier, how: est.how, listings: exact.length, graded: label,
+        };
+      }
+    }
     return {
       cents: all.low, typCents: all.typ, approx: revApprox, edApprox: false, revApprox, lowLang: want || '', listings: exact.length, graded: label,
       skipped: all.skipped.length ? all.skipped : undefined, skipRef: all.skipped.length ? all.ref : undefined,

@@ -552,6 +552,11 @@
     if (p.cmCapped) {
       lines.push(`Hai scelto di usare la tendenza Cardmarket per questa copia: ${money(p.cents)}. Su CardTrader ci sono pochi annunci e il più basso è ${money(p.ctCents)}.`);
       lines.push('Attenzione: il prezzo Cardmarket è uno solo per carta e NON dipende dalla condizione né dalla lingua della tua copia. È solo un riferimento indicativo.');
+    } else if (p.hybrid) {
+      const TL = { chase: 'chase (SIR, SAR, Secret…)', mid: 'intermedia', common: 'comune' };
+      lines.push(`L'annuncio più basso con questo voto (${it.cond}) è ${money(p.hybrid.listing)}, oltre ${String(p.hybrid.ratio).replace('.', ',')} volte la stima di mercato (${money(p.hybrid.est)}): non lo considero un prezzo di mercato, quindi il valore è la stima.`);
+      lines.push(`Stima: carta non gradata ${isGradeLabel(it.cond) ? 'Near Mint' : ''} da ${money(p.rawCents)} × premio del voto${p.tier ? ` (tipo carta ${TL[p.tier] || p.tier}, scala ×${String(p.premium).replace('.', ',')})` : ''}, e mai meno della carta più gradazione e spedizione (${money(p.feeCents != null ? p.feeCents : 2500)}). Costi e scale si cambiano in Opzioni.`);
+      lines.push(`Gli annunci con questo voto sono ${p.hybrid.listings}: se la slab vale davvero quanto l'annuncio, puoi fidarti dell'annuncio e cambiare la scala del tipo di carta in Opzioni.`);
     } else if (p.est && p.est.from) {
       const f = p.est.from;
       lines.push(`Nessun annuncio uguale alla tua copia (${[it.first ? '1ª ed.' : '', it.reverse ? 'Reverse' : '', isGradeLabel(it.cond) ? it.cond : condShort(it.cond), (it.lang || '').toUpperCase()].filter(Boolean).join(' · ')}).`);
@@ -591,6 +596,7 @@
     const p = it.price;
     if (!p) return null;
     const text = p.cmCapped ? '≈ Cardmarket (generico)'
+      : p.hybrid ? '≈ stima (annunci troppo alti)'
       : p.est ? '≈ stima di mercato'
       : p.estimated ? (p.fromCm ? '≈ Cardmarket (generico)' : '≈ stima dal voto')
       : p.revApprox ? '≈ altra variante'
@@ -2693,6 +2699,8 @@
         el('input', { 'data-co': co, type: 'text', inputmode: 'decimal', 'aria-label': `Costo di gradazione ${co} in euro`, onchange: saveGradeFees }))));
     }
     for (const inp of feeBox.querySelectorAll('input')) if (document.activeElement !== inp) inp.value = gf[inp.dataset.co] != null ? String(gf[inp.dataset.co]).replace('.', ',') : '';
+    const gp = s.gradePremium || {};
+    for (const [id, k] of [['setPremChase', 'chase'], ['setPremMid', 'mid'], ['setPremCommon', 'common']]) if (free(id)) $(id).value = gp[k] != null ? String(gp[k]).replace('.', ',') : '';
     if (free('setGradeShip')) $('setGradeShip').value = s.gradeShip != null ? String(s.gradeShip).replace('.', ',') : '';
     if (free('setCollMin')) $('setCollMin').value = s.collMinCents ? String(s.collMinCents / 100).replace('.', ',') : '';
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
@@ -2724,6 +2732,12 @@
     for (const inp of $('gradeFeeRows').querySelectorAll('input')) { const n = num(inp.value); if (n != null) fees[inp.dataset.co] = n; }
     saveSettings({ gradeFees: fees }).then(() => { coll = null; });
   }
+  const savePremium = () => {
+    const p = {};
+    for (const [id, k] of [['setPremChase', 'chase'], ['setPremMid', 'mid'], ['setPremCommon', 'common']]) { const n = num($(id).value); if (n != null && n > 0) p[k] = n; }
+    saveSettings({ gradePremium: p }).then(() => { coll = null; });
+  };
+  for (const id of ['setPremChase', 'setPremMid', 'setPremCommon']) $(id).addEventListener('change', savePremium);
   $('setGradeShip').addEventListener('change', () => { const n = num($('setGradeShip').value); if (n != null) saveSettings({ gradeShip: n }).then(() => { coll = null; }); });
   const saveCollMin = (v) => saveSettings({ collMinCents: Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0 }).then(() => { coll = null; });
   const collMinNow = () => { const v = parseFloat($('setCollMin').value.replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : 0; };

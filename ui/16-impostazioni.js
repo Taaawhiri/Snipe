@@ -148,6 +148,8 @@
         el('input', { 'data-co': co, type: 'text', inputmode: 'decimal', 'aria-label': `Costo di gradazione ${co} in euro`, onchange: saveGradeFees }))));
     }
     for (const inp of feeBox.querySelectorAll('input')) if (document.activeElement !== inp) inp.value = gf[inp.dataset.co] != null ? String(gf[inp.dataset.co]).replace('.', ',') : '';
+    const gp = s.gradePremium || {};
+    for (const [id, k] of [['setPremChase', 'chase'], ['setPremMid', 'mid'], ['setPremCommon', 'common']]) if (free(id)) $(id).value = gp[k] != null ? String(gp[k]).replace('.', ',') : '';
     if (free('setGradeShip')) $('setGradeShip').value = s.gradeShip != null ? String(s.gradeShip).replace('.', ',') : '';
     if (free('setCollMin')) $('setCollMin').value = s.collMinCents ? String(s.collMinCents / 100).replace('.', ',') : '';
     if (free('setFrom')) $('setFrom').value = s.quietFrom;
@@ -179,6 +181,12 @@
     for (const inp of $('gradeFeeRows').querySelectorAll('input')) { const n = num(inp.value); if (n != null) fees[inp.dataset.co] = n; }
     saveSettings({ gradeFees: fees }).then(() => { coll = null; });
   }
+  const savePremium = () => {
+    const p = {};
+    for (const [id, k] of [['setPremChase', 'chase'], ['setPremMid', 'mid'], ['setPremCommon', 'common']]) { const n = num($(id).value); if (n != null && n > 0) p[k] = n; }
+    saveSettings({ gradePremium: p }).then(() => { coll = null; });
+  };
+  for (const id of ['setPremChase', 'setPremMid', 'setPremCommon']) $(id).addEventListener('change', savePremium);
   $('setGradeShip').addEventListener('change', () => { const n = num($('setGradeShip').value); if (n != null) saveSettings({ gradeShip: n }).then(() => { coll = null; }); });
   const saveCollMin = (v) => saveSettings({ collMinCents: Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0 }).then(() => { coll = null; });
   const collMinNow = () => { const v = parseFloat($('setCollMin').value.replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : 0; };
