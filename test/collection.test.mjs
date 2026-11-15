@@ -48,7 +48,7 @@ test('prezzo tipico e venditori esclusi', () => {
   assert.deepEqual(p.skipped, [100]);
   assert.equal(p.typCents, 1100); // mediana di 100, 1000, 1100, 1200, 1300
   assert.equal(pickPrice(p, false, true).cents, 1100);
-  assert.equal(pickPrice(p, true, true).cents, 3150);
+  assert.equal(pickPrice(p, true, true).cents, 1300); // solo 2 annunci Zero: con meno di 5 il tipico è il più basso (la mediana di 1300 e 5000 non direbbe niente)
   const noFurbo = priceFor(list, 'en', 'Near Mint', { blocked: new Set(['furbo']) });
   assert.equal(noFurbo.cents, 1000);
 });
@@ -112,4 +112,11 @@ test('prezzi stratosferici: annunci parcheggiati non contano nel valore', () => 
 test('prezzi anomali: reverse, 1ª edizione e stime non si confrontano con Cardmarket', () => {
   assert.equal(isOutlierPrice(10241, { cmCents: 221, comparable: false }), false); // reverse holo EX: vale molto più del prezzo generico
   assert.equal(isOutlierPrice(10241, { cmCents: 221, comparable: true }), true);
+});
+
+test('prezzo tipico con pochi annunci (gradate): vale il più basso, non la mediana alta', () => {
+  const G = (cents, user) => ({ quantity: 1, price: { cents }, properties_hash: { condition: 'Near Mint', pokemon_language: 'en' }, description: 'PSA 9', user: { username: user, can_sell_via_hub: false } });
+  const p = priceFor([G(17063, 'a'), G(51688, 'b'), G(51688, 'c')], 'en', 'PSA 9', {});
+  assert.equal(p.cents, 17063);
+  assert.equal(p.typCents, 17063);
 });

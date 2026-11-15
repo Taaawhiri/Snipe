@@ -112,7 +112,10 @@ export function priceFor(list, lang, cond, opts = {}) {
     }
     const rest = arr.slice(i);
     const ref = skipped.length ? median(rest.slice(0, 3).map((p) => p.price.cents)) : null;
-    return { low: rest[0].price.cents, typ: median(arr.slice(0, TYPICAL_N).map((p) => p.price.cents)), skipped, ref };
+    // Prezzo "tipico" = mediana dei 5 più bassi, ma solo con almeno 5 annunci: con 3 o 4 (tipico delle gradate) la mediana
+    // cade sui prezzi alti (es. 170 €, 516 €, 516 € → 516 €) e non descrive il mercato; in quel caso vale il più basso affidabile.
+    const typ = arr.length >= TYPICAL_N ? median(arr.slice(0, TYPICAL_N).map((p) => p.price.cents)) : rest[0].price.cents;
+    return { low: rest[0].price.cents, typ, skipped, ref };
   };
 
   // 1) Combinazione esatta (lingua, condizione o voto, edizione): il prezzo vero, il più basso.
